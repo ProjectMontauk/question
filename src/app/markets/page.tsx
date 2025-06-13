@@ -7,6 +7,17 @@ import { prepareContractCall } from "thirdweb";
 import { tokenContract, marketContract } from "../../../constants/contracts";
 const LmLSMR_CONTRACT_ADDRESS = "0x03d7fa2716c0ff897000e1dcafdd6257ecce943a";
 import { formatOdds } from "../../utils/formatOdds";
+import { Tab } from "@headlessui/react";
+
+// Helper to extract domain from URL
+function getDomain(url: string) {
+  try {
+    const { hostname } = new URL(url);
+    return hostname.replace(/^www\./, '');
+  } catch {
+    return url;
+  }
+}
 
 export default function MarketsPage() {
   const account = useActiveAccount();
@@ -163,11 +174,85 @@ export default function MarketsPage() {
     });
   };
 
+  // Evidence data state
+  const [yesEvidence, setYesEvidence] = useState([
+    {
+      id: 1,
+      title: "Researchers find that the cloth is approximately 2000 years old (independent.co.uk)",
+      url: "",
+      content:
+        "Italian researchers date the Shroud of Turin to 2000 years ago, meaning that the cloth existed during the time of Jesus. This dismisses previous research that held the cloth was a medieval forgery.",
+      upvotes: 0,
+      downvotes: 0,
+    },
+  ]);
+  const [noEvidence, setNoEvidence] = useState([
+    {
+      id: 1,
+      title: "No evidence found for claim (example.com)",
+      url: "",
+      content:
+        "Multiple studies have failed to find any credible evidence supporting the claim. The majority of experts agree that the available data does not support the assertion.",
+      upvotes: 0,
+      downvotes: 0,
+    },
+  ]);
+
+  // State for submit document form
+  const [evidenceType, setEvidenceType] = useState<'yes' | 'no'>('yes');
+  const [title, setTitle] = useState('');
+  const [url, setUrl] = useState('');
+  const [text, setText] = useState('');
+
+  // Handle submit document
+  const handleSubmitDocument = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!title.trim() && !url.trim() && !text.trim()) return;
+    const newEvidence = {
+      id: Date.now(),
+      title: title.trim(),
+      url: url.trim(),
+      content: text.trim(),
+      upvotes: 0,
+      downvotes: 0,
+    };
+    if (evidenceType === 'yes') {
+      setYesEvidence(prev => [newEvidence, ...prev]);
+    } else {
+      setNoEvidence(prev => [newEvidence, ...prev]);
+    }
+    setTitle('');
+    setUrl('');
+    setText('');
+    setEvidenceType('yes');
+  };
+
+  // Add handler functions for upvote and downvote
+  const handleUpvote = (id: number, type: 'yes' | 'no') => {
+    if (type === 'yes') {
+      setYesEvidence(prev => prev.map(ev => ev.id === id ? { ...ev, upvotes: ev.upvotes + 1 } : ev));
+    } else {
+      setNoEvidence(prev => prev.map(ev => ev.id === id ? { ...ev, upvotes: ev.upvotes + 1 } : ev));
+    }
+  };
+  const handleDownvote = (id: number, type: 'yes' | 'no') => {
+    if (type === 'yes') {
+      setYesEvidence(prev => prev.map(ev => ev.id === id ? { ...ev, downvotes: ev.downvotes + 1 } : ev));
+    } else {
+      setNoEvidence(prev => prev.map(ev => ev.id === id ? { ...ev, downvotes: ev.downvotes + 1 } : ev));
+    }
+  };
+
+  // Before rendering yesEvidence and noEvidence, sort them by net votes descending
+  const sortedYesEvidence = [...yesEvidence].sort((a, b) => (b.upvotes - b.downvotes) - (a.upvotes - a.downvotes));
+  const sortedNoEvidence = [...noEvidence].sort((a, b) => (b.upvotes - b.downvotes) - (a.upvotes - a.downvotes));
+
   return (
     <div>
       <Navbar />
-      <div className="min-h-screen bg-[#f8f9fa] flex justify-center items-start pt-8 w-full">
-        <div className="bg-white rounded-xl shadow border border-gray-200 p-8 flex flex-col min-h-[500px] max-w-5xl w-full mx-auto">
+      <div className="min-h-screen bg-[#f8f9fa] flex flex-col items-center pt-8 w-full">
+        {/* Prediction Market Card */}
+        <div className="bg-white rounded-xl shadow border border-gray-200 p-8 flex flex-col min-h-[500px] max-w-5xl w-full mx-auto mb-10">
           <h1 className="text-xl font-bold text-[#171A22] mb-4">Did the CIA aid in the planning or execution of John F. Kennedy's Assassination?</h1>
           <div className="flex flex-col items-start mb-8">
             <button
@@ -274,6 +359,219 @@ export default function MarketsPage() {
               <span className={showRules ? "rotate-180" : ""}>▼</span>
             </button>
           </div>
+        </div>
+
+        {/* Evidence Section Card */}
+        <div className="bg-white rounded-xl shadow border border-gray-200 p-8 max-w-5xl w-full mx-auto">
+          <h2 className="text-2xl font-bold mb-6 text-[#171A22]">Evidence</h2>
+          <Tab.Group>
+            <Tab.List className="flex space-x-2 mb-6">
+              <Tab
+                className={({ selected }: { selected: boolean }) =>
+                  `px-6 py-2 rounded-lg font-medium text-sm transition focus:outline-none ${selected ? "bg-gray-100 text-[#171A22]" : "bg-white text-gray-500 border border-gray-200"}`
+                }
+              >
+                View "Yes" Documents
+              </Tab>
+              <Tab
+                className={({ selected }: { selected: boolean }) =>
+                  `px-6 py-2 rounded-lg font-medium text-sm transition focus:outline-none ${selected ? "bg-gray-100 text-[#171A22]" : "bg-white text-gray-500 border border-gray-200"}`
+                }
+              >
+                View "No" Documents
+              </Tab>
+              <Tab
+                className={({ selected }: { selected: boolean }) =>
+                  `px-6 py-2 rounded-lg font-medium text-sm transition focus:outline-none ${selected ? "bg-gray-100 text-[#171A22]" : "bg-white text-gray-500 border border-gray-200"}`
+                }
+              >
+                Submit Document
+              </Tab>
+            </Tab.List>
+            <Tab.Panels>
+              {/* Yes Documents Tab */}
+              <Tab.Panel>
+                {sortedYesEvidence.length === 0 ? (
+                  <div className="text-gray-500">No evidence submitted yet.</div>
+                ) : (
+                  sortedYesEvidence.map((evidence, idx) => (
+                    <div
+                      key={evidence.id}
+                      className="mb-6 border rounded-lg p-6 bg-white shadow-sm border-gray-200"
+                    >
+                      <div className="flex">
+                        {/* Voting column */}
+                        <div className="flex flex-col items-center mr-4 select-none">
+                          <button
+                            className="text-green-600 hover:text-green-800 text-base p-0 mb-1"
+                            onClick={() => handleUpvote(evidence.id, 'yes')}
+                            aria-label="Upvote"
+                            type="button"
+                          >
+                            <span style={{fontSize: '1.01em'}}>↑</span>
+                          </button>
+                          <div className="bg-red-500 text-white rounded-full px-1.5 py-0.5 text-xs font-semibold mb-1" style={{minWidth: '1.48rem', textAlign: 'center'}}>
+                            {evidence.upvotes - evidence.downvotes}
+                          </div>
+                          <button
+                            className="text-red-600 hover:text-red-800 text-base p-0"
+                            onClick={() => handleDownvote(evidence.id, 'yes')}
+                            aria-label="Downvote"
+                            type="button"
+                          >
+                            <span style={{fontSize: '1.01em'}}>↓</span>
+                          </button>
+                        </div>
+                        {/* Evidence content */}
+                        <div className="flex-1">
+                          <div className="flex items-center mb-2">
+                            <span className="text-lg font-semibold mr-2">#{idx + 1}</span>
+                            {evidence.url ? (
+                              <a
+                                href={evidence.url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-lg font-bold text-[#171A22] hover:underline"
+                              >
+                                {evidence.title} ({getDomain(evidence.url)})
+                              </a>
+                            ) : (
+                              <span className="text-lg font-bold text-[#171A22]">{evidence.title}</span>
+                            )}
+                          </div>
+                          <div className="text-gray-600 mb-2">{evidence.content}</div>
+                        </div>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </Tab.Panel>
+              {/* No Documents Tab */}
+              <Tab.Panel>
+                {sortedNoEvidence.length === 0 ? (
+                  <div className="text-gray-500">No evidence submitted yet.</div>
+                ) : (
+                  sortedNoEvidence.map((evidence, idx) => (
+                    <div
+                      key={evidence.id}
+                      className="mb-6 border rounded-lg p-6 bg-white shadow-sm border-gray-200"
+                    >
+                      <div className="flex">
+                        {/* Voting column */}
+                        <div className="flex flex-col items-center mr-4 select-none">
+                          <button
+                            className="text-green-600 hover:text-green-800 text-base p-0 mb-1"
+                            onClick={() => handleUpvote(evidence.id, 'no')}
+                            aria-label="Upvote"
+                            type="button"
+                          >
+                            <span style={{fontSize: '1.01em'}}>↑</span>
+                          </button>
+                          <div className="bg-red-500 text-white rounded-full px-1.5 py-0.5 text-xs font-semibold mb-1" style={{minWidth: '1.48rem', textAlign: 'center'}}>
+                            {evidence.upvotes - evidence.downvotes}
+                          </div>
+                          <button
+                            className="text-red-600 hover:text-red-800 text-base p-0"
+                            onClick={() => handleDownvote(evidence.id, 'no')}
+                            aria-label="Downvote"
+                            type="button"
+                          >
+                            <span style={{fontSize: '1.01em'}}>↓</span>
+                          </button>
+                        </div>
+                        {/* Evidence content */}
+                        <div className="flex-1">
+                          <div className="flex items-center mb-2">
+                            <span className="text-lg font-semibold mr-2">#{idx + 1}</span>
+                            {evidence.url ? (
+                              <a
+                                href={evidence.url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-lg font-bold text-[#171A22] hover:underline"
+                              >
+                                {evidence.title} ({getDomain(evidence.url)})
+                              </a>
+                            ) : (
+                              <span className="text-lg font-bold text-[#171A22]">{evidence.title}</span>
+                            )}
+                          </div>
+                          <div className="text-gray-600 mb-2">{evidence.content}</div>
+                        </div>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </Tab.Panel>
+              {/* Submit Document Tab */}
+              <Tab.Panel>
+                <form className="space-y-6 max-w-2xl mx-auto" onSubmit={handleSubmitDocument}>
+                  <div>
+                    <label className="block font-medium text-gray-700 mb-2">Evidence Type</label>
+                    <div className="flex items-center gap-6">
+                      <label className="flex items-center gap-2">
+                        <input
+                          type="radio"
+                          name="evidenceType"
+                          value="yes"
+                          checked={evidenceType === 'yes'}
+                          onChange={() => setEvidenceType('yes')}
+                          className="accent-blue-600"
+                        />
+                        <span>Yes Evidence</span>
+                      </label>
+                      <label className="flex items-center gap-2">
+                        <input
+                          type="radio"
+                          name="evidenceType"
+                          value="no"
+                          checked={evidenceType === 'no'}
+                          onChange={() => setEvidenceType('no')}
+                          className="accent-blue-600"
+                        />
+                        <span>No Evidence</span>
+                      </label>
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block font-medium text-gray-700 mb-2">Title</label>
+                    <input
+                      type="text"
+                      placeholder="e.g., CIA Memo dated Sept 1963"
+                      value={title}
+                      onChange={e => setTitle(e.target.value)}
+                      className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-600 text-base"
+                    />
+                  </div>
+                  <div>
+                    <label className="block font-medium text-gray-700 mb-2">URL</label>
+                    <input
+                      type="text"
+                      placeholder="Enter the URL of the document..."
+                      value={url}
+                      onChange={e => setUrl(e.target.value)}
+                      className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-600 text-base"
+                    />
+                  </div>
+                  <div>
+                    <label className="block font-medium text-gray-700 mb-2">Text</label>
+                    <textarea
+                      placeholder="Enter the document text or analysis..."
+                      value={text}
+                      onChange={e => setText(e.target.value)}
+                      className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-600 text-base min-h-[100px]"
+                    />
+                  </div>
+                  <button
+                    type="submit"
+                    className="w-full bg-[#171A22] text-white font-semibold py-3 rounded-lg text-lg hover:bg-[#232635] transition"
+                  >
+                    Submit Document
+                  </button>
+                </form>
+              </Tab.Panel>
+            </Tab.Panels>
+          </Tab.Group>
         </div>
       </div>
     </div>

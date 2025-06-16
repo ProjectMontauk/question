@@ -328,7 +328,7 @@ export default function MarketsPage() {
       <div className="min-h-screen bg-[#f8f9fa] flex flex-col items-center pt-8 w-full">
         {/* Odds History Chart Card */}
         <div className="bg-white rounded-xl shadow border border-gray-200 p-8 max-w-5xl w-full mx-auto mb-10">
-          <h2 className="text-2xl font-bold mb-6 text-[#171A22]">Odds Over Time</h2>
+          <h2 className="text-2xl font-bold mb-6 text-[#171A22]">Did the CIA aid in the planning or execution of John F. Kennedy's Assassination?</h2>
           {loadingOdds ? (
             <div className="text-gray-500">Loading chart...</div>
           ) : (

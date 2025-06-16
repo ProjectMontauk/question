@@ -1,0 +1,32 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Evidence {
+  id          Int      @id @default(autoincrement())
+  type        String   // 'yes' or 'no'
+  title       String
+  url         String?
+  description String
+  netVotes     Int      @default(0)
+  createdAt   DateTime @default(now())
+  walletAddress String
+}
+
+model OddsHistory {
+  id          Int      @id @default(autoincrement())
+  outcome     String   // e.g., 'yes' or 'no' or 0/1
+  probability Float
+  timestamp   DateTime @default(now())
+}

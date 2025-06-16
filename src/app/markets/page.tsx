@@ -1,13 +1,14 @@
 "use client";
 
 import Navbar from "../../../components/Navbar";
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useActiveAccount, useReadContract, useSendTransaction } from "thirdweb/react";
 import { prepareContractCall } from "thirdweb";
 import { tokenContract, marketContract } from "../../../constants/contracts";
 const LmLSMR_CONTRACT_ADDRESS = "0x03d7fa2716c0ff897000e1dcafdd6257ecce943a";
 import { formatOdds } from "../../utils/formatOdds";
 import { Tab } from "@headlessui/react";
+import { LineChart, Line, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 
 // Helper to extract domain from URL
 function getDomain(url: string) {
@@ -18,6 +19,28 @@ function getDomain(url: string) {
     return url;
   }
 }
+
+// Define Evidence type
+interface Evidence {
+  id: number;
+  type: 'yes' | 'no';
+  title: string;
+  url?: string;
+  description: string;
+  netVotes: number;
+  walletAddress: string;
+  createdAt?: string;
+}
+
+// Add OddsHistoryEntry type
+interface OddsHistoryEntry {
+  id: number;
+  outcome: string;
+  probability: number;
+  timestamp: string;
+}
+
+const ODDS_DIVISOR = Math.pow(2, 64);
 
 export default function MarketsPage() {
   const account = useActiveAccount();
@@ -175,28 +198,18 @@ export default function MarketsPage() {
   };
 
   // Evidence data state
-  const [yesEvidence, setYesEvidence] = useState([
-    {
-      id: 1,
-      title: "Researchers find that the cloth is approximately 2000 years old (independent.co.uk)",
-      url: "",
-      content:
-        "Italian researchers date the Shroud of Turin to 2000 years ago, meaning that the cloth existed during the time of Jesus. This dismisses previous research that held the cloth was a medieval forgery.",
-      upvotes: 0,
-      downvotes: 0,
-    },
-  ]);
-  const [noEvidence, setNoEvidence] = useState([
-    {
-      id: 1,
-      title: "No evidence found for claim (example.com)",
-      url: "",
-      content:
-        "Multiple studies have failed to find any credible evidence supporting the claim. The majority of experts agree that the available data does not support the assertion.",
-      upvotes: 0,
-      downvotes: 0,
-    },
-  ]);
+  const [evidence, setEvidence] = useState<Evidence[]>([]);
+  const [loadingEvidence, setLoadingEvidence] = useState(true);
+
+  // Fetch all evidence on mount
+  useEffect(() => {
+    fetch('/api/evidence')
+      .then(res => res.json())
+      .then(data => {
+        setEvidence(data);
+        setLoadingEvidence(false);
+      });
+  }, []);
 
   // State for submit document form
   const [evidenceType, setEvidenceType] = useState<'yes' | 'no'>('yes');
@@ -205,52 +218,130 @@ export default function MarketsPage() {
   const [text, setText] = useState('');
 
   // Handle submit document
-  const handleSubmitDocument = (e: React.FormEvent) => {
+  const handleSubmitDocument = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!title.trim() && !url.trim() && !text.trim()) return;
     const newEvidence = {
-      id: Date.now(),
+      type: evidenceType,
       title: title.trim(),
       url: url.trim(),
-      content: text.trim(),
-      upvotes: 0,
-      downvotes: 0,
+      description: text.trim(),
+      walletAddress: account?.address || '',
     };
-    if (evidenceType === 'yes') {
-      setYesEvidence(prev => [newEvidence, ...prev]);
-    } else {
-      setNoEvidence(prev => [newEvidence, ...prev]);
-    }
+    const res = await fetch('/api/evidence', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(newEvidence),
+    });
+    const created = await res.json();
+    setEvidence(prev => [created, ...prev]);
     setTitle('');
     setUrl('');
     setText('');
     setEvidenceType('yes');
   };
 
-  // Add handler functions for upvote and downvote
-  const handleUpvote = (id: number, type: 'yes' | 'no') => {
-    if (type === 'yes') {
-      setYesEvidence(prev => prev.map(ev => ev.id === id ? { ...ev, upvotes: ev.upvotes + 1 } : ev));
-    } else {
-      setNoEvidence(prev => prev.map(ev => ev.id === id ? { ...ev, upvotes: ev.upvotes + 1 } : ev));
-    }
-  };
-  const handleDownvote = (id: number, type: 'yes' | 'no') => {
-    if (type === 'yes') {
-      setYesEvidence(prev => prev.map(ev => ev.id === id ? { ...ev, downvotes: ev.downvotes + 1 } : ev));
-    } else {
-      setNoEvidence(prev => prev.map(ev => ev.id === id ? { ...ev, downvotes: ev.downvotes + 1 } : ev));
-    }
+  // Handle upvote/downvote
+  const handleVote = async (id: number, netVotes: number) => {
+    const res = await fetch('/api/evidence', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id, netVotes }),
+    });
+    const updated = await res.json();
+    setEvidence(prev => prev.map(ev => ev.id === id ? { ...ev, netVotes: updated.netVotes } : ev));
   };
 
-  // Before rendering yesEvidence and noEvidence, sort them by net votes descending
-  const sortedYesEvidence = [...yesEvidence].sort((a, b) => (b.upvotes - b.downvotes) - (a.upvotes - a.downvotes));
-  const sortedNoEvidence = [...noEvidence].sort((a, b) => (b.upvotes - b.downvotes) - (a.upvotes - a.downvotes));
+  // Filter and sort evidence for Yes/No tabs
+  const sortedYesEvidence = evidence.filter(ev => ev.type === 'yes').sort((a, b) => b.netVotes - a.netVotes);
+  const sortedNoEvidence = evidence.filter(ev => ev.type === 'no').sort((a, b) => b.netVotes - a.netVotes);
+
+  // Odds history state
+  const [oddsHistory, setOddsHistory] = useState<OddsHistoryEntry[]>([]);
+  const [loadingOdds, setLoadingOdds] = useState(true);
+
+  // Fetch odds history on mount
+  useEffect(() => {
+    fetch('/api/odds-history')
+      .then(res => res.json())
+      .then(data => {
+        setOddsHistory(data);
+        setLoadingOdds(false);
+      });
+  }, []);
+
+  // Prepare data for chart: group by timestamp, with yes/no as separate lines
+  const chartData: { timestamp: string; Yes?: number; No?: number }[] = React.useMemo(() => {
+    const map = new Map<string, { timestamp: string; Yes?: number; No?: number }>();
+    oddsHistory.forEach((entry) => {
+      const t = new Date(entry.timestamp).toLocaleString();
+      if (!map.has(t)) map.set(t, { timestamp: t });
+      if (entry.outcome.toLowerCase() === 'yes') {
+        map.get(t)!.Yes = entry.probability / ODDS_DIVISOR;
+      } else if (entry.outcome.toLowerCase() === 'no') {
+        map.get(t)!.No = entry.probability / ODDS_DIVISOR;
+      }
+    });
+    const arr = Array.from(map.values());
+    // Prepend the current odds as the first point
+    const now = new Date();
+    const currentOddsPoint = {
+      timestamp: now.toLocaleString(),
+      Yes: oddsYes !== undefined && !isPendingYes ? Number(oddsYes) / ODDS_DIVISOR : undefined,
+      No: oddsNo !== undefined && !isPendingNo ? Number(oddsNo) / ODDS_DIVISOR : undefined,
+    };
+    return [currentOddsPoint, ...arr];
+  }, [oddsHistory, oddsYes, oddsNo, isPendingYes, isPendingNo]);
+
+  useEffect(() => {
+    if (oddsYes !== undefined && !isPendingYes) {
+      fetch('/api/odds-history', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          outcome: 'yes',
+          probability: Number(oddsYes),
+          // timestamp is optional; backend will use now() if not provided
+        }),
+      });
+    }
+  }, [oddsYes, isPendingYes]);
+
+  useEffect(() => {
+    if (oddsNo !== undefined && !isPendingNo) {
+      fetch('/api/odds-history', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          outcome: 'no',
+          probability: Number(oddsNo),
+        }),
+      });
+    }
+  }, [oddsNo, isPendingNo]);
 
   return (
     <div>
       <Navbar />
       <div className="min-h-screen bg-[#f8f9fa] flex flex-col items-center pt-8 w-full">
+        {/* Odds History Chart Card */}
+        <div className="bg-white rounded-xl shadow border border-gray-200 p-8 max-w-5xl w-full mx-auto mb-10">
+          <h2 className="text-2xl font-bold mb-6 text-[#171A22]">Odds Over Time</h2>
+          {loadingOdds ? (
+            <div className="text-gray-500">Loading chart...</div>
+          ) : (
+            <ResponsiveContainer width="100%" height={300}>
+              <LineChart data={chartData} margin={{ top: 20, right: 30, left: 0, bottom: 0 }}>
+                <XAxis dataKey="timestamp" tick={{ fontSize: 12 }} angle={-20} height={60} interval={chartData.length > 0 ? Math.floor(chartData.length / 6) : 1} />
+                <YAxis domain={[0, 1]} tickFormatter={v => (typeof v === 'number' ? `${Math.round(v * 100)}%` : v)} />
+                <Tooltip formatter={v => (typeof v === 'number' ? `${Math.round(v * 100)}%` : v)} />
+                <Legend />
+                <Line type="monotone" dataKey="Yes" stroke="#22c55e" dot={false} name="Yes Probability" />
+                <Line type="monotone" dataKey="No" stroke="#ef4444" dot={false} name="No Probability" />
+              </LineChart>
+            </ResponsiveContainer>
+          )}
+        </div>
         {/* Prediction Market Card */}
         <div className="bg-white rounded-xl shadow border border-gray-200 p-8 flex flex-col min-h-[500px] max-w-5xl w-full mx-auto mb-10">
           <h1 className="text-xl font-bold text-[#171A22] mb-4">Did the CIA aid in the planning or execution of John F. Kennedy's Assassination?</h1>
@@ -404,18 +495,18 @@ export default function MarketsPage() {
                         <div className="flex flex-col items-center mr-4 select-none">
                           <button
                             className="text-green-600 hover:text-green-800 text-base p-0 mb-1"
-                            onClick={() => handleUpvote(evidence.id, 'yes')}
+                            onClick={() => handleVote(evidence.id, evidence.netVotes + 1)}
                             aria-label="Upvote"
                             type="button"
                           >
                             <span style={{fontSize: '1.01em'}}>↑</span>
                           </button>
                           <div className="bg-red-500 text-white rounded-full px-1.5 py-0.5 text-xs font-semibold mb-1" style={{minWidth: '1.48rem', textAlign: 'center'}}>
-                            {evidence.upvotes - evidence.downvotes}
+                            {evidence.netVotes}
                           </div>
                           <button
                             className="text-red-600 hover:text-red-800 text-base p-0"
-                            onClick={() => handleDownvote(evidence.id, 'yes')}
+                            onClick={() => handleVote(evidence.id, evidence.netVotes - 1)}
                             aria-label="Downvote"
                             type="button"
                           >
@@ -439,7 +530,7 @@ export default function MarketsPage() {
                               <span className="text-lg font-bold text-[#171A22]">{evidence.title}</span>
                             )}
                           </div>
-                          <div className="text-gray-600 mb-2">{evidence.content}</div>
+                          <div className="text-gray-600 mb-2">{evidence.description}</div>
                         </div>
                       </div>
                     </div>
@@ -461,18 +552,18 @@ export default function MarketsPage() {
                         <div className="flex flex-col items-center mr-4 select-none">
                           <button
                             className="text-green-600 hover:text-green-800 text-base p-0 mb-1"
-                            onClick={() => handleUpvote(evidence.id, 'no')}
+                            onClick={() => handleVote(evidence.id, evidence.netVotes + 1)}
                             aria-label="Upvote"
                             type="button"
                           >
                             <span style={{fontSize: '1.01em'}}>↑</span>
                           </button>
                           <div className="bg-red-500 text-white rounded-full px-1.5 py-0.5 text-xs font-semibold mb-1" style={{minWidth: '1.48rem', textAlign: 'center'}}>
-                            {evidence.upvotes - evidence.downvotes}
+                            {evidence.netVotes}
                           </div>
                           <button
                             className="text-red-600 hover:text-red-800 text-base p-0"
-                            onClick={() => handleDownvote(evidence.id, 'no')}
+                            onClick={() => handleVote(evidence.id, evidence.netVotes - 1)}
                             aria-label="Downvote"
                             type="button"
                           >
@@ -496,7 +587,7 @@ export default function MarketsPage() {
                               <span className="text-lg font-bold text-[#171A22]">{evidence.title}</span>
                             )}
                           </div>
-                          <div className="text-gray-600 mb-2">{evidence.content}</div>
+                          <div className="text-gray-600 mb-2">{evidence.description}</div>
                         </div>
                       </div>
                     </div>

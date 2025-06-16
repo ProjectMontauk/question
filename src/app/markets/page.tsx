@@ -103,10 +103,20 @@ export default function MarketsPage() {
         setBuyFeedback("Purchase failed. Please try again.");
         console.error("Buy transaction error:", error);
       },
-      onSuccess: (data) => {
+      onSuccess: async (data) => {
         setBuyFeedback("Purchase successful!");
         setBuyYesAmount("");
         console.log("Buy transaction success:", data);
+        if (oddsYes !== undefined && !isPendingYes) {
+          await fetch('/api/odds-history', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              outcome: 'yes',
+              probability: Number(oddsYes),
+            }),
+          });
+        }
       },
       onSettled: () => {
         setTimeout(() => setBuyFeedback(null), 4000);
@@ -312,33 +322,6 @@ export default function MarketsPage() {
     });
   }, [oddsHistory, oddsYes, oddsNo, isPendingYes, isPendingNo]);
 
-  useEffect(() => {
-    if (oddsYes !== undefined && !isPendingYes) {
-      fetch('/api/odds-history', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          outcome: 'yes',
-          probability: Number(oddsYes),
-          // timestamp is optional; backend will use now() if not provided
-        }),
-      });
-    }
-  }, [oddsYes, isPendingYes]);
-
-  useEffect(() => {
-    if (oddsNo !== undefined && !isPendingNo) {
-      fetch('/api/odds-history', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          outcome: 'no',
-          probability: Number(oddsNo),
-        }),
-      });
-    }
-  }, [oddsNo, isPendingNo]);
-
   return (
     <div>
       <Navbar />
@@ -355,12 +338,9 @@ export default function MarketsPage() {
                   dataKey="timestamp"
                   tick={{ fontSize: 12, dy: 8 }}
                   height={40}
-                  ticks={[
-                    chartData[0]?.timestamp,
-                    chartData[chartData.length - 1]?.timestamp
-                  ]}
-                  tickFormatter={date => date}
-                  interval={0}
+                  tickFormatter={(_, index) =>
+                    index === 0 || index === chartData.length - 1 ? chartData[index].timestamp : ""
+                  }
                 />
                 <YAxis domain={[0, 1]} tickFormatter={v => (typeof v === 'number' ? `${Math.round(v * 100)}%` : v)} />
                 <Tooltip formatter={v => (typeof v === 'number' ? `${Math.round(v * 100)}%` : v)} />

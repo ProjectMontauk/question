@@ -272,25 +272,44 @@ export default function MarketsPage() {
 
   // Prepare data for chart: group by timestamp, with yes/no as separate lines
   const chartData: { timestamp: string; Yes?: number; No?: number }[] = React.useMemo(() => {
-    const map = new Map<string, { timestamp: string; Yes?: number; No?: number }>();
-    oddsHistory.forEach((entry) => {
-      const t = new Date(entry.timestamp).toLocaleString();
-      if (!map.has(t)) map.set(t, { timestamp: t });
-      if (entry.outcome.toLowerCase() === 'yes') {
-        map.get(t)!.Yes = entry.probability / ODDS_DIVISOR;
-      } else if (entry.outcome.toLowerCase() === 'no') {
-        map.get(t)!.No = entry.probability / ODDS_DIVISOR;
+    // Step 1: Collect all entries and sort by timestamp
+    const entries = [...oddsHistory.map(entry => ({
+      timestamp: new Date(entry.timestamp).getTime(),
+      outcome: entry.outcome.toLowerCase(),
+      probability: entry.probability / ODDS_DIVISOR,
+    }))];
+
+    // Add the current odds as the latest entry
+    const now = Date.now();
+    if (oddsYes !== undefined && !isPendingYes) {
+      entries.push({ timestamp: now, outcome: 'yes', probability: Number(oddsYes) / ODDS_DIVISOR });
+    }
+    if (oddsNo !== undefined && !isPendingNo) {
+      entries.push({ timestamp: now, outcome: 'no', probability: Number(oddsNo) / ODDS_DIVISOR });
+    }
+
+    // Step 2: Group by timestamp
+    const grouped: Record<number, { timestamp: string; Yes?: number; No?: number }> = {};
+    entries.forEach(entry => {
+      if (!grouped[entry.timestamp]) {
+        grouped[entry.timestamp] = { timestamp: new Date(entry.timestamp).toISOString().slice(0, 10) };
       }
+      if (entry.outcome === 'yes') grouped[entry.timestamp].Yes = entry.probability;
+      if (entry.outcome === 'no') grouped[entry.timestamp].No = entry.probability;
     });
-    const arr = Array.from(map.values());
-    // Prepend the current odds as the first point
-    const now = new Date();
-    const currentOddsPoint = {
-      timestamp: now.toLocaleString(),
-      Yes: oddsYes !== undefined && !isPendingYes ? Number(oddsYes) / ODDS_DIVISOR : undefined,
-      No: oddsNo !== undefined && !isPendingNo ? Number(oddsNo) / ODDS_DIVISOR : undefined,
-    };
-    return [currentOddsPoint, ...arr];
+
+    // Step 3: Fill missing values by carrying forward the last known value
+    const sortedTimestamps = Object.keys(grouped).map(Number).sort((a, b) => a - b);
+    let lastYes: number | undefined = undefined;
+    let lastNo: number | undefined = undefined;
+    return sortedTimestamps.map(ts => {
+      const point = grouped[ts];
+      if (point.Yes === undefined) point.Yes = lastYes;
+      else lastYes = point.Yes;
+      if (point.No === undefined) point.No = lastNo;
+      else lastNo = point.No;
+      return point;
+    });
   }, [oddsHistory, oddsYes, oddsNo, isPendingYes, isPendingNo]);
 
   useEffect(() => {
@@ -332,12 +351,22 @@ export default function MarketsPage() {
           ) : (
             <ResponsiveContainer width="100%" height={300}>
               <LineChart data={chartData} margin={{ top: 20, right: 30, left: 0, bottom: 0 }}>
-                <XAxis dataKey="timestamp" tick={{ fontSize: 12 }} angle={-20} height={60} interval={chartData.length > 0 ? Math.floor(chartData.length / 6) : 1} />
+                <XAxis
+                  dataKey="timestamp"
+                  tick={{ fontSize: 12, dy: 8 }}
+                  height={40}
+                  ticks={[
+                    chartData[0]?.timestamp,
+                    chartData[chartData.length - 1]?.timestamp
+                  ]}
+                  tickFormatter={date => date}
+                  interval={0}
+                />
                 <YAxis domain={[0, 1]} tickFormatter={v => (typeof v === 'number' ? `${Math.round(v * 100)}%` : v)} />
                 <Tooltip formatter={v => (typeof v === 'number' ? `${Math.round(v * 100)}%` : v)} />
                 <Legend />
-                <Line type="monotone" dataKey="Yes" stroke="#22c55e" dot={false} name="Yes Probability" />
-                <Line type="monotone" dataKey="No" stroke="#ef4444" dot={false} name="No Probability" />
+                <Line type="linear" dataKey="Yes" stroke="#22c55e" dot={false} name="Yes Probability" />
+                <Line type="linear" dataKey="No" stroke="#ef4444" dot={false} name="No Probability" />
               </LineChart>
             </ResponsiveContainer>
           )}

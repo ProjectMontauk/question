@@ -10,14 +10,15 @@
   },
   "dependencies": {
     "@headlessui/react": "^2.2.4",
-    "@prisma/client": "^6.9.0",
+    "@prisma/client": "^6.10.0",
     "@tanstack/react-query": "^5.80.6",
     "@thirdweb-dev/sdk": "^4.0.99",
     "ethers": "^5.8.0",
     "next": "15.3.3",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
-    "recharts": "^2.15.3"
+    "recharts": "^2.15.3",
+    "thirdweb": "^5.103.0"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",

@@ -3,18 +3,19 @@ import prisma from '../../lib/prisma';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method === 'POST') {
-    // Add a new odds history entry
-    const { outcome, probability, timestamp } = req.body;
+    console.log('POST /api/odds-history body:', req.body); // Debug log
+    const { yesProbability, noProbability, timestamp } = req.body;
     try {
       const entry = await prisma.oddsHistory.create({
         data: {
-          outcome,
-          probability,
+          yesProbability,
+          noProbability,
           timestamp: timestamp ? new Date(timestamp) : undefined,
         },
       });
       res.status(201).json(entry);
     } catch (error) {
+      console.error("Failed to create odds history entry:", error);
       res.status(500).json({ error: 'Failed to create odds history entry' });
     }
     return;

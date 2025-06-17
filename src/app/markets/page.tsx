@@ -2,9 +2,10 @@
 
 import Navbar from "../../../components/Navbar";
 import React, { useState, useEffect } from "react";
-import { useActiveAccount, useReadContract, useSendTransaction } from "thirdweb/react";
+import { useActiveAccount, useReadContract, useSendTransaction} from "thirdweb/react";
 import { prepareContractCall } from "thirdweb";
 import { tokenContract, marketContract } from "../../../constants/contracts";
+// import { useContract } from "@thirdweb-dev/sdk";
 const LmLSMR_CONTRACT_ADDRESS = "0x03d7fa2716c0ff897000e1dcafdd6257ecce943a";
 import { formatOdds } from "../../utils/formatOdds";
 import { Tab } from "@headlessui/react";
@@ -35,12 +36,10 @@ interface Evidence {
 // Add OddsHistoryEntry type
 interface OddsHistoryEntry {
   id: number;
-  outcome: string;
-  probability: number;
+  yesProbability: number;
+  noProbability: number;
   timestamp: string;
 }
-
-const ODDS_DIVISOR = Math.pow(2, 64);
 
 export default function MarketsPage() {
   const account = useActiveAccount();
@@ -63,6 +62,7 @@ export default function MarketsPage() {
     params: [1n],
   });
 
+
   const [showRules, setShowRules] = useState(false);
   const rulesShort = "The market will resolve 'Yes' if the CIA aided in the planning or execution of John F. Kennedy's Assassination. This means that a group inside the CIA or received funding from the CIA participated in the planning/execution of the 35th President's assassination. Otherwise, the market will resolve 'No.' This means that no personnel inside or funded by the CIA aided the murder of John F. Kennedy.";
   const rulesFull = "The market will resolve 'Yes' if the CIA aided in the planning or execution of John F. Kennedy's Assassination. This means that a group inside the CIA or received funding from the CIA participated in the planning/execution of the 35th President's assassination. Otherwise, the market will resolve 'No.' This means that no personnel inside or funded by the CIA aided the murder of John F. Kennedy.";
@@ -80,8 +80,12 @@ export default function MarketsPage() {
     sendTransaction(transaction);
   };
 
-  const [buyYesAmount, setBuyYesAmount] = useState("");
-  const [buyNoAmount, setBuyNoAmount] = useState("");
+  // Replace individual yesMode and noMode with a single mode state
+  const [mode, setMode] = useState<'buy' | 'sell'>('buy');
+
+  const [yesAmount, setYesAmount] = useState("");
+  const [noAmount, setNoAmount] = useState("");
+
   const [buyFeedback, setBuyFeedback] = useState<string | null>(null);
 
   // For Buy Yes
@@ -89,31 +93,38 @@ export default function MarketsPage() {
   // For Buy No
   const { mutate: sendBuyNoTransaction, status: buyNoStatus } = useSendTransaction();
 
+  const yesIndex = BigInt(0);
+  const noIndex = BigInt(1);
+
   const handleBuyYes = (amount: string) => {
     if (!amount) return;
     const parsedAmount = BigInt(Math.floor(Number(amount) * Math.pow(2, 64)));
-    console.log(parsedAmount);
     const transaction = prepareContractCall({
       contract: marketContract,
       method: "function buy(uint256 _outcome, int128 _amount) returns (int128 _price)",
-      params: [0n, parsedAmount],
+      params: [yesIndex, parsedAmount],
+      gas: 150000n
     });
     sendBuyYesTransaction(transaction, {
       onError: (error) => {
         setBuyFeedback("Purchase failed. Please try again.");
-        console.error("Buy transaction error:", error);
+        console.error("Sell transaction error details:", {
+          error,
+          message: error.message,
+          stack: error.stack,
+          transaction: transaction
+        });
       },
       onSuccess: async (data) => {
         setBuyFeedback("Purchase successful!");
-        setBuyYesAmount("");
-        console.log("Buy transaction success:", data);
+        setYesAmount("");
         if (oddsYes !== undefined && !isPendingYes) {
           await fetch('/api/odds-history', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-              outcome: 'yes',
-              probability: Number(oddsYes),
+              yesProbability: oddsYes !== undefined ? Number(oddsYes) : null,
+              noProbability: oddsNo !== undefined ? Number(oddsNo) : null,
             }),
           });
         }
@@ -127,22 +138,34 @@ export default function MarketsPage() {
   const handleBuyNo = (amount: string) => {
     if (!amount) return;
     const parsedAmount = BigInt(Math.floor(Number(amount) * Math.pow(2, 64)));
-    console.log("Bought amount: ", parsedAmount);
     const transaction = prepareContractCall({
       contract: marketContract,
       method: "function buy(uint256 _outcome, int128 _amount) returns (int128 _price)",
-      params: [1n, parsedAmount],
+      params: [noIndex, parsedAmount],
+      gas: 150000n
     });
-    console.log("Buy No transaction:", transaction);
+
     sendBuyNoTransaction(transaction, {
       onError: (error) => {
         setBuyFeedback("Purchase failed. Please try again.");
-        console.error("Buy transaction error:", error);
+        console.error("Sell transaction error details:", {
+          error,
+          message: error.message,
+          stack: error.stack,
+          transaction: transaction
+        });
       },
-      onSuccess: (data) => {
-        setBuyFeedback("Purchase successful!");
-        setBuyNoAmount("");
-        console.log("Buy transaction success:", data);
+      onSuccess: async (data) => {
+        if (oddsYes !== undefined && !isPendingYes) {
+          await fetch('/api/odds-history', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              yesProbability: oddsYes !== undefined ? Number(oddsYes) : null,
+              noProbability: oddsNo !== undefined ? Number(oddsNo) : null,
+            }),
+          });
+        }
       },
       onSettled: () => {
         setTimeout(() => setBuyFeedback(null), 4000);
@@ -150,8 +173,6 @@ export default function MarketsPage() {
     });
   };
 
-  const [sellYesAmount, setSellYesAmount] = useState("");
-  const [sellNoAmount, setSellNoAmount] = useState("");
   // For Sell Yes
   const { mutate: sendSellYesTransaction, status: sellYesStatus } = useSendTransaction();
   // For Sell No
@@ -160,21 +181,34 @@ export default function MarketsPage() {
   const handleSellYes = (amount: string) => {
     if (!amount) return;
     const parsedAmount = BigInt(Math.floor(Number(amount) * Math.pow(2, 64)));
-    console.log("Sell Yes transaction:", parsedAmount);
     const transaction = prepareContractCall({
       contract: marketContract,
-      method: "function sell(uint256 _outcome, int128 _amount) returns (int128 refund)",
-      params: [0n, parsedAmount],
+      method: "function sell(uint256 _outcome, int128 _amount) returns (int128 _price)",
+      params: [yesIndex, parsedAmount],
+      gas: 150000n
     });
     sendSellYesTransaction(transaction, {
       onError: (error) => {
-        setBuyFeedback("Sell failed. Please try again.");
-        console.error("Sell transaction error:", error);
+        // Add more detailed error logging
+        setBuyFeedback("Sale failed. Please try again.");
+        console.error("Sell transaction error details:", {
+          error,
+          message: error.message,
+          stack: error.stack,
+          transaction: transaction
+        });
       },
-      onSuccess: (data) => {
-        setBuyFeedback("Sell successful!");
-        setSellYesAmount("");
-        console.log("Sell transaction success:", data);
+      onSuccess: async (data) => {
+        if (oddsYes !== undefined && !isPendingYes) {
+          await fetch('/api/odds-history', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              yesProbability: oddsYes !== undefined ? Number(oddsYes) : null,
+              noProbability: oddsNo !== undefined ? Number(oddsNo) : null,
+            }),
+          });
+        }
       },
       onSettled: () => {
         setTimeout(() => setBuyFeedback(null), 4000);
@@ -188,18 +222,30 @@ export default function MarketsPage() {
     const transaction = prepareContractCall({
       contract: marketContract,
       method: "function sell(uint256 _outcome, int128 _amount) returns (int128 refund)",
-      params: [1n, parsedAmount],
+      params: [noIndex, parsedAmount],
+      gas: 150000n
     });
-    console.log("Sell No transaction:", transaction);
     sendSellNoTransaction(transaction, {
       onError: (error) => {
         setBuyFeedback("Sell failed. Please try again.");
-        console.error("Sell transaction error:", error);
+        console.error("Sell transaction error details:", {
+          error,
+          message: error.message,
+          stack: error.stack,
+          transaction: transaction
+        });
       },
-      onSuccess: (data) => {
-        setBuyFeedback("Sell successful!");
-        setSellNoAmount("");
-        console.log("Sell transaction success:", data);
+      onSuccess: async (data) => {
+        if (oddsYes !== undefined && !isPendingYes) {
+          await fetch('/api/odds-history', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              yesProbability: oddsYes !== undefined ? Number(oddsYes) : null,
+              noProbability: oddsNo !== undefined ? Number(oddsNo) : null,
+            }),
+          });
+        }
       },
       onSettled: () => {
         setTimeout(() => setBuyFeedback(null), 4000);
@@ -280,47 +326,23 @@ export default function MarketsPage() {
       });
   }, []);
 
+  // console.log("oddsHistory", oddsHistory);
+  const ODDS_DIVISOR = Number("18446744073709551616");
   // Prepare data for chart: group by timestamp, with yes/no as separate lines
-  const chartData: { timestamp: string; Yes?: number; No?: number }[] = React.useMemo(() => {
-    // Step 1: Collect all entries and sort by timestamp
-    const entries = [...oddsHistory.map(entry => ({
-      timestamp: new Date(entry.timestamp).getTime(),
-      outcome: entry.outcome.toLowerCase(),
-      probability: entry.probability / ODDS_DIVISOR,
-    }))];
+  const chartData = oddsHistory
+    .filter(entry =>
+      typeof entry.yesProbability === "number" &&
+      typeof entry.noProbability === "number"
+    )
+    .map(entry => ({
+      timestamp: new Date(entry.timestamp).toISOString().slice(0, 10),
+      Yes: entry.yesProbability / ODDS_DIVISOR,
+      No: entry.noProbability / ODDS_DIVISOR,
+    }));
 
-    // Add the current odds as the latest entry
-    const now = Date.now();
-    if (oddsYes !== undefined && !isPendingYes) {
-      entries.push({ timestamp: now, outcome: 'yes', probability: Number(oddsYes) / ODDS_DIVISOR });
-    }
-    if (oddsNo !== undefined && !isPendingNo) {
-      entries.push({ timestamp: now, outcome: 'no', probability: Number(oddsNo) / ODDS_DIVISOR });
-    }
+  // console.log("chartData", chartData);
 
-    // Step 2: Group by timestamp
-    const grouped: Record<number, { timestamp: string; Yes?: number; No?: number }> = {};
-    entries.forEach(entry => {
-      if (!grouped[entry.timestamp]) {
-        grouped[entry.timestamp] = { timestamp: new Date(entry.timestamp).toISOString().slice(0, 10) };
-      }
-      if (entry.outcome === 'yes') grouped[entry.timestamp].Yes = entry.probability;
-      if (entry.outcome === 'no') grouped[entry.timestamp].No = entry.probability;
-    });
-
-    // Step 3: Fill missing values by carrying forward the last known value
-    const sortedTimestamps = Object.keys(grouped).map(Number).sort((a, b) => a - b);
-    let lastYes: number | undefined = undefined;
-    let lastNo: number | undefined = undefined;
-    return sortedTimestamps.map(ts => {
-      const point = grouped[ts];
-      if (point.Yes === undefined) point.Yes = lastYes;
-      else lastYes = point.Yes;
-      if (point.No === undefined) point.No = lastNo;
-      else lastNo = point.No;
-      return point;
-    });
-  }, [oddsHistory, oddsYes, oddsNo, isPendingYes, isPendingNo]);
+  const [shouldPostOdds, setShouldPostOdds] = useState(false);
 
   return (
     <div>
@@ -363,81 +385,70 @@ export default function MarketsPage() {
               {status === "pending" ? "Approving..." : "Approve Bets"}
             </button>
           </div>
+          {/* Single Buy/Sell Toggle for both Yes/No */}
+          <div className="flex justify-center items-center gap-2 mb-6">
+            <button
+              className={`px-4 py-1 rounded-l-lg font-medium text-sm border ${mode === 'buy' ? 'bg-green-600 text-white' : 'bg-white text-green-600 border-green-600'}`}
+              onClick={() => setMode('buy')}
+              type="button"
+            >
+              Buy
+            </button>
+            <button
+              className={`px-4 py-1 rounded-r-lg font-medium text-sm border ${mode === 'sell' ? 'bg-red-600 text-white' : 'bg-white text-red-600 border-red-600'}`}
+              onClick={() => setMode('sell')}
+              type="button"
+            >
+              Sell
+            </button>
+          </div>
           {/* Odds boxes section */}
           <div className="flex justify-center items-center gap-8 my-6">
+            {/* Yes Position Card */}
             <div className="bg-[#f8f9fa] border border-gray-300 rounded-lg px-10 py-6 flex flex-col items-center min-w-[170px]">
               <span className="text-lg font-semibold text-[#171A22] mb-2">Yes</span>
               <span className="text-2xl font-bold text-[#171A22]">{isPendingYes ? "..." : formatOdds(oddsYes)}</span>
-              <div className="flex items-center gap-2 mt-4 w-full">
+              <div className="flex items-center gap-2 w-full mt-4">
                 <input
                   type="number"
                   min="0"
-                  placeholder="Enter Bet Amount"
-                  value={buyYesAmount}
-                  onChange={e => setBuyYesAmount(e.target.value)}
+                  placeholder={`Enter ${mode === 'buy' ? 'Buy' : 'Sell'} Amount`}
+                  value={yesAmount}
+                  onChange={e => setYesAmount(e.target.value)}
                   className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-600 text-base"
                 />
                 <button
-                  className="bg-green-600 hover:bg-green-700 text-white font-semibold px-6 py-2 rounded-lg shadow transition disabled:opacity-50"
-                  onClick={() => handleBuyYes(buyYesAmount)}
-                  disabled={!buyYesAmount || buyYesStatus === "pending"}
+                  className={`font-semibold px-6 py-2 rounded-lg shadow transition disabled:opacity-50 ${mode === 'buy' ? 'bg-green-600 hover:bg-green-700 text-white' : 'bg-white border border-green-600 text-green-700'}`}
+                  onClick={() => mode === 'buy' ? handleBuyYes(yesAmount) : handleSellYes(yesAmount)}
+                  disabled={!yesAmount || (mode === 'buy' ? buyYesStatus === 'pending' : sellYesStatus === 'pending')}
                 >
-                  {buyYesStatus === "pending" ? "Buying..." : "Buy Yes"}
-                </button>
-              </div>
-              <div className="flex items-center gap-2 mt-2 w-full">
-                <input
-                  type="number"
-                  min="0"
-                  placeholder="Enter Sell Amount"
-                  value={sellYesAmount}
-                  onChange={e => setSellYesAmount(e.target.value)}
-                  className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-600 text-base"
-                />
-                <button
-                  className="bg-white border border-green-600 text-green-700 font-semibold px-6 py-2 rounded-lg shadow transition disabled:opacity-50"
-                  onClick={() => handleSellYes(sellYesAmount)}
-                  disabled={!sellYesAmount || sellYesStatus === "pending"}
-                >
-                  {sellYesStatus === "pending" ? "Selling..." : "Sell Yes"}
+                  {mode === 'buy'
+                    ? (buyYesStatus === 'pending' ? 'Buying...' : 'Buy Yes')
+                    : (sellYesStatus === 'pending' ? 'Selling...' : 'Sell Yes')}
                 </button>
               </div>
             </div>
+            {/* No Position Card */}
             <div className="bg-[#f8f9fa] border border-gray-300 rounded-lg px-10 py-6 flex flex-col items-center min-w-[170px]">
               <span className="text-lg font-semibold text-[#171A22] mb-2">No</span>
               <span className="text-2xl font-bold text-[#171A22]">{isPendingNo ? "..." : formatOdds(oddsNo)}</span>
-              <div className="flex items-center gap-2 mt-4 w-full">
+              <div className="flex items-center gap-2 w-full mt-4">
                 <input
                   type="number"
                   min="0"
-                  placeholder="Enter Bet Amount"
-                  value={buyNoAmount}
-                  onChange={e => setBuyNoAmount(e.target.value)}
+                  placeholder={`Enter ${mode === 'buy' ? 'Buy' : 'Sell'} Amount`}
+                  value={noAmount}
+                  onChange={e => setNoAmount(e.target.value)}
                   className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-600 text-base"
                 />
                 <button
-                  className="bg-red-600 hover:bg-red-700 text-white font-semibold px-6 py-2 rounded-lg shadow transition disabled:opacity-50"
-                  onClick={() => handleBuyNo(buyNoAmount)}
-                  disabled={!buyNoAmount || buyNoStatus === "pending"}
+                  className={`font-semibold px-6 py-2 rounded-lg shadow transition disabled:opacity-50 ${mode === 'buy' ? 'bg-red-600 hover:bg-red-700 text-white' : 'bg-white border border-red-600 text-red-700'}`}
+                  onClick={() => mode === 'buy' ? handleBuyNo(noAmount) : handleSellNo(noAmount)}
+                  disabled={!noAmount || (mode === 'buy' ? buyNoStatus === 'pending' : sellNoStatus === 'pending')}
                 >
-                  {buyNoStatus === "pending" ? "Buying..." : "Buy No"}
-                </button>
-              </div>
-              <div className="flex items-center gap-2 mt-2 w-full">
-                <input
-                  type="number"
-                  min="0"
-                  placeholder="Enter Sell Amount"
-                  value={sellNoAmount}
-                  onChange={e => setSellNoAmount(e.target.value)}
-                  className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-600 text-base"
-                />
-                <button
-                  className="bg-white border border-red-600 text-red-700 font-semibold px-6 py-2 rounded-lg shadow transition disabled:opacity-50"
-                  onClick={() => handleSellNo(sellNoAmount)}
-                  disabled={!sellNoAmount || sellNoStatus === "pending"}
-                >
-                  {sellNoStatus === "pending" ? "Selling..." : "Sell No"}
+                  {mode === 'buy'
+                    ? (buyNoStatus === 'pending' ? 'Buying...' : 'Buy No')
+                    : (sellNoStatus === 'pending' ? 'Selling...' : 'Sell No')}
                 </button>
               </div>
             </div>

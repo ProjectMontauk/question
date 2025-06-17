@@ -25,8 +25,8 @@ model Evidence {
 }
 
 model OddsHistory {
-  id          Int      @id @default(autoincrement())
-  outcome     String   // e.g., 'yes' or 'no' or 0/1
-  probability Float
-  timestamp   DateTime @default(now())
+  id            Int      @id @default(autoincrement())
+  yesProbability Float
+  noProbability  Float
+  timestamp      DateTime @default(now())
 }

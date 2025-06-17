@@ -1,7 +1,7 @@
 "use client";
 
 import Navbar from "../../../components/Navbar";
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useActiveAccount, useReadContract, useSendTransaction} from "thirdweb/react";
 import { prepareContractCall } from "thirdweb";
 import { tokenContract, marketContract } from "../../../constants/contracts";
@@ -118,15 +118,9 @@ export default function MarketsPage() {
       onSuccess: async (data) => {
         setBuyFeedback("Purchase successful!");
         setYesAmount("");
+        setShouldPostOdds(true);
         if (oddsYes !== undefined && !isPendingYes) {
-          await fetch('/api/odds-history', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              yesProbability: oddsYes !== undefined ? Number(oddsYes) : null,
-              noProbability: oddsNo !== undefined ? Number(oddsNo) : null,
-            }),
-          });
+          await fetchOddsHistory();
         }
       },
       onSettled: () => {
@@ -157,14 +151,8 @@ export default function MarketsPage() {
       },
       onSuccess: async (data) => {
         if (oddsYes !== undefined && !isPendingYes) {
-          await fetch('/api/odds-history', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              yesProbability: oddsYes !== undefined ? Number(oddsYes) : null,
-              noProbability: oddsNo !== undefined ? Number(oddsNo) : null,
-            }),
-          });
+          setShouldPostOdds(true);
+          await fetchOddsHistory();
         }
       },
       onSettled: () => {
@@ -200,14 +188,8 @@ export default function MarketsPage() {
       },
       onSuccess: async (data) => {
         if (oddsYes !== undefined && !isPendingYes) {
-          await fetch('/api/odds-history', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              yesProbability: oddsYes !== undefined ? Number(oddsYes) : null,
-              noProbability: oddsNo !== undefined ? Number(oddsNo) : null,
-            }),
-          });
+          setShouldPostOdds(true);
+          await fetchOddsHistory();
         }
       },
       onSettled: () => {
@@ -237,14 +219,8 @@ export default function MarketsPage() {
       },
       onSuccess: async (data) => {
         if (oddsYes !== undefined && !isPendingYes) {
-          await fetch('/api/odds-history', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              yesProbability: oddsYes !== undefined ? Number(oddsYes) : null,
-              noProbability: oddsNo !== undefined ? Number(oddsNo) : null,
-            }),
-          });
+          setShouldPostOdds(true);
+          await fetchOddsHistory();
         }
       },
       onSettled: () => {
@@ -316,14 +292,17 @@ export default function MarketsPage() {
   const [oddsHistory, setOddsHistory] = useState<OddsHistoryEntry[]>([]);
   const [loadingOdds, setLoadingOdds] = useState(true);
 
+  // Fetch odds history function
+  const fetchOddsHistory = async () => {
+    const res = await fetch('/api/odds-history');
+    const data = await res.json();
+    setOddsHistory(Array.isArray(data) ? data : []);
+    setLoadingOdds(false);
+  };
+
   // Fetch odds history on mount
   useEffect(() => {
-    fetch('/api/odds-history')
-      .then(res => res.json())
-      .then(data => {
-        setOddsHistory(data);
-        setLoadingOdds(false);
-      });
+    fetchOddsHistory();
   }, []);
 
   // console.log("oddsHistory", oddsHistory);
@@ -343,6 +322,30 @@ export default function MarketsPage() {
   // console.log("chartData", chartData);
 
   const [shouldPostOdds, setShouldPostOdds] = useState(false);
+  const prevOddsRef = useRef<{ yes: bigint | null; no: bigint | null }>({ yes: null, no: null });
+
+  useEffect(() => {
+    if (
+      shouldPostOdds &&
+      oddsYes !== undefined &&
+      oddsNo !== undefined &&
+      (prevOddsRef.current.yes !== oddsYes || prevOddsRef.current.no !== oddsNo)
+    ) {
+      // POST the new odds
+      fetch('/api/odds-history', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          yesProbability: Number(oddsYes),
+          noProbability: Number(oddsNo),
+        }),
+      }).then(() => {
+        setShouldPostOdds(false);
+        prevOddsRef.current = { yes: oddsYes, no: oddsNo };
+        fetchOddsHistory(); // Optionally refresh the chart
+      });
+    }
+  }, [shouldPostOdds, oddsYes, oddsNo]);
 
   return (
     <div>

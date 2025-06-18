@@ -337,7 +337,6 @@ export default function MarketsPage() {
 
   useEffect(() => {
     if (
-      shouldPostOdds &&
       oddsYes !== undefined &&
       oddsNo !== undefined &&
       (prevOddsRef.current.yes !== oddsYes || prevOddsRef.current.no !== oddsNo)
@@ -351,12 +350,11 @@ export default function MarketsPage() {
           noProbability: Number(oddsNo),
         }),
       }).then(() => {
-        setShouldPostOdds(false);
         prevOddsRef.current = { yes: oddsYes, no: oddsNo };
         fetchOddsHistory(); // Optionally refresh the chart
       });
     }
-  }, [shouldPostOdds, oddsYes, oddsNo]);
+  }, [oddsYes, oddsNo]);
 
   // Add state for selected outcome
   const [selectedOutcome, setSelectedOutcome] = useState<'yes' | 'no' | null>(null);

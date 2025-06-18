@@ -374,87 +374,105 @@ export default function MarketsPage() {
     <div>
       <Navbar />
       <div className="min-h-screen bg-[#f8f9fa] flex flex-col items-center pt-8 w-full">
-        {/* Odds History Chart Card */}
-        <div className="bg-white rounded-xl shadow border border-gray-200 p-8 max-w-5xl w-full mx-auto mb-10">
-          <h2 className="text-2xl font-bold mb-6 text-[#171A22]">Did the CIA aid in the planning or execution of John F. Kennedy's Assassination?</h2>
-          <div className="mb-2">
-            <span className="text-lg font-semibold text-[#171A22]">Market Odds</span>
-          </div>
-          {loadingOdds ? (
-            <div className="text-gray-500">Loading chart...</div>
-          ) : (
-            <ResponsiveContainer width="100%" height={300}>
-              <LineChart data={chartData} margin={{ top: 20, right: 30, left: 0, bottom: 0 }}>
-                <XAxis
-                  dataKey="timestamp"
-                  tick={{ fontSize: 12, dy: 8 }}
-                  height={40}
-                  tickFormatter={(_, index) => {
-                    if (index === 0) {
-                      const date = new Date(chartData[0].timestamp);
-                      const month = String(date.getMonth() + 1).padStart(2, '0');
-                      const day = String(date.getDate()).padStart(2, '0');
-                      return `${month}-${day}`;
-                    }
-                    return "";
-                  }}
-                  padding={{ left: 0, right: 0 }}
-                  minTickGap={0}
-                />
-                <YAxis
-                  domain={[0, 1]}
-                  tickFormatter={v => (typeof v === 'number' ? `${Math.round(v * 100)}%` : v)}
-                  orientation="right"
-                  axisLine={false}
-                  tickLine={false}
-                />
-                <Tooltip formatter={v => (typeof v === 'number' ? `${Math.round(v * 100)}%` : v)} />
-                <Legend />
-                <ReferenceLine y={0.25} stroke="#bdbdbd" strokeDasharray="4 4" />
-                <ReferenceLine y={0.5} stroke="#bdbdbd" strokeDasharray="4 4" />
-                <ReferenceLine y={0.75} stroke="#bdbdbd" strokeDasharray="4 4" />
-                <ReferenceLine y={1} stroke="#bdbdbd" strokeDasharray="4 4" />
-                <Line type="linear" dataKey="Yes" stroke="#22c55e" dot={false} name="Yes Probability" />
-                <Line type="linear" dataKey="No" stroke="#ef4444" dot={false} name="No Probability" />
-              </LineChart>
-            </ResponsiveContainer>
-          )}
-        </div>
-        {/* Prediction Market Card */}
-        <div className="bg-white rounded-xl shadow border border-gray-200 p-8 flex flex-col min-h-[500px] max-w-5xl w-full mx-auto mb-10">
-          {/* Align toggle in a flex row at the top */}
-          <div className="flex items-center mb-4 px-10">
-            <div className="flex gap-2 mr-6">
+        {/* Responsive flex row for chart and betting card */}
+        <div className="flex flex-col lg:flex-row justify-between items-start w-full max-w-7xl mx-auto mb-10 gap-2">
+          {/* Odds History Chart Card */}
+          <div className="bg-white rounded-xl shadow border border-gray-200 p-8 max-w-4xl w-full mb-8 lg:mb-0 ml-auto">
+            <h2 className="text-2xl font-bold mb-6 text-[#171A22]">Did the CIA aid in the planning or execution of John F. Kennedy's Assassination?</h2>
+            <div className="mb-2">
+              <span className="text-lg font-semibold text-[#171A22]">Market Odds</span>
+            </div>
+            {loadingOdds ? (
+              <div className="text-gray-500">Loading chart...</div>
+            ) : (
+              <ResponsiveContainer width="100%" height={300}>
+                <LineChart data={chartData} margin={{ top: 20, right: 30, left: 0, bottom: 0 }}>
+                  <XAxis
+                    dataKey="timestamp"
+                    tick={{ fontSize: 12, dy: 8 }}
+                    height={40}
+                    tickFormatter={(_, index) => {
+                      if (index === 0) {
+                        const date = new Date(chartData[0].timestamp);
+                        const month = String(date.getMonth() + 1).padStart(2, '0');
+                        const day = String(date.getDate()).padStart(2, '0');
+                        return `${month}-${day}`;
+                      }
+                      return "";
+                    }}
+                    padding={{ left: 0, right: 0 }}
+                    minTickGap={0}
+                  />
+                  <YAxis
+                    domain={[0, 1]}
+                    tickFormatter={v => (typeof v === 'number' ? `${Math.round(v * 100)}%` : v)}
+                    orientation="right"
+                    axisLine={false}
+                    tickLine={false}
+                  />
+                  <Tooltip formatter={v => (typeof v === 'number' ? `${Math.round(v * 100)}%` : v)} />
+                  <Legend />
+                  <ReferenceLine y={0.25} stroke="#bdbdbd" strokeDasharray="4 4" />
+                  <ReferenceLine y={0.5} stroke="#bdbdbd" strokeDasharray="4 4" />
+                  <ReferenceLine y={0.75} stroke="#bdbdbd" strokeDasharray="4 4" />
+                  <ReferenceLine y={1} stroke="#bdbdbd" strokeDasharray="4 4" />
+                  <Line type="linear" dataKey="Yes" stroke="#22c55e" dot={false} name="Yes Probability" />
+                  <Line type="linear" dataKey="No" stroke="#ef4444" dot={false} name="No Probability" />
+                </LineChart>
+              </ResponsiveContainer>
+            )}
+            {/* Collapsible Rules section (moved inside chart card) */}
+            <div className="mt-8">
+              <h2 className="text-lg font-bold mb-2">Rules</h2>
+              <p className="text-gray-600 text-base mb-2">
+                {showRules ? rulesFull : firstLine}
+              </p>
               <button
-                className={`px-4 py-1 rounded-l-lg font-medium text-sm border ${mode === 'buy' ? 'bg-black text-white border-black' : 'bg-white text-black border-black'}`}
-                onClick={() => setMode('buy')}
-                type="button"
+                className="text-blue-600 text-sm font-medium flex items-center gap-1 focus:outline-none mb-2"
+                onClick={() => setShowRules((prev) => !prev)}
               >
-                Buy
-              </button>
-              <button
-                className={`px-4 py-1 rounded-r-lg font-medium text-sm border ${mode === 'sell' ? 'bg-black text-white border-black' : 'bg-white text-black border-black'}`}
-                onClick={() => setMode('sell')}
-                type="button"
-              >
-                Sell
+                {showRules ? "Read Less" : "Read More"}
+                <span className={showRules ? "rotate-180" : ""}>▼</span>
               </button>
             </div>
           </div>
-          <div className="text-[1.35rem] font-medium text-black mb-4 ml-10">{mode === 'buy' ? 'Bet Amount ($)' : 'Sell Shares'}</div>
-          <div className="flex flex-col items-start w-full px-10 mb-4">
+          {/* Betting Card */}
+          <div className="bg-white rounded-xl shadow border border-gray-200 p-8 w-full" style={{ maxWidth: '300px' }}>
+            {/* Buy/Sell Toggle */}
+            <div className="flex items-center mb-4">
+              <div className="flex gap-2 mr-6">
+                <button
+                  className={`px-4 py-1 rounded-l-lg font-medium text-sm border ${mode === 'buy' ? 'bg-black text-white border-black' : 'bg-white text-black border-black'}`}
+                  onClick={() => setMode('buy')}
+                  type="button"
+                >
+                  Buy
+                </button>
+                <button
+                  className={`px-4 py-1 rounded-r-lg font-medium text-sm border ${mode === 'sell' ? 'bg-black text-white border-black' : 'bg-white text-black border-black'}`}
+                  onClick={() => setMode('sell')}
+                  type="button"
+                >
+                  Sell
+                </button>
+              </div>
+            </div>
+            {/* Bet Amount sub-title */}
+            <div className="text-[1.15rem] font-medium text-black mb-4">{mode === 'buy' ? 'Bet Amount ($)' : 'Sell Shares'}</div>
+            {/* Amount input */}
             <input
               type="number"
               min="0"
               placeholder={`Enter ${mode === 'buy' ? 'Buy' : 'Sell'} Amount`}
               value={amount}
               onChange={e => setAmount(e.target.value)}
-              className="w-1/4 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-black text-base"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-black text-base mb-4"
             />
-            <div className="flex flex-row w-1/4 mt-4 gap-2">
+            {/* Yes/No Cent Price buttons */}
+            <div className="flex flex-row w-full mb-4 gap-2">
               <button
                 type="button"
-                className={`font-semibold px-6 py-2 rounded-lg shadow transition disabled:opacity-50 bg-green-600 hover:bg-green-700 text-white ${selectedOutcome === 'yes' ? 'ring-2 ring-black' : ''}`}
+                className={`font-semibold px-6 py-2 rounded-lg shadow transition disabled:opacity-50 bg-green-600 hover:bg-green-700 text-white w-1/2 ${selectedOutcome === 'yes' ? 'ring-2 ring-black' : ''}`}
                 onClick={() => setSelectedOutcome('yes')}
               >
                 {mode === 'buy'
@@ -463,7 +481,7 @@ export default function MarketsPage() {
               </button>
               <button
                 type="button"
-                className={`font-semibold px-6 py-2 rounded-lg shadow transition disabled:opacity-50 bg-red-600 hover:bg-red-700 text-white ${selectedOutcome === 'no' ? 'ring-2 ring-black' : ''}`}
+                className={`font-semibold px-6 py-2 rounded-lg shadow transition disabled:opacity-50 bg-red-600 hover:bg-red-700 text-white w-1/2 ${selectedOutcome === 'no' ? 'ring-2 ring-black' : ''}`}
                 onClick={() => setSelectedOutcome('no')}
               >
                 {mode === 'buy'
@@ -471,11 +489,11 @@ export default function MarketsPage() {
                   : (sellNoStatus === 'pending' ? 'Selling...' : `No ${formatOddsToCents(oddsNo)}`)}
               </button>
             </div>
-          </div>
-          <div className="text-[1.35rem] font-medium text-black mb-4 ml-10">{mode === 'buy' ? 'Max. Win:' : 'Receive:'} <span className="text-green-600 font-bold">{payoutDisplay}</span></div>
-          <div className="flex w-1/4 px-10 mb-4">
+            {/* Max. Win/Receive sub-title */}
+            <div className="text-[1.15rem] font-medium text-black mb-4">{mode === 'buy' ? 'Max. Win:' : 'Receive:'} <span className="text-green-600 font-bold">{payoutDisplay}</span></div>
+            {/* Trade button */}
             <button
-              className="w-full font-semibold px-6 py-2 rounded-lg shadow transition disabled:opacity-50 bg-black text-white"
+              className="w-full font-semibold px-6 py-2 rounded-lg shadow transition disabled:opacity-50 bg-black text-white mb-4"
               disabled={!selectedOutcome || !amount || (selectedOutcome === 'yes' && (mode === 'buy' ? buyYesStatus === 'pending' : sellYesStatus === 'pending')) || (selectedOutcome === 'no' && (mode === 'buy' ? buyNoStatus === 'pending' : sellNoStatus === 'pending'))}
               onClick={() => {
                 if (!selectedOutcome || !amount) return;
@@ -488,237 +506,224 @@ export default function MarketsPage() {
             >
               Trade
             </button>
-          </div>
-          {buyFeedback && (
-            <div className={`text-center my-4 ${buyFeedback.includes('success') ? 'text-green-600' : 'text-red-600'}`}>{buyFeedback}</div>
-          )}
-          {/* Collapsible Rules section */}
-          <div className="mt-8 bg-white rounded-lg p-6">
-            <h2 className="text-lg font-bold mb-2">Rules</h2>
-            <p className="text-gray-600 text-sm mb-2">
-              {showRules ? rulesFull : firstLine}
-            </p>
-            <button
-              className="text-blue-600 text-sm font-medium flex items-center gap-1 focus:outline-none mb-2"
-              onClick={() => setShowRules((prev) => !prev)}
-            >
-              {showRules ? "Read Less" : "Read More"}
-              <span className={showRules ? "rotate-180" : ""}>▼</span>
-            </button>
+            {buyFeedback && (
+              <div className={`text-center my-4 ${buyFeedback.includes('success') ? 'text-green-600' : 'text-red-600'}`}>{buyFeedback}</div>
+            )}
           </div>
         </div>
-
         {/* Evidence Section Card */}
-        <div className="bg-white rounded-xl shadow border border-gray-200 p-8 max-w-5xl w-full mx-auto">
-          <h2 className="text-2xl font-bold mb-6 text-[#171A22]">Evidence</h2>
-          <Tab.Group>
-            <Tab.List className="flex space-x-2 mb-6">
-              <Tab
-                className={({ selected }: { selected: boolean }) =>
-                  `px-6 py-2 rounded-lg font-medium text-sm transition focus:outline-none ${selected ? "bg-gray-100 text-[#171A22]" : "bg-white text-gray-500 border border-gray-200"}`
-                }
-              >
-                View "Yes" Documents
-              </Tab>
-              <Tab
-                className={({ selected }: { selected: boolean }) =>
-                  `px-6 py-2 rounded-lg font-medium text-sm transition focus:outline-none ${selected ? "bg-gray-100 text-[#171A22]" : "bg-white text-gray-500 border border-gray-200"}`
-                }
-              >
-                View "No" Documents
-              </Tab>
-              <Tab
-                className={({ selected }: { selected: boolean }) =>
-                  `px-6 py-2 rounded-lg font-medium text-sm transition focus:outline-none ${selected ? "bg-gray-100 text-[#171A22]" : "bg-white text-gray-500 border border-gray-200"}`
-                }
-              >
-                Submit Document
-              </Tab>
-            </Tab.List>
-            <Tab.Panels>
-              {/* Yes Documents Tab */}
-              <Tab.Panel>
-                {sortedYesEvidence.length === 0 ? (
-                  <div className="text-gray-500">No evidence submitted yet.</div>
-                ) : (
-                  sortedYesEvidence.map((evidence, idx) => (
-                    <div
-                      key={evidence.id}
-                      className="mb-6 border rounded-lg p-6 bg-white shadow-sm border-gray-200"
-                    >
-                      <div className="flex">
-                        {/* Voting column */}
-                        <div className="flex flex-col items-center mr-4 select-none">
-                          <button
-                            className="text-green-600 hover:text-green-800 text-base p-0 mb-1"
-                            onClick={() => handleVote(evidence.id, evidence.netVotes + 1)}
-                            aria-label="Upvote"
-                            type="button"
-                          >
-                            <span style={{fontSize: '1.01em'}}>↑</span>
-                          </button>
-                          <div className="bg-red-500 text-white rounded-full px-1.5 py-0.5 text-xs font-semibold mb-1" style={{minWidth: '1.48rem', textAlign: 'center'}}>
-                            {evidence.netVotes}
+        <div className="max-w-7xl w-full mx-auto flex">
+          <div className="bg-white rounded-xl shadow border border-gray-200 p-8 max-w-4xl w-full ml-19">
+            <h2 className="text-2xl font-bold mb-6 text-[#171A22]">Evidence</h2>
+            <Tab.Group>
+              <Tab.List className="flex space-x-2 mb-6">
+                <Tab
+                  className={({ selected }: { selected: boolean }) =>
+                    `px-6 py-2 rounded-lg font-medium text-sm transition focus:outline-none ${selected ? "bg-gray-100 text-[#171A22]" : "bg-white text-gray-500 border border-gray-200"}`
+                  }
+                >
+                  View "Yes" Documents
+                </Tab>
+                <Tab
+                  className={({ selected }: { selected: boolean }) =>
+                    `px-6 py-2 rounded-lg font-medium text-sm transition focus:outline-none ${selected ? "bg-gray-100 text-[#171A22]" : "bg-white text-gray-500 border border-gray-200"}`
+                  }
+                >
+                  View "No" Documents
+                </Tab>
+                <Tab
+                  className={({ selected }: { selected: boolean }) =>
+                    `px-6 py-2 rounded-lg font-medium text-sm transition focus:outline-none ${selected ? "bg-gray-100 text-[#171A22]" : "bg-white text-gray-500 border border-gray-200"}`
+                  }
+                >
+                  Submit Document
+                </Tab>
+              </Tab.List>
+              <Tab.Panels>
+                {/* Yes Documents Tab */}
+                <Tab.Panel>
+                  {sortedYesEvidence.length === 0 ? (
+                    <div className="text-gray-500">No evidence submitted yet.</div>
+                  ) : (
+                    sortedYesEvidence.map((evidence, idx) => (
+                      <div
+                        key={evidence.id}
+                        className="mb-6 border rounded-lg p-6 bg-white shadow-sm border-gray-200"
+                      >
+                        <div className="flex">
+                          {/* Voting column */}
+                          <div className="flex flex-col items-center mr-4 select-none">
+                            <button
+                              className="text-green-600 hover:text-green-800 text-base p-0 mb-1"
+                              onClick={() => handleVote(evidence.id, evidence.netVotes + 1)}
+                              aria-label="Upvote"
+                              type="button"
+                            >
+                              <span style={{fontSize: '1.01em'}}>↑</span>
+                            </button>
+                            <div className="bg-red-500 text-white rounded-full px-1.5 py-0.5 text-xs font-semibold mb-1" style={{minWidth: '1.48rem', textAlign: 'center'}}>
+                              {evidence.netVotes}
+                            </div>
+                            <button
+                              className="text-red-600 hover:text-red-800 text-base p-0"
+                              onClick={() => handleVote(evidence.id, evidence.netVotes - 1)}
+                              aria-label="Downvote"
+                              type="button"
+                            >
+                              <span style={{fontSize: '1.01em'}}>↓</span>
+                            </button>
                           </div>
-                          <button
-                            className="text-red-600 hover:text-red-800 text-base p-0"
-                            onClick={() => handleVote(evidence.id, evidence.netVotes - 1)}
-                            aria-label="Downvote"
-                            type="button"
-                          >
-                            <span style={{fontSize: '1.01em'}}>↓</span>
-                          </button>
-                        </div>
-                        {/* Evidence content */}
-                        <div className="flex-1">
-                          <div className="flex items-center mb-2">
-                            <span className="text-lg font-semibold mr-2">#{idx + 1}</span>
-                            {evidence.url ? (
-                              <a
-                                href={evidence.url}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="text-lg font-bold text-[#171A22] hover:underline"
-                              >
-                                {evidence.title} ({getDomain(evidence.url)})
-                              </a>
-                            ) : (
-                              <span className="text-lg font-bold text-[#171A22]">{evidence.title}</span>
-                            )}
+                          {/* Evidence content */}
+                          <div className="flex-1">
+                            <div className="flex items-center mb-2">
+                              <span className="text-lg font-semibold mr-2">#{idx + 1}</span>
+                              {evidence.url ? (
+                                <a
+                                  href={evidence.url}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="text-lg font-bold text-[#171A22] hover:underline"
+                                >
+                                  {evidence.title} ({getDomain(evidence.url)})
+                                </a>
+                              ) : (
+                                <span className="text-lg font-bold text-[#171A22]">{evidence.title}</span>
+                              )}
+                            </div>
+                            <div className="text-gray-600 mb-2">{evidence.description}</div>
                           </div>
-                          <div className="text-gray-600 mb-2">{evidence.description}</div>
-                        </div>
-                      </div>
-                    </div>
-                  ))
-                )}
-              </Tab.Panel>
-              {/* No Documents Tab */}
-              <Tab.Panel>
-                {sortedNoEvidence.length === 0 ? (
-                  <div className="text-gray-500">No evidence submitted yet.</div>
-                ) : (
-                  sortedNoEvidence.map((evidence, idx) => (
-                    <div
-                      key={evidence.id}
-                      className="mb-6 border rounded-lg p-6 bg-white shadow-sm border-gray-200"
-                    >
-                      <div className="flex">
-                        {/* Voting column */}
-                        <div className="flex flex-col items-center mr-4 select-none">
-                          <button
-                            className="text-green-600 hover:text-green-800 text-base p-0 mb-1"
-                            onClick={() => handleVote(evidence.id, evidence.netVotes + 1)}
-                            aria-label="Upvote"
-                            type="button"
-                          >
-                            <span style={{fontSize: '1.01em'}}>↑</span>
-                          </button>
-                          <div className="bg-red-500 text-white rounded-full px-1.5 py-0.5 text-xs font-semibold mb-1" style={{minWidth: '1.48rem', textAlign: 'center'}}>
-                            {evidence.netVotes}
-                          </div>
-                          <button
-                            className="text-red-600 hover:text-red-800 text-base p-0"
-                            onClick={() => handleVote(evidence.id, evidence.netVotes - 1)}
-                            aria-label="Downvote"
-                            type="button"
-                          >
-                            <span style={{fontSize: '1.01em'}}>↓</span>
-                          </button>
-                        </div>
-                        {/* Evidence content */}
-                        <div className="flex-1">
-                          <div className="flex items-center mb-2">
-                            <span className="text-lg font-semibold mr-2">#{idx + 1}</span>
-                            {evidence.url ? (
-                              <a
-                                href={evidence.url}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="text-lg font-bold text-[#171A22] hover:underline"
-                              >
-                                {evidence.title} ({getDomain(evidence.url)})
-                              </a>
-                            ) : (
-                              <span className="text-lg font-bold text-[#171A22]">{evidence.title}</span>
-                            )}
-                          </div>
-                          <div className="text-gray-600 mb-2">{evidence.description}</div>
                         </div>
                       </div>
+                    ))
+                  )}
+                </Tab.Panel>
+                {/* No Documents Tab */}
+                <Tab.Panel>
+                  {sortedNoEvidence.length === 0 ? (
+                    <div className="text-gray-500">No evidence submitted yet.</div>
+                  ) : (
+                    sortedNoEvidence.map((evidence, idx) => (
+                      <div
+                        key={evidence.id}
+                        className="mb-6 border rounded-lg p-6 bg-white shadow-sm border-gray-200"
+                      >
+                        <div className="flex">
+                          {/* Voting column */}
+                          <div className="flex flex-col items-center mr-4 select-none">
+                            <button
+                              className="text-green-600 hover:text-green-800 text-base p-0 mb-1"
+                              onClick={() => handleVote(evidence.id, evidence.netVotes + 1)}
+                              aria-label="Upvote"
+                              type="button"
+                            >
+                              <span style={{fontSize: '1.01em'}}>↑</span>
+                            </button>
+                            <div className="bg-red-500 text-white rounded-full px-1.5 py-0.5 text-xs font-semibold mb-1" style={{minWidth: '1.48rem', textAlign: 'center'}}>
+                              {evidence.netVotes}
+                            </div>
+                            <button
+                              className="text-red-600 hover:text-red-800 text-base p-0"
+                              onClick={() => handleVote(evidence.id, evidence.netVotes - 1)}
+                              aria-label="Downvote"
+                              type="button"
+                            >
+                              <span style={{fontSize: '1.01em'}}>↓</span>
+                            </button>
+                          </div>
+                          {/* Evidence content */}
+                          <div className="flex-1">
+                            <div className="flex items-center mb-2">
+                              <span className="text-lg font-semibold mr-2">#{idx + 1}</span>
+                              {evidence.url ? (
+                                <a
+                                  href={evidence.url}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="text-lg font-bold text-[#171A22] hover:underline"
+                                >
+                                  {evidence.title} ({getDomain(evidence.url)})
+                                </a>
+                              ) : (
+                                <span className="text-lg font-bold text-[#171A22]">{evidence.title}</span>
+                              )}
+                            </div>
+                            <div className="text-gray-600 mb-2">{evidence.description}</div>
+                          </div>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </Tab.Panel>
+                {/* Submit Document Tab */}
+                <Tab.Panel>
+                  <form className="space-y-6 max-w-2xl mx-auto" onSubmit={handleSubmitDocument}>
+                    <div>
+                      <label className="block font-medium text-gray-700 mb-2">Evidence Type</label>
+                      <div className="flex items-center gap-6">
+                        <label className="flex items-center gap-2">
+                          <input
+                            type="radio"
+                            name="evidenceType"
+                            value="yes"
+                            checked={evidenceType === 'yes'}
+                            onChange={() => setEvidenceType('yes')}
+                            className="accent-blue-600"
+                          />
+                          <span>Yes Evidence</span>
+                        </label>
+                        <label className="flex items-center gap-2">
+                          <input
+                            type="radio"
+                            name="evidenceType"
+                            value="no"
+                            checked={evidenceType === 'no'}
+                            onChange={() => setEvidenceType('no')}
+                            className="accent-blue-600"
+                          />
+                          <span>No Evidence</span>
+                        </label>
+                      </div>
                     </div>
-                  ))
-                )}
-              </Tab.Panel>
-              {/* Submit Document Tab */}
-              <Tab.Panel>
-                <form className="space-y-6 max-w-2xl mx-auto" onSubmit={handleSubmitDocument}>
-                  <div>
-                    <label className="block font-medium text-gray-700 mb-2">Evidence Type</label>
-                    <div className="flex items-center gap-6">
-                      <label className="flex items-center gap-2">
-                        <input
-                          type="radio"
-                          name="evidenceType"
-                          value="yes"
-                          checked={evidenceType === 'yes'}
-                          onChange={() => setEvidenceType('yes')}
-                          className="accent-blue-600"
-                        />
-                        <span>Yes Evidence</span>
-                      </label>
-                      <label className="flex items-center gap-2">
-                        <input
-                          type="radio"
-                          name="evidenceType"
-                          value="no"
-                          checked={evidenceType === 'no'}
-                          onChange={() => setEvidenceType('no')}
-                          className="accent-blue-600"
-                        />
-                        <span>No Evidence</span>
-                      </label>
+                    <div>
+                      <label className="block font-medium text-gray-700 mb-2">Title</label>
+                      <input
+                        type="text"
+                        placeholder="e.g., CIA Memo dated Sept 1963"
+                        value={title}
+                        onChange={e => setTitle(e.target.value)}
+                        className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-600 text-base"
+                      />
                     </div>
-                  </div>
-                  <div>
-                    <label className="block font-medium text-gray-700 mb-2">Title</label>
-                    <input
-                      type="text"
-                      placeholder="e.g., CIA Memo dated Sept 1963"
-                      value={title}
-                      onChange={e => setTitle(e.target.value)}
-                      className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-600 text-base"
-                    />
-                  </div>
-                  <div>
-                    <label className="block font-medium text-gray-700 mb-2">URL</label>
-                    <input
-                      type="text"
-                      placeholder="Enter the URL of the document..."
-                      value={url}
-                      onChange={e => setUrl(e.target.value)}
-                      className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-600 text-base"
-                    />
-                  </div>
-                  <div>
-                    <label className="block font-medium text-gray-700 mb-2">Text</label>
-                    <textarea
-                      placeholder="Enter the document text or analysis..."
-                      value={text}
-                      onChange={e => setText(e.target.value)}
-                      className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-600 text-base min-h-[100px]"
-                    />
-                  </div>
-                  <button
-                    type="submit"
-                    className="w-full bg-[#171A22] text-white font-semibold py-3 rounded-lg text-lg hover:bg-[#232635] transition"
-                  >
-                    Submit Document
-                  </button>
-                </form>
-              </Tab.Panel>
-            </Tab.Panels>
-          </Tab.Group>
+                    <div>
+                      <label className="block font-medium text-gray-700 mb-2">URL</label>
+                      <input
+                        type="text"
+                        placeholder="Enter the URL of the document..."
+                        value={url}
+                        onChange={e => setUrl(e.target.value)}
+                        className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-600 text-base"
+                      />
+                    </div>
+                    <div>
+                      <label className="block font-medium text-gray-700 mb-2">Text</label>
+                      <textarea
+                        placeholder="Enter the document text or analysis..."
+                        value={text}
+                        onChange={e => setText(e.target.value)}
+                        className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-600 text-base min-h-[100px]"
+                      />
+                    </div>
+                    <button
+                      type="submit"
+                      className="w-full bg-[#171A22] text-white font-semibold py-3 rounded-lg text-lg hover:bg-[#232635] transition"
+                    >
+                      Submit Document
+                    </button>
+                  </form>
+                </Tab.Panel>
+              </Tab.Panels>
+            </Tab.Group>
+          </div>
         </div>
       </div>
     </div>

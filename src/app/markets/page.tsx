@@ -7,7 +7,7 @@ import { prepareContractCall } from "thirdweb";
 import { tokenContract, marketContract } from "../../../constants/contracts";
 // import { useContract } from "@thirdweb-dev/sdk";
 const LmLSMR_CONTRACT_ADDRESS = "0x03d7fa2716c0ff897000e1dcafdd6257ecce943a";
-import { formatOdds } from "../../utils/formatOdds";
+import { formatOdds, formatOddsToCents } from "../../utils/formatOdds";
 import { Tab } from "@headlessui/react";
 import { LineChart, Line, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer, ReferenceLine } from 'recharts';
 
@@ -83,8 +83,8 @@ export default function MarketsPage() {
   // Replace individual yesMode and noMode with a single mode state
   const [mode, setMode] = useState<'buy' | 'sell'>('buy');
 
-  const [yesAmount, setYesAmount] = useState("");
-  const [noAmount, setNoAmount] = useState("");
+  // Replace individual yesAmount and noAmount with a single amount state
+  const [amount, setAmount] = useState("");
 
   const [buyFeedback, setBuyFeedback] = useState<string | null>(null);
 
@@ -117,7 +117,7 @@ export default function MarketsPage() {
       },
       onSuccess: async (data) => {
         setBuyFeedback("Purchase successful!");
-        setYesAmount("");
+        setAmount("");
         setShouldPostOdds(true);
         if (oddsYes !== undefined && !isPendingYes) {
           await fetchOddsHistory();
@@ -347,6 +347,29 @@ export default function MarketsPage() {
     }
   }, [shouldPostOdds, oddsYes, oddsNo]);
 
+  // Add state for selected outcome
+  const [selectedOutcome, setSelectedOutcome] = useState<'yes' | 'no' | null>(null);
+
+  // Calculate payout
+  let payoutDisplay = '--';
+  if (selectedOutcome && amount && !isNaN(Number(amount)) && Number(amount) > 0) {
+    let odds = selectedOutcome === 'yes' ? oddsYes : oddsNo;
+    if (typeof odds === 'bigint' || typeof odds === 'number') {
+      const oddsNum = Number(odds) / ODDS_DIVISOR;
+      // Payout = amount * (1/odds) for buy, or amount * odds for sell (simplified, adjust as needed)
+      // For prediction markets, usually payout = amount * (1/odds) for buy, amount * odds for sell
+      let payout = 0;
+      if (mode === 'buy') {
+        payout = Number(amount) / oddsNum;
+      } else {
+        payout = Number(amount) * oddsNum;
+      }
+      if (isFinite(payout)) {
+        payoutDisplay = `$${payout.toFixed(2)}`;
+      }
+    }
+  }
+
   return (
     <div>
       <Navbar />
@@ -399,18 +422,18 @@ export default function MarketsPage() {
         </div>
         {/* Prediction Market Card */}
         <div className="bg-white rounded-xl shadow border border-gray-200 p-8 flex flex-col min-h-[500px] max-w-5xl w-full mx-auto mb-10">
-          {/* Align toggle and question in a flex row */}
-          <div className="flex items-center mb-4">
+          {/* Align toggle in a flex row at the top */}
+          <div className="flex items-center mb-4 px-10">
             <div className="flex gap-2 mr-6">
               <button
-                className={`px-4 py-1 rounded-l-lg font-medium text-sm border ${mode === 'buy' ? 'bg-green-600 text-white' : 'bg-white text-green-600 border-green-600'}`}
+                className={`px-4 py-1 rounded-l-lg font-medium text-sm border ${mode === 'buy' ? 'bg-black text-white border-black' : 'bg-white text-black border-black'}`}
                 onClick={() => setMode('buy')}
                 type="button"
               >
                 Buy
               </button>
               <button
-                className={`px-4 py-1 rounded-r-lg font-medium text-sm border ${mode === 'sell' ? 'bg-red-600 text-white' : 'bg-white text-red-600 border-red-600'}`}
+                className={`px-4 py-1 rounded-r-lg font-medium text-sm border ${mode === 'sell' ? 'bg-black text-white border-black' : 'bg-white text-black border-black'}`}
                 onClick={() => setMode('sell')}
                 type="button"
               >
@@ -418,56 +441,53 @@ export default function MarketsPage() {
               </button>
             </div>
           </div>
-          {/* Odds boxes section */}
-          <div className="flex justify-center items-center gap-8 my-6">
-            {/* Yes Position Card */}
-            <div className="bg-[#f8f9fa] border border-gray-300 rounded-lg px-10 py-6 flex flex-col items-center min-w-[170px]">
-              <span className="text-lg font-semibold text-[#171A22] mb-2">Yes</span>
-              <span className="text-2xl font-bold text-[#171A22]">{isPendingYes ? "..." : formatOdds(oddsYes)}</span>
-              <div className="flex items-center gap-2 w-full mt-4">
-                <input
-                  type="number"
-                  min="0"
-                  placeholder={`Enter ${mode === 'buy' ? 'Buy' : 'Sell'} Amount`}
-                  value={yesAmount}
-                  onChange={e => setYesAmount(e.target.value)}
-                  className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-600 text-base"
-                />
-                <button
-                  className={`font-semibold px-6 py-2 rounded-lg shadow transition disabled:opacity-50 ${mode === 'buy' ? 'bg-green-600 hover:bg-green-700 text-white' : 'bg-white border border-green-600 text-green-700'}`}
-                  onClick={() => mode === 'buy' ? handleBuyYes(yesAmount) : handleSellYes(yesAmount)}
-                  disabled={!yesAmount || (mode === 'buy' ? buyYesStatus === 'pending' : sellYesStatus === 'pending')}
-                >
-                  {mode === 'buy'
-                    ? (buyYesStatus === 'pending' ? 'Buying...' : 'Buy Yes')
-                    : (sellYesStatus === 'pending' ? 'Selling...' : 'Sell Yes')}
-                </button>
-              </div>
+          <div className="text-[1.35rem] font-medium text-black mb-4 ml-10">{mode === 'buy' ? 'Bet Amount ($)' : 'Sell Shares'}</div>
+          <div className="flex flex-col items-start w-full px-10 mb-4">
+            <input
+              type="number"
+              min="0"
+              placeholder={`Enter ${mode === 'buy' ? 'Buy' : 'Sell'} Amount`}
+              value={amount}
+              onChange={e => setAmount(e.target.value)}
+              className="w-1/4 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-black text-base"
+            />
+            <div className="flex flex-row w-1/4 mt-4 gap-2">
+              <button
+                type="button"
+                className={`font-semibold px-6 py-2 rounded-lg shadow transition disabled:opacity-50 bg-green-600 hover:bg-green-700 text-white ${selectedOutcome === 'yes' ? 'ring-2 ring-black' : ''}`}
+                onClick={() => setSelectedOutcome('yes')}
+              >
+                {mode === 'buy'
+                  ? (buyYesStatus === 'pending' ? 'Buying...' : `Yes ${formatOddsToCents(oddsYes)}`)
+                  : (sellYesStatus === 'pending' ? 'Selling...' : `Yes ${formatOddsToCents(oddsYes)}`)}
+              </button>
+              <button
+                type="button"
+                className={`font-semibold px-6 py-2 rounded-lg shadow transition disabled:opacity-50 bg-red-600 hover:bg-red-700 text-white ${selectedOutcome === 'no' ? 'ring-2 ring-black' : ''}`}
+                onClick={() => setSelectedOutcome('no')}
+              >
+                {mode === 'buy'
+                  ? (buyNoStatus === 'pending' ? 'Buying...' : `No ${formatOddsToCents(oddsNo)}`)
+                  : (sellNoStatus === 'pending' ? 'Selling...' : `No ${formatOddsToCents(oddsNo)}`)}
+              </button>
             </div>
-            {/* No Position Card */}
-            <div className="bg-[#f8f9fa] border border-gray-300 rounded-lg px-10 py-6 flex flex-col items-center min-w-[170px]">
-              <span className="text-lg font-semibold text-[#171A22] mb-2">No</span>
-              <span className="text-2xl font-bold text-[#171A22]">{isPendingNo ? "..." : formatOdds(oddsNo)}</span>
-              <div className="flex items-center gap-2 w-full mt-4">
-                <input
-                  type="number"
-                  min="0"
-                  placeholder={`Enter ${mode === 'buy' ? 'Buy' : 'Sell'} Amount`}
-                  value={noAmount}
-                  onChange={e => setNoAmount(e.target.value)}
-                  className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-600 text-base"
-                />
-                <button
-                  className={`font-semibold px-6 py-2 rounded-lg shadow transition disabled:opacity-50 ${mode === 'buy' ? 'bg-red-600 hover:bg-red-700 text-white' : 'bg-white border border-red-600 text-red-700'}`}
-                  onClick={() => mode === 'buy' ? handleBuyNo(noAmount) : handleSellNo(noAmount)}
-                  disabled={!noAmount || (mode === 'buy' ? buyNoStatus === 'pending' : sellNoStatus === 'pending')}
-                >
-                  {mode === 'buy'
-                    ? (buyNoStatus === 'pending' ? 'Buying...' : 'Buy No')
-                    : (sellNoStatus === 'pending' ? 'Selling...' : 'Sell No')}
-                </button>
-              </div>
-            </div>
+          </div>
+          <div className="text-[1.35rem] font-medium text-black mb-4 ml-10">{mode === 'buy' ? 'Max. Win:' : 'Receive:'} <span className="text-green-600 font-bold">{payoutDisplay}</span></div>
+          <div className="flex w-1/4 px-10 mb-4">
+            <button
+              className="w-full font-semibold px-6 py-2 rounded-lg shadow transition disabled:opacity-50 bg-black text-white"
+              disabled={!selectedOutcome || !amount || (selectedOutcome === 'yes' && (mode === 'buy' ? buyYesStatus === 'pending' : sellYesStatus === 'pending')) || (selectedOutcome === 'no' && (mode === 'buy' ? buyNoStatus === 'pending' : sellNoStatus === 'pending'))}
+              onClick={() => {
+                if (!selectedOutcome || !amount) return;
+                if (selectedOutcome === 'yes') {
+                  mode === 'buy' ? handleBuyYes(amount) : handleSellYes(amount);
+                } else if (selectedOutcome === 'no') {
+                  mode === 'buy' ? handleBuyNo(amount) : handleSellNo(amount);
+                }
+              }}
+            >
+              Trade
+            </button>
           </div>
           {buyFeedback && (
             <div className={`text-center my-4 ${buyFeedback.includes('success') ? 'text-green-600' : 'text-red-600'}`}>{buyFeedback}</div>

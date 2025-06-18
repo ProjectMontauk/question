@@ -70,6 +70,17 @@ export default function MarketsPage() {
   // Get only the first sentence for the collapsed view
   const firstLine = rulesShort.split(".")[0] + ".";
 
+  // Split rules into two paragraphs at "Otherwise, the market will resolve 'No.'"
+  function splitRules(text: string) {
+    const splitStr = "35th President's assassination.";
+    const idx = text.indexOf(splitStr);
+    if (idx === -1) return [text];
+    return [
+      text.slice(0, idx + splitStr.length),
+      text.slice(idx + splitStr.length).trim()
+    ];
+  }
+
   const handleApprove = () => {
     if (!account || !balance) return;
     const transaction = prepareContractCall({
@@ -424,9 +435,9 @@ export default function MarketsPage() {
             {/* Collapsible Rules section (moved inside chart card) */}
             <div className="mt-8">
               <h2 className="text-lg font-bold mb-2">Rules</h2>
-              <p className="text-gray-600 text-base mb-2">
-                {showRules ? rulesFull : firstLine}
-              </p>
+              {splitRules(showRules ? rulesFull : firstLine).map((para, i) => (
+                <p key={i} className="text-gray-600 text-base mb-2">{para}</p>
+              ))}
               <button
                 className="text-blue-600 text-sm font-medium flex items-center gap-1 focus:outline-none mb-2"
                 onClick={() => setShowRules((prev) => !prev)}
@@ -516,24 +527,24 @@ export default function MarketsPage() {
           <div className="bg-white rounded-xl shadow border border-gray-200 p-8 max-w-4xl w-full ml-19">
             <h2 className="text-2xl font-bold mb-6 text-[#171A22]">Evidence</h2>
             <Tab.Group>
-              <Tab.List className="flex space-x-2 mb-6">
+              <Tab.List className="flex w-full mb-6 bg-gray-50 rounded-lg">
                 <Tab
                   className={({ selected }: { selected: boolean }) =>
-                    `px-6 py-2 rounded-lg font-medium text-sm transition focus:outline-none ${selected ? "bg-gray-100 text-[#171A22]" : "bg-white text-gray-500 border border-gray-200"}`
+                    `flex-1 px-6 py-2 rounded-lg font-medium text-sm transition focus:outline-none ${selected ? "bg-white text-[#171A22] shadow" : "bg-gray-50 text-gray-500"}`
                   }
                 >
                   View "Yes" Documents
                 </Tab>
                 <Tab
                   className={({ selected }: { selected: boolean }) =>
-                    `px-6 py-2 rounded-lg font-medium text-sm transition focus:outline-none ${selected ? "bg-gray-100 text-[#171A22]" : "bg-white text-gray-500 border border-gray-200"}`
+                    `flex-1 px-6 py-2 rounded-lg font-medium text-sm transition focus:outline-none ${selected ? "bg-white text-[#171A22] shadow" : "bg-gray-50 text-gray-500"}`
                   }
                 >
                   View "No" Documents
                 </Tab>
                 <Tab
                   className={({ selected }: { selected: boolean }) =>
-                    `px-6 py-2 rounded-lg font-medium text-sm transition focus:outline-none ${selected ? "bg-gray-100 text-[#171A22]" : "bg-white text-gray-500 border border-gray-200"}`
+                    `flex-1 px-6 py-2 rounded-lg font-medium text-sm transition focus:outline-none ${selected ? "bg-white text-[#171A22] shadow" : "bg-gray-50 text-gray-500"}`
                   }
                 >
                   Submit Document
@@ -554,43 +565,43 @@ export default function MarketsPage() {
                           {/* Voting column */}
                           <div className="flex flex-col items-center mr-4 select-none">
                             <button
-                              className="text-green-600 hover:text-green-800 text-base p-0 mb-1"
+                              className="text-green-600 hover:text-green-800 text-lg p-0 mb-1"
                               onClick={() => handleVote(evidence.id, evidence.netVotes + 1)}
                               aria-label="Upvote"
                               type="button"
                             >
-                              <span style={{fontSize: '1.01em'}}>↑</span>
+                              <svg width="20" height="20" viewBox="0 0 20 20" className="text-green-600" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><path d="M10 2v16" strokeLinecap="round"/><path d="M5 7l5-5 5 5" strokeLinecap="round"/></svg>
                             </button>
-                            <div className="bg-red-500 text-white rounded-full px-1.5 py-0.5 text-xs font-semibold mb-1" style={{minWidth: '1.48rem', textAlign: 'center'}}>
+                            <div className={`${evidence.netVotes >= 0 ? 'bg-black' : 'bg-red-500'} text-white rounded-full px-1.5 py-0.5 text-xs font-semibold mb-1`} style={{minWidth: '1.48rem', textAlign: 'center'}}>
                               {evidence.netVotes}
                             </div>
                             <button
-                              className="text-red-600 hover:text-red-800 text-base p-0"
+                              className="text-red-600 hover:text-red-800 text-lg p-0"
                               onClick={() => handleVote(evidence.id, evidence.netVotes - 1)}
                               aria-label="Downvote"
                               type="button"
                             >
-                              <span style={{fontSize: '1.01em'}}>↓</span>
+                              <svg width="20" height="20" viewBox="0 0 20 20" className="text-red-600" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><path d="M10 2v16" strokeLinecap="round"/><path d="M5 13l5 5 5-5" strokeLinecap="round"/></svg>
                             </button>
                           </div>
                           {/* Evidence content */}
                           <div className="flex-1">
                             <div className="flex items-center mb-2">
-                              <span className="text-lg font-semibold mr-2">#{idx + 1}</span>
+                              <span className="text-sm font-semibold mr-2">#{idx + 1}</span>
                               {evidence.url ? (
                                 <a
                                   href={evidence.url}
                                   target="_blank"
                                   rel="noopener noreferrer"
-                                  className="text-lg font-bold text-[#171A22] hover:underline"
+                                  className="text-sm font-bold text-[#171A22] hover:underline text-[95%]"
                                 >
                                   {evidence.title} ({getDomain(evidence.url)})
                                 </a>
                               ) : (
-                                <span className="text-lg font-bold text-[#171A22]">{evidence.title}</span>
+                                <span className="text-sm font-bold text-[#171A22] text-[95%]">{evidence.title}</span>
                               )}
                             </div>
-                            <div className="text-gray-600 mb-2">{evidence.description}</div>
+                            <div className="text-gray-600 mb-2 text-sm">{evidence.description}</div>
                           </div>
                         </div>
                       </div>
@@ -611,43 +622,43 @@ export default function MarketsPage() {
                           {/* Voting column */}
                           <div className="flex flex-col items-center mr-4 select-none">
                             <button
-                              className="text-green-600 hover:text-green-800 text-base p-0 mb-1"
+                              className="text-green-600 hover:text-green-800 text-lg p-0 mb-1"
                               onClick={() => handleVote(evidence.id, evidence.netVotes + 1)}
                               aria-label="Upvote"
                               type="button"
                             >
-                              <span style={{fontSize: '1.01em'}}>↑</span>
+                              <svg width="20" height="20" viewBox="0 0 20 20" className="text-green-600" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><path d="M10 2v16" strokeLinecap="round"/><path d="M5 7l5-5 5 5" strokeLinecap="round"/></svg>
                             </button>
-                            <div className="bg-red-500 text-white rounded-full px-1.5 py-0.5 text-xs font-semibold mb-1" style={{minWidth: '1.48rem', textAlign: 'center'}}>
+                            <div className={`${evidence.netVotes >= 0 ? 'bg-black' : 'bg-red-500'} text-white rounded-full px-1.5 py-0.5 text-xs font-semibold mb-1`} style={{minWidth: '1.48rem', textAlign: 'center'}}>
                               {evidence.netVotes}
                             </div>
                             <button
-                              className="text-red-600 hover:text-red-800 text-base p-0"
+                              className="text-red-600 hover:text-red-800 text-lg p-0"
                               onClick={() => handleVote(evidence.id, evidence.netVotes - 1)}
                               aria-label="Downvote"
                               type="button"
                             >
-                              <span style={{fontSize: '1.01em'}}>↓</span>
+                              <svg width="20" height="20" viewBox="0 0 20 20" className="text-red-600" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><path d="M10 2v16" strokeLinecap="round"/><path d="M5 13l5 5 5-5" strokeLinecap="round"/></svg>
                             </button>
                           </div>
                           {/* Evidence content */}
                           <div className="flex-1">
                             <div className="flex items-center mb-2">
-                              <span className="text-lg font-semibold mr-2">#{idx + 1}</span>
+                              <span className="text-sm font-semibold mr-2">#{idx + 1}</span>
                               {evidence.url ? (
                                 <a
                                   href={evidence.url}
                                   target="_blank"
                                   rel="noopener noreferrer"
-                                  className="text-lg font-bold text-[#171A22] hover:underline"
+                                  className="text-sm font-bold text-[#171A22] hover:underline text-[95%]"
                                 >
                                   {evidence.title} ({getDomain(evidence.url)})
                                 </a>
                               ) : (
-                                <span className="text-lg font-bold text-[#171A22]">{evidence.title}</span>
+                                <span className="text-sm font-bold text-[#171A22] text-[95%]">{evidence.title}</span>
                               )}
                             </div>
-                            <div className="text-gray-600 mb-2">{evidence.description}</div>
+                            <div className="text-gray-600 mb-2 text-sm">{evidence.description}</div>
                           </div>
                         </div>
                       </div>
@@ -656,9 +667,9 @@ export default function MarketsPage() {
                 </Tab.Panel>
                 {/* Submit Document Tab */}
                 <Tab.Panel>
-                  <form className="space-y-6 max-w-2xl mx-auto" onSubmit={handleSubmitDocument}>
+                  <form className="space-y-6 max-w-4xl" onSubmit={handleSubmitDocument}>
                     <div>
-                      <label className="block font-medium text-gray-700 mb-2">Evidence Type</label>
+                      <label className="block font-medium text-gray-700 mb-2 text-[95%]">Evidence Type</label>
                       <div className="flex items-center gap-6">
                         <label className="flex items-center gap-2">
                           <input
@@ -685,32 +696,32 @@ export default function MarketsPage() {
                       </div>
                     </div>
                     <div>
-                      <label className="block font-medium text-gray-700 mb-2">Title</label>
+                      <label className="block font-medium text-gray-700 mb-2 text-[95%]">Title</label>
                       <input
                         type="text"
                         placeholder="e.g., CIA Memo dated Sept 1963"
                         value={title}
                         onChange={e => setTitle(e.target.value)}
-                        className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-600 text-base"
+                        className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-600 text-base"
                       />
                     </div>
                     <div>
-                      <label className="block font-medium text-gray-700 mb-2">URL</label>
+                      <label className="block font-medium text-gray-700 mb-2 text-[95%]">URL</label>
                       <input
                         type="text"
                         placeholder="Enter the URL of the document..."
                         value={url}
                         onChange={e => setUrl(e.target.value)}
-                        className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-600 text-base"
+                        className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-600 text-base"
                       />
                     </div>
                     <div>
-                      <label className="block font-medium text-gray-700 mb-2">Text</label>
+                      <label className="block font-medium text-gray-700 mb-2 text-[95%]">Text</label>
                       <textarea
                         placeholder="Enter the document text or analysis..."
                         value={text}
                         onChange={e => setText(e.target.value)}
-                        className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-600 text-base min-h-[100px]"
+                        className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-600 text-base min-h-[60px] placeholder:text-[95%]"
                       />
                     </div>
                     <button

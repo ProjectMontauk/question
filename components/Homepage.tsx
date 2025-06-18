@@ -6,7 +6,11 @@ import { useRouter } from "next/navigation";
 const Homepage = () => {
   const router = useRouter();
   return (
-    <div className="min-h-screen bg-[#f8f9fa] flex justify-center items-start w-full pt-12">
+    <div className="min-h-screen bg-[#f8f9fa] flex flex-col items-center w-full pt-10">
+      <h1 className="text-4xl font-bold mb-4 text-center w-full">Welcome to Tinfoil</h1>
+      <div className="text-xl text-gray-600 mb-8 text-center w-full">
+        A home for honest debate about anything on the internet
+      </div>
       <div className="flex flex-col sm:flex-row gap-6">
         {/* Deposit Card */}
         <div className="bg-white rounded-xl shadow border border-gray-200 p-5 max-w-xs w-full">

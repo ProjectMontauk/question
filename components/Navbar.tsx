@@ -11,8 +11,8 @@ import { useRouter } from "next/navigation";
 const Navbar = () => {
   const router = useRouter();
   return (
-    <nav className="w-full flex items-center justify-between px-8 py-4 border-b bg-white">
-      <div>
+    <nav className="w-full flex items-center justify-between px-8 py-4 border-b border-gray-200 bg-white">
+      <div className="ml-18">
         <h1 className="text-2xl font-bold text-[#171A22]">Tinfoil</h1>
         <p className="text-sm text-gray-500">Time Discovers Truth</p>
       </div>

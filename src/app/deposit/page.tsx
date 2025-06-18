@@ -7,6 +7,8 @@ import { prepareContractCall } from "thirdweb";
 import { tokenContract } from "../../../constants/contracts";
 import { parseAmountToWei } from "../../utils/parseAmountToWei";
 
+const LmLSMR_CONTRACT_ADDRESS = "0x03d7fa2716c0ff897000e1dcafdd6257ecce943a";
+
 export default function DepositPage() {
   const [amount, setAmount] = useState("");
   const { mutate: sendTransaction, status } = useSendTransaction();
@@ -31,6 +33,16 @@ export default function DepositPage() {
       contract: tokenContract,
       method: "function mint(address account, uint256 amount)",
       params: [account.address, parsedAmount],
+    });
+    sendTransaction(transaction);
+  };
+
+  const handleApprove = () => {
+    if (!account || !balance) return;
+    const transaction = prepareContractCall({
+      contract: tokenContract,
+      method: "function approve(address spender, uint256 value)",
+      params: [LmLSMR_CONTRACT_ADDRESS, balance],
     });
     sendTransaction(transaction);
   };
@@ -68,6 +80,15 @@ export default function DepositPage() {
               {isPending ? "..." : formatBalance(balance)}
             </span>
           </div>
+        </div>
+        <div className="bg-white rounded-xl shadow border border-gray-200 p-5 max-w-md w-full mt-8">
+          <button
+            className="bg-[#171A22] text-white px-6 py-2 rounded-lg font-medium text-base shadow hover:bg-[#232635] transition disabled:opacity-50 w-full"
+            onClick={handleApprove}
+            disabled={!account || !balance || status === "pending"}
+          >
+            {status === "pending" ? "Approving..." : "Approve Bets"}
+          </button>
         </div>
       </div>
     </div>

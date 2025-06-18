@@ -9,7 +9,7 @@ import { tokenContract, marketContract } from "../../../constants/contracts";
 const LmLSMR_CONTRACT_ADDRESS = "0x03d7fa2716c0ff897000e1dcafdd6257ecce943a";
 import { formatOdds } from "../../utils/formatOdds";
 import { Tab } from "@headlessui/react";
-import { LineChart, Line, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { LineChart, Line, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer, ReferenceLine } from 'recharts';
 
 // Helper to extract domain from URL
 function getDomain(url: string) {
@@ -354,6 +354,9 @@ export default function MarketsPage() {
         {/* Odds History Chart Card */}
         <div className="bg-white rounded-xl shadow border border-gray-200 p-8 max-w-5xl w-full mx-auto mb-10">
           <h2 className="text-2xl font-bold mb-6 text-[#171A22]">Did the CIA aid in the planning or execution of John F. Kennedy's Assassination?</h2>
+          <div className="mb-2">
+            <span className="text-lg font-semibold text-[#171A22]">Market Odds</span>
+          </div>
           {loadingOdds ? (
             <div className="text-gray-500">Loading chart...</div>
           ) : (
@@ -363,13 +366,31 @@ export default function MarketsPage() {
                   dataKey="timestamp"
                   tick={{ fontSize: 12, dy: 8 }}
                   height={40}
-                  tickFormatter={(_, index) =>
-                    index === 0 || index === chartData.length - 1 ? chartData[index].timestamp : ""
-                  }
+                  tickFormatter={(_, index) => {
+                    if (index === 0) {
+                      const date = new Date(chartData[0].timestamp);
+                      const month = String(date.getMonth() + 1).padStart(2, '0');
+                      const day = String(date.getDate()).padStart(2, '0');
+                      return `${month}-${day}`;
+                    }
+                    return "";
+                  }}
+                  padding={{ left: 0, right: 0 }}
+                  minTickGap={0}
                 />
-                <YAxis domain={[0, 1]} tickFormatter={v => (typeof v === 'number' ? `${Math.round(v * 100)}%` : v)} />
+                <YAxis
+                  domain={[0, 1]}
+                  tickFormatter={v => (typeof v === 'number' ? `${Math.round(v * 100)}%` : v)}
+                  orientation="right"
+                  axisLine={false}
+                  tickLine={false}
+                />
                 <Tooltip formatter={v => (typeof v === 'number' ? `${Math.round(v * 100)}%` : v)} />
                 <Legend />
+                <ReferenceLine y={0.25} stroke="#bdbdbd" strokeDasharray="4 4" />
+                <ReferenceLine y={0.5} stroke="#bdbdbd" strokeDasharray="4 4" />
+                <ReferenceLine y={0.75} stroke="#bdbdbd" strokeDasharray="4 4" />
+                <ReferenceLine y={1} stroke="#bdbdbd" strokeDasharray="4 4" />
                 <Line type="linear" dataKey="Yes" stroke="#22c55e" dot={false} name="Yes Probability" />
                 <Line type="linear" dataKey="No" stroke="#ef4444" dot={false} name="No Probability" />
               </LineChart>
@@ -378,32 +399,24 @@ export default function MarketsPage() {
         </div>
         {/* Prediction Market Card */}
         <div className="bg-white rounded-xl shadow border border-gray-200 p-8 flex flex-col min-h-[500px] max-w-5xl w-full mx-auto mb-10">
-          <h1 className="text-xl font-bold text-[#171A22] mb-4">Did the CIA aid in the planning or execution of John F. Kennedy's Assassination?</h1>
-          <div className="flex flex-col items-start mb-8">
-            <button
-              className="bg-[#171A22] text-white px-6 py-1 rounded-lg font-medium text-sm shadow hover:bg-[#232635] transition mb-1 whitespace-nowrap disabled:opacity-50"
-              onClick={handleApprove}
-              disabled={!account || !balance || status === "pending"}
-            >
-              {status === "pending" ? "Approving..." : "Approve Bets"}
-            </button>
-          </div>
-          {/* Single Buy/Sell Toggle for both Yes/No */}
-          <div className="flex justify-center items-center gap-2 mb-6">
-            <button
-              className={`px-4 py-1 rounded-l-lg font-medium text-sm border ${mode === 'buy' ? 'bg-green-600 text-white' : 'bg-white text-green-600 border-green-600'}`}
-              onClick={() => setMode('buy')}
-              type="button"
-            >
-              Buy
-            </button>
-            <button
-              className={`px-4 py-1 rounded-r-lg font-medium text-sm border ${mode === 'sell' ? 'bg-red-600 text-white' : 'bg-white text-red-600 border-red-600'}`}
-              onClick={() => setMode('sell')}
-              type="button"
-            >
-              Sell
-            </button>
+          {/* Align toggle and question in a flex row */}
+          <div className="flex items-center mb-4">
+            <div className="flex gap-2 mr-6">
+              <button
+                className={`px-4 py-1 rounded-l-lg font-medium text-sm border ${mode === 'buy' ? 'bg-green-600 text-white' : 'bg-white text-green-600 border-green-600'}`}
+                onClick={() => setMode('buy')}
+                type="button"
+              >
+                Buy
+              </button>
+              <button
+                className={`px-4 py-1 rounded-r-lg font-medium text-sm border ${mode === 'sell' ? 'bg-red-600 text-white' : 'bg-white text-red-600 border-red-600'}`}
+                onClick={() => setMode('sell')}
+                type="button"
+              >
+                Sell
+              </button>
+            </div>
           </div>
           {/* Odds boxes section */}
           <div className="flex justify-center items-center gap-8 my-6">

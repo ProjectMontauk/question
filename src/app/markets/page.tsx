@@ -129,7 +129,7 @@ export default function MarketsPage() {
       contract: marketContract,
       method: "function buy(uint256 _outcome, int128 _amount) returns (int128 _price)",
       params: [yesIndex, parsedAmount],
-      gas: 150000n
+      gas: 250000n
     });
     sendBuyYesTransaction(transaction, {
       onError: (error) => {
@@ -162,7 +162,7 @@ export default function MarketsPage() {
       contract: marketContract,
       method: "function buy(uint256 _outcome, int128 _amount) returns (int128 _price)",
       params: [noIndex, parsedAmount],
-      gas: 150000n
+      gas: 250000n
     });
 
     sendBuyNoTransaction(transaction, {
@@ -199,7 +199,7 @@ export default function MarketsPage() {
       contract: marketContract,
       method: "function sell(uint256 _outcome, int128 _amount) returns (int128 _price)",
       params: [yesIndex, parsedAmount],
-      gas: 150000n
+      gas: 250000n
     });
     sendSellYesTransaction(transaction, {
       onError: (error) => {
@@ -231,7 +231,7 @@ export default function MarketsPage() {
       contract: marketContract,
       method: "function sell(uint256 _outcome, int128 _amount) returns (int128 refund)",
       params: [noIndex, parsedAmount],
-      gas: 150000n
+      gas: 250000n
     });
     sendSellNoTransaction(transaction, {
       onError: (error) => {

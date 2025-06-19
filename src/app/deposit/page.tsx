@@ -15,7 +15,7 @@ export default function DepositPage() {
   const account = useActiveAccount();
 
   // For getCollectionId card
-  const [conditionId, setConditionId] = useState("");
+  const [conditionId, setConditionId] = useState("0x8555CCD72D38B0C0B6689C2AABF14F85B7F0153DD045A939E438B08BD8C33454");
   const [parentCollectionId, setParentCollectionId] = useState("0000000000000000000000000000000000000000000000000000000000000000");
   const [indexSet, setIndexSet] = useState("1");
   const [shouldFetch, setShouldFetch] = useState(false);
@@ -24,10 +24,24 @@ export default function DepositPage() {
   const [isCollectionIdPending, setIsCollectionIdPending] = useState(false);
 
   // For getPositionId card
-  const [collateralToken, setCollateralToken] = useState("");
+  const [collateralToken, setCollateralToken] = useState("0x6e915a7a2940f3f3f95e65205b9ebf89df0aa141");
   const [collectionId, setCollectionId] = useState("");
   const [positionIdResult, setPositionIdResult] = useState<string | null>(null);
   const [isPositionIdPending, setIsPositionIdPending] = useState(false);
+
+  // For balanceOf card
+  const [balanceAccount, setBalanceAccount] = useState("");
+  const [balancePositionId, setBalancePositionId] = useState("");
+  const [balanceResult, setBalanceResult] = useState<string | null>(null);
+  const [isBalancePending, setIsBalancePending] = useState(false);
+
+  // For Your Balance card - hardcoded PositionIDs
+  const [outcome1PositionId] = useState("51877916418744962899164470202259177085298509683534003885170535231097280890835");
+  const [outcome2PositionId] = useState("46634212102108699492488813922022044718165605089123703573217419428873160154565");
+  const [outcome1Balance, setOutcome1Balance] = useState<string>("--");
+  const [outcome2Balance, setOutcome2Balance] = useState<string>("--");
+  const [totalPortfolioValue, setTotalPortfolioValue] = useState<string>("--");
+  const [isBalanceLoading, setIsBalanceLoading] = useState(false);
 
   const { data: balance, isPending } = useReadContract({
     contract: tokenContract,
@@ -93,7 +107,17 @@ export default function DepositPage() {
           BigInt(indexSet)
         ],
       });
-      setCollectionIdResult(result as string);
+      const collectionIdResult = result as string;
+      setCollectionIdResult(collectionIdResult);
+      
+      // Automatically set the collectionId for the Get PositionID function
+      setCollectionId(collectionIdResult);
+      
+      // Automatically call Get PositionID
+      setTimeout(() => {
+        handleGetPositionId();
+      }, 100);
+      
     } catch (err) {
       console.error("Error details:", err);
       setCollectionIdResult("Error fetching CollectionId");
@@ -128,6 +152,89 @@ export default function DepositPage() {
     }
     setIsPositionIdPending(false);
   };
+
+  const handleGetBalance = async () => {
+    setIsBalancePending(true);
+    
+    console.log('GetBalance called with params:', {
+      account: balanceAccount,
+      positionId: balancePositionId
+    });
+    
+    try {
+      const result = await readContract({
+        contract: conditionalTokensContract,
+        method: "function balanceOf(address account, uint256 id) view returns (uint256)",
+        params: [
+          balanceAccount as `0x${string}`,
+          BigInt(balancePositionId)
+        ],
+      });
+      setBalanceResult(result.toString());
+    } catch (err) {
+      console.error("Balance Error details:", err);
+      setBalanceResult("Error fetching Balance");
+    }
+    setIsBalancePending(false);
+  };
+
+  const fetchUserBalances = async () => {
+    if (!account?.address) return;
+    
+    setIsBalanceLoading(true);
+    
+    try {
+      // Fetch balance for Outcome 1 (Yes)
+      const balance1 = await readContract({
+        contract: conditionalTokensContract,
+        method: "function balanceOf(address account, uint256 id) view returns (uint256)",
+        params: [
+          account.address as `0x${string}`,
+          BigInt(outcome1PositionId)
+        ],
+      });
+      
+      // Fetch balance for Outcome 2 (No)
+      const balance2 = await readContract({
+        contract: conditionalTokensContract,
+        method: "function balanceOf(address account, uint256 id) view returns (uint256)",
+        params: [
+          account.address as `0x${string}`,
+          BigInt(outcome2PositionId)
+        ],
+      });
+      
+      // Convert balances to strings and format them
+      const balance1Str = balance1.toString();
+      const balance2Str = balance2.toString();
+      
+      // Convert to real token amounts by dividing by 10^18
+      const realBalance1 = (Number(balance1Str) / 1e18).toFixed(4);
+      const realBalance2 = (Number(balance2Str) / 1e18).toFixed(4);
+      
+      setOutcome1Balance(realBalance1);
+      setOutcome2Balance(realBalance2);
+      
+      // Calculate total portfolio value (sum of both balances)
+      const total = Number(balance1Str) / 1e18 + Number(balance2Str) / 1e18;
+      setTotalPortfolioValue(total.toFixed(4));
+      
+    } catch (err) {
+      console.error("Error fetching user balances:", err);
+      setOutcome1Balance("Error");
+      setOutcome2Balance("Error");
+      setTotalPortfolioValue("Error");
+    }
+    
+    setIsBalanceLoading(false);
+  };
+
+  // Fetch balances when account changes or component mounts
+  React.useEffect(() => {
+    if (account?.address) {
+      fetchUserBalances();
+    }
+  }, [account?.address]);
 
   return (
     <div>
@@ -172,18 +279,19 @@ export default function DepositPage() {
         <div className="bg-white rounded-xl shadow border border-gray-200 p-5 max-w-md w-full mt-8">
           <h2 className="text-xl font-bold text-gray-900 mb-4">Get CollectionId</h2>
           <div className="mb-4">
-            <label className="block text-sm font-medium text-gray-700 mb-1">ConditionID</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Index Set</label>
             <input
-              type="text"
-              value={conditionId}
-              onChange={e => setConditionId(e.target.value)}
+              type="number"
+              min="0"
+              value={indexSet}
+              onChange={e => setIndexSet(e.target.value)}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#171A22] text-base"
-              placeholder="Enter ConditionID"
+              placeholder="Enter Index Set (e.g., 1 for Yes, 2 for No)"
             />
           </div>
           <button
             className="bg-[#171A22] text-white px-6 py-2 rounded-lg font-medium text-base shadow hover:bg-[#232635] transition disabled:opacity-50"
-            disabled={isCollectionIdPending || !conditionId}
+            disabled={isCollectionIdPending || !indexSet}
             onClick={handleGetCollectionId}
           >
             {isCollectionIdPending ? "Fetching..." : "Get CollectionId"}
@@ -197,16 +305,6 @@ export default function DepositPage() {
         <div className="bg-white rounded-xl shadow border border-gray-200 p-5 max-w-md w-full mt-8">
           <h2 className="text-xl font-bold text-gray-900 mb-4">Get PositionID</h2>
           <div className="mb-4">
-            <label className="block text-sm font-medium text-gray-700 mb-1">Collateral Token</label>
-            <input
-              type="text"
-              value={collateralToken}
-              onChange={e => setCollateralToken(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#171A22] text-base"
-              placeholder="Enter Collateral Token Address"
-            />
-          </div>
-          <div className="mb-4">
             <label className="block text-sm font-medium text-gray-700 mb-1">Collection ID</label>
             <input
               type="text"
@@ -219,7 +317,7 @@ export default function DepositPage() {
           <button
             className="bg-[#171A22] text-white px-6 py-2 rounded-lg font-medium text-base shadow hover:bg-[#232635] transition disabled:opacity-50"
             onClick={handleGetPositionId}
-            disabled={isPositionIdPending || !collateralToken || !collectionId}
+            disabled={isPositionIdPending || !collectionId}
           >
             {isPositionIdPending ? "Fetching..." : "Get PositionID"}
           </button>
@@ -228,6 +326,56 @@ export default function DepositPage() {
               <strong>PositionID:</strong> {positionIdResult}
             </div>
           )}
+        </div>
+        <div className="bg-white rounded-xl shadow border border-gray-200 p-5 max-w-md w-full mt-8">
+          <h2 className="text-xl font-bold text-gray-900 mb-4">balanceOf</h2>
+          <div className="mb-4">
+            <label className="block text-sm font-medium text-gray-700 mb-1">Account</label>
+            <input
+              type="text"
+              value={balanceAccount}
+              onChange={e => setBalanceAccount(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#171A22] text-base"
+              placeholder="Enter Account Address"
+            />
+          </div>
+          <div className="mb-4">
+            <label className="block text-sm font-medium text-gray-700 mb-1">Position ID</label>
+            <input
+              type="text"
+              value={balancePositionId}
+              onChange={e => setBalancePositionId(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#171A22] text-base"
+              placeholder="Enter Position ID"
+            />
+          </div>
+          <button
+            className="bg-[#171A22] text-white px-6 py-2 rounded-lg font-medium text-base shadow hover:bg-[#232635] transition disabled:opacity-50"
+            onClick={handleGetBalance}
+            disabled={isBalancePending || !balanceAccount || !balancePositionId}
+          >
+            {isBalancePending ? "Fetching..." : "Get Balance"}
+          </button>
+          {balanceResult && (
+            <div className="mt-2 text-sm text-gray-800 break-all">
+              <strong>Balance:</strong> {balanceResult}
+            </div>
+          )}
+        </div>
+        <div className="bg-white rounded-xl shadow border border-gray-200 p-5 max-w-md w-full mt-8">
+          <h2 className="text-xl font-bold text-gray-900 mb-4">Your Balance</h2>
+          <div className="grid grid-cols-2 gap-4 mb-4">
+            <div className="text-center">
+              <div className="text-lg font-semibold text-green-600 mb-2">Outcome 1 (Yes)</div>
+              <div className="text-2xl font-bold text-gray-800">{outcome1Balance}</div>
+              <div className="text-xs text-gray-500">Balance</div>
+            </div>
+            <div className="text-center">
+              <div className="text-lg font-semibold text-red-600 mb-2">Outcome 2 (No)</div>
+              <div className="text-2xl font-bold text-gray-800">{outcome2Balance}</div>
+              <div className="text-xs text-gray-500">Balance</div>
+            </div>
+          </div>
         </div>
         <div className="bg-white rounded-xl shadow border border-gray-200 p-5 max-w-md w-full mt-8">
           <button

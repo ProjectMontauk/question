@@ -9,7 +9,7 @@ import { tokenContract, marketContract } from "../../../constants/contracts";
 const LmLSMR_CONTRACT_ADDRESS = "0x03d7fa2716c0ff897000e1dcafdd6257ecce943a";
 import { formatOdds, formatOddsToCents } from "../../utils/formatOdds";
 import { Tab } from "@headlessui/react";
-import { LineChart, Line, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer, ReferenceLine } from 'recharts';
+import { LineChart, Line, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer, ReferenceLine, XAxisProps } from 'recharts';
 
 // Helper to extract domain from URL
 function getDomain(url: string) {
@@ -40,6 +40,21 @@ interface OddsHistoryEntry {
   noProbability: number;
   timestamp: string;
 }
+
+const FirstOnlyTick = (props: any) => {
+  const { x, y, payload, index } = props;
+  if (index !== 0) return null;
+  const date = new Date(payload.value);
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return (
+    <g>
+      <text x={x} y={y + 16} textAnchor="middle" fill="#666" fontSize={12}>
+        {`${month}/${day}`}
+      </text>
+    </g>
+  );
+};
 
 export default function MarketsPage() {
   const account = useActiveAccount();
@@ -330,15 +345,22 @@ export default function MarketsPage() {
       No: entry.noProbability / ODDS_DIVISOR,
     }));
 
+  // Log the first chart data timestamp for debugging
+  if (chartData.length > 0) {
+    console.log('First chartData timestamp:', chartData[0].timestamp);
+  }
+
   // console.log("chartData", chartData);
 
   const [shouldPostOdds, setShouldPostOdds] = useState(false);
   const prevOddsRef = useRef<{ yes: bigint | null; no: bigint | null }>({ yes: null, no: null });
+  const isInitializedRef = useRef(false);
 
   useEffect(() => {
     if (
       oddsYes !== undefined &&
       oddsNo !== undefined &&
+      isInitializedRef.current &&
       (prevOddsRef.current.yes !== oddsYes || prevOddsRef.current.no !== oddsNo)
     ) {
       // POST the new odds
@@ -353,6 +375,10 @@ export default function MarketsPage() {
         prevOddsRef.current = { yes: oddsYes, no: oddsNo };
         fetchOddsHistory(); // Optionally refresh the chart
       });
+    } else if (oddsYes !== undefined && oddsNo !== undefined && !isInitializedRef.current) {
+      // Initialize the refs on first load without posting
+      prevOddsRef.current = { yes: oddsYes, no: oddsNo };
+      isInitializedRef.current = true;
     }
   }, [oddsYes, oddsNo]);
 
@@ -395,22 +421,21 @@ export default function MarketsPage() {
               <div className="text-gray-500">Loading chart...</div>
             ) : (
               <ResponsiveContainer width="100%" height={300}>
-                <LineChart data={chartData} margin={{ top: 20, right: 30, left: 0, bottom: 0 }}>
+                <LineChart data={chartData} margin={{ top: 20, right: 30, left: 5, bottom: 0 }}>
                   <XAxis
                     dataKey="timestamp"
                     tick={{ fontSize: 12, dy: 8 }}
                     height={40}
                     tickFormatter={(_, index) => {
                       if (index === 0) {
-                        const date = new Date(chartData[0].timestamp);
-                        const month = String(date.getMonth() + 1).padStart(2, '0');
-                        const day = String(date.getDate()).padStart(2, '0');
-                        return `${month}-${day}`;
+                        const [year, month, day] = chartData[0].timestamp.split('-');
+                        return `${month}/${day}`;
                       }
                       return "";
                     }}
                     padding={{ left: 0, right: 0 }}
                     minTickGap={0}
+                    tickLine={false}
                   />
                   <YAxis
                     domain={[0, 1]}

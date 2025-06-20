@@ -56,9 +56,15 @@ const FirstOnlyTick = (props: any) => {
   );
 };
 
+function formatBalance(balance: bigint | undefined): string {
+  if (!balance) return "--";
+  // Divide by 10^18 and show whole numbers only
+  return (Number(balance) / 1e18).toLocaleString(undefined, { maximumFractionDigits: 0 });
+}
+
 export default function MarketsPage() {
   const account = useActiveAccount();
-  const { data: balance } = useReadContract({
+  const { data: balance, isPending } = useReadContract({
     contract: tokenContract,
     method: "function balanceOf(address account) view returns (uint256)",
     params: [account?.address ?? "0x0000000000000000000000000000000000000000"],
@@ -149,7 +155,6 @@ export default function MarketsPage() {
         });
       },
       onSuccess: async (data) => {
-        setBuyFeedback("Purchase successful!");
         setAmount("");
         setShouldPostOdds(true);
         if (oddsYes !== undefined && !isPendingYes) {
@@ -373,6 +378,8 @@ export default function MarketsPage() {
       const yesShares = Math.floor(Number(balance1Str) / 1e18).toString();
       const noShares = Math.floor(Number(balance2Str) / 1e18).toString();
       
+      console.log('Initial balance fetch:', { yesShares, noShares });
+      
       setOutcome1Balance(yesShares);
       setOutcome2Balance(noShares);
       
@@ -459,11 +466,6 @@ export default function MarketsPage() {
       No: entry.noProbability / ODDS_DIVISOR,
     }));
 
-  // Log the first chart data timestamp for debugging
-  if (chartData.length > 0) {
-    console.log('First chartData timestamp:', chartData[0].timestamp);
-  }
-
   // console.log("chartData", chartData);
 
   const [shouldPostOdds, setShouldPostOdds] = useState(false);
@@ -498,6 +500,64 @@ export default function MarketsPage() {
 
   // Add state for selected outcome
   const [selectedOutcome, setSelectedOutcome] = useState<'yes' | 'no' | null>(null);
+
+  // Manual price calculation state
+  const [priceResult, setPriceResult] = useState<bigint | undefined>(undefined);
+  const [isPricePending, setIsPricePending] = useState(false);
+  const [priceError, setPriceError] = useState<Error | null>(null);
+
+  // Auto-calculate price when both outcome and amount are available
+  useEffect(() => {
+    if (selectedOutcome && amount && parseFloat(amount) > 0) {
+      const outcome = selectedOutcome === 'yes' ? 1 : 2;
+      const amountValue = parseFloat(amount);
+      
+      if (!isNaN(amountValue) && amountValue > 0) {
+        handleAutoGetPrice(outcome, amountValue);
+      }
+    }
+  }, [selectedOutcome, amount]);
+
+  // Handle automatic price calculation
+  const handleAutoGetPrice = async (outcome: number, amount: number) => {
+    setIsPricePending(true);
+    setPriceError(null);
+    setPriceResult(undefined);
+    
+    try {
+      const result = await readContract({
+        contract: marketContract,
+        method: "function price(uint256 _outcome, int128 _amount) view returns (int128)",
+        params: [BigInt(outcome), BigInt(Math.floor(amount * Math.pow(2, 64)))],
+      });
+      setPriceResult(result);
+      console.log('Auto price result:', {
+        rawResult: result.toString(),
+        formattedPrice: `$${(Number(result) / Math.pow(2, 64)).toFixed(2)}`,
+        pricePerShare: `$${((Number(result) / Math.pow(2, 64)) / amount).toFixed(2)}`,
+        pricePerShareCents: `¢${(((Number(result) / Math.pow(2, 64)) / amount) * 100).toFixed(0)}`,
+        outcome,
+        amount
+      });
+    } catch (error) {
+      setPriceError(error as Error);
+      console.error('Auto price function error:', error);
+    } finally {
+      setIsPricePending(false);
+    }
+  };
+
+  // Handle manual Get Price button click
+  const handleGetPrice = async () => {
+    if (selectedOutcome && amount && parseFloat(amount) > 0) {
+      const outcome = selectedOutcome === 'yes' ? 1 : 2;
+      const amountValue = parseFloat(amount);
+      
+      if (!isNaN(amountValue) && amountValue > 0) {
+        handleAutoGetPrice(outcome, amountValue);
+      }
+    }
+  };
 
   // Calculate payout
   let payoutDisplay = '--';
@@ -654,6 +714,14 @@ export default function MarketsPage() {
             >
               Trade
             </button>
+            <div className="text-left text-sm text-gray-600 mb-4">
+              Avg. Price
+              {priceResult !== undefined && !isPricePending && !priceError && (
+                <span className="ml-2 text-sm text-gray-600">
+                  ¢{(((Number(priceResult) / Math.pow(2, 64)) / parseFloat(amount)) * 100).toFixed(0)}
+                </span>
+              )}
+            </div>
             {buyFeedback && (
               <div className={`text-center my-4 ${buyFeedback.includes('success') ? 'text-green-600' : 'text-red-600'}`}>{buyFeedback}</div>
             )}
@@ -664,12 +732,10 @@ export default function MarketsPage() {
                 <div className="text-center">
                   <div className="text-sm font-semibold text-green-600 mb-1">Yes Shares</div>
                   <div className="text-lg font-bold text-gray-800">{isBalanceLoading ? "..." : outcome1Balance}</div>
-                  <div className="text-xs text-gray-500">Balance</div>
                 </div>
                 <div className="text-center">
                   <div className="text-sm font-semibold text-red-600 mb-1">No Shares</div>
                   <div className="text-lg font-bold text-gray-800">{isBalanceLoading ? "..." : outcome2Balance}</div>
-                  <div className="text-xs text-gray-500">Balance</div>
                 </div>
               </div>
             </div>
@@ -892,4 +958,4 @@ export default function MarketsPage() {
       </div>
     </div>
   );
-} 
+}

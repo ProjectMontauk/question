@@ -155,8 +155,6 @@ export default function MarketsPage() {
         if (oddsYes !== undefined && !isPendingYes) {
           await fetchOddsHistory();
         }
-        // Refresh user balances after successful purchase
-        await fetchUserBalances();
       },
       onSettled: () => {
         setTimeout(() => setBuyFeedback(null), 4000);
@@ -185,12 +183,10 @@ export default function MarketsPage() {
         });
       },
       onSuccess: async (data) => {
+        setShouldPostOdds(true);
         if (oddsYes !== undefined && !isPendingYes) {
-          setShouldPostOdds(true);
           await fetchOddsHistory();
         }
-        // Refresh user balances after successful purchase
-        await fetchUserBalances();
       },
       onSettled: () => {
         setTimeout(() => setBuyFeedback(null), 4000);
@@ -224,12 +220,10 @@ export default function MarketsPage() {
         });
       },
       onSuccess: async (data) => {
+        setShouldPostOdds(true);
         if (oddsYes !== undefined && !isPendingYes) {
-          setShouldPostOdds(true);
           await fetchOddsHistory();
         }
-        // Refresh user balances after successful sale
-        await fetchUserBalances();
       },
       onSettled: () => {
         setTimeout(() => setBuyFeedback(null), 4000);
@@ -257,12 +251,10 @@ export default function MarketsPage() {
         });
       },
       onSuccess: async (data) => {
+        setShouldPostOdds(true);
         if (oddsYes !== undefined && !isPendingYes) {
-          setShouldPostOdds(true);
           await fetchOddsHistory();
         }
-        // Refresh user balances after successful sale
-        await fetchUserBalances();
       },
       onSettled: () => {
         setTimeout(() => setBuyFeedback(null), 4000);
@@ -346,7 +338,7 @@ export default function MarketsPage() {
     fetchOddsHistory();
   }, []);
 
-  // Fetch user balances function
+  // Fetch user balances function (with loading state)
   const fetchUserBalances = async () => {
     if (!account?.address) return;
     
@@ -393,12 +385,65 @@ export default function MarketsPage() {
     setIsBalanceLoading(false);
   };
 
-  // Fetch balances when account changes or component mounts
+  // Polling mechanism for user balances
   useEffect(() => {
-    if (account?.address) {
-      fetchUserBalances();
-    }
+    if (!account?.address) return;
+
+    // Initial fetch with loading state
+    setIsBalanceLoading(true);
+    fetchUserBalances();
+
+    // Set up polling interval (check every 3 seconds) without loading state
+    const interval = setInterval(() => {
+      // Don't set loading state during polling to prevent blinking
+      fetchUserBalancesWithoutLoading();
+    }, 3000);
+
+    // Cleanup interval on unmount or account change
+    return () => clearInterval(interval);
   }, [account?.address]);
+
+  // Fetch user balances without showing loading state (for polling)
+  const fetchUserBalancesWithoutLoading = async () => {
+    if (!account?.address) return;
+    
+    try {
+      // Fetch balance for Outcome 1 (Yes)
+      const balance1 = await readContract({
+        contract: conditionalTokensContract,
+        method: "function balanceOf(address account, uint256 id) view returns (uint256)",
+        params: [
+          account.address as `0x${string}`,
+          BigInt(outcome1PositionId)
+        ],
+      });
+      
+      // Fetch balance for Outcome 2 (No)
+      const balance2 = await readContract({
+        contract: conditionalTokensContract,
+        method: "function balanceOf(address account, uint256 id) view returns (uint256)",
+        params: [
+          account.address as `0x${string}`,
+          BigInt(outcome2PositionId)
+        ],
+      });
+      
+      // Convert balances to strings and format them
+      const balance1Str = balance1.toString();
+      const balance2Str = balance2.toString();
+      
+      // Convert to real token amounts by dividing by 10^18 and remove decimals
+      const yesShares = Math.floor(Number(balance1Str) / 1e18).toString();
+      const noShares = Math.floor(Number(balance2Str) / 1e18).toString();
+      
+      setOutcome1Balance(yesShares);
+      setOutcome2Balance(noShares);
+      
+    } catch (err) {
+      console.error("Error fetching user balances:", err);
+      // Don't set error state during polling to prevent blinking
+    }
+  };
 
   // console.log("oddsHistory", oddsHistory);
   const ODDS_DIVISOR = Number("18446744073709551616");

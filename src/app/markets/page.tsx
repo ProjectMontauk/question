@@ -3,8 +3,8 @@
 import Navbar from "../../../components/Navbar";
 import React, { useState, useEffect, useRef } from "react";
 import { useActiveAccount, useReadContract, useSendTransaction} from "thirdweb/react";
-import { prepareContractCall } from "thirdweb";
-import { tokenContract, marketContract } from "../../../constants/contracts";
+import { prepareContractCall, readContract } from "thirdweb";
+import { tokenContract, marketContract, conditionalTokensContract } from "../../../constants/contracts";
 // import { useContract } from "@thirdweb-dev/sdk";
 const LmLSMR_CONTRACT_ADDRESS = "0x03d7fa2716c0ff897000e1dcafdd6257ecce943a";
 import { formatOdds, formatOddsToCents } from "../../utils/formatOdds";
@@ -64,6 +64,13 @@ export default function MarketsPage() {
     params: [account?.address ?? "0x0000000000000000000000000000000000000000"],
   });
   const { mutate: sendTransaction, status } = useSendTransaction();
+
+  // For Your Balance card - hardcoded PositionIDs
+  const [outcome1PositionId] = useState("51877916418744962899164470202259177085298509683534003885170535231097280890835");
+  const [outcome2PositionId] = useState("46634212102108699492488813922022044718165605089123703573217419428873160154565");
+  const [outcome1Balance, setOutcome1Balance] = useState<string>("--");
+  const [outcome2Balance, setOutcome2Balance] = useState<string>("--");
+  const [isBalanceLoading, setIsBalanceLoading] = useState(false);
 
   // Odds for Yes (0) and No (1)
   const { data: oddsYes, isPending: isPendingYes } = useReadContract({
@@ -148,6 +155,8 @@ export default function MarketsPage() {
         if (oddsYes !== undefined && !isPendingYes) {
           await fetchOddsHistory();
         }
+        // Refresh user balances after successful purchase
+        await fetchUserBalances();
       },
       onSettled: () => {
         setTimeout(() => setBuyFeedback(null), 4000);
@@ -180,6 +189,8 @@ export default function MarketsPage() {
           setShouldPostOdds(true);
           await fetchOddsHistory();
         }
+        // Refresh user balances after successful purchase
+        await fetchUserBalances();
       },
       onSettled: () => {
         setTimeout(() => setBuyFeedback(null), 4000);
@@ -217,6 +228,8 @@ export default function MarketsPage() {
           setShouldPostOdds(true);
           await fetchOddsHistory();
         }
+        // Refresh user balances after successful sale
+        await fetchUserBalances();
       },
       onSettled: () => {
         setTimeout(() => setBuyFeedback(null), 4000);
@@ -248,6 +261,8 @@ export default function MarketsPage() {
           setShouldPostOdds(true);
           await fetchOddsHistory();
         }
+        // Refresh user balances after successful sale
+        await fetchUserBalances();
       },
       onSettled: () => {
         setTimeout(() => setBuyFeedback(null), 4000);
@@ -330,6 +345,60 @@ export default function MarketsPage() {
   useEffect(() => {
     fetchOddsHistory();
   }, []);
+
+  // Fetch user balances function
+  const fetchUserBalances = async () => {
+    if (!account?.address) return;
+    
+    setIsBalanceLoading(true);
+    
+    try {
+      // Fetch balance for Outcome 1 (Yes)
+      const balance1 = await readContract({
+        contract: conditionalTokensContract,
+        method: "function balanceOf(address account, uint256 id) view returns (uint256)",
+        params: [
+          account.address as `0x${string}`,
+          BigInt(outcome1PositionId)
+        ],
+      });
+      
+      // Fetch balance for Outcome 2 (No)
+      const balance2 = await readContract({
+        contract: conditionalTokensContract,
+        method: "function balanceOf(address account, uint256 id) view returns (uint256)",
+        params: [
+          account.address as `0x${string}`,
+          BigInt(outcome2PositionId)
+        ],
+      });
+      
+      // Convert balances to strings and format them
+      const balance1Str = balance1.toString();
+      const balance2Str = balance2.toString();
+      
+      // Convert to real token amounts by dividing by 10^18 and remove decimals
+      const yesShares = Math.floor(Number(balance1Str) / 1e18).toString();
+      const noShares = Math.floor(Number(balance2Str) / 1e18).toString();
+      
+      setOutcome1Balance(yesShares);
+      setOutcome2Balance(noShares);
+      
+    } catch (err) {
+      console.error("Error fetching user balances:", err);
+      setOutcome1Balance("Error");
+      setOutcome2Balance("Error");
+    }
+    
+    setIsBalanceLoading(false);
+  };
+
+  // Fetch balances when account changes or component mounts
+  useEffect(() => {
+    if (account?.address) {
+      fetchUserBalances();
+    }
+  }, [account?.address]);
 
   // console.log("oddsHistory", oddsHistory);
   const ODDS_DIVISOR = Number("18446744073709551616");
@@ -543,6 +612,22 @@ export default function MarketsPage() {
             {buyFeedback && (
               <div className={`text-center my-4 ${buyFeedback.includes('success') ? 'text-green-600' : 'text-red-600'}`}>{buyFeedback}</div>
             )}
+            {/* Your Balance Section */}
+            <div className="border-t border-gray-200 pt-4 mt-4">
+              <h3 className="text-lg font-bold text-gray-900 mb-4">Your Purchased Shares</h3>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="text-center">
+                  <div className="text-sm font-semibold text-green-600 mb-1">Yes Shares</div>
+                  <div className="text-lg font-bold text-gray-800">{isBalanceLoading ? "..." : outcome1Balance}</div>
+                  <div className="text-xs text-gray-500">Balance</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-sm font-semibold text-red-600 mb-1">No Shares</div>
+                  <div className="text-lg font-bold text-gray-800">{isBalanceLoading ? "..." : outcome2Balance}</div>
+                  <div className="text-xs text-gray-500">Balance</div>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
         {/* Evidence Section Card */}

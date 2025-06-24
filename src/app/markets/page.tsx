@@ -311,15 +311,35 @@ export default function MarketsPage() {
     setEvidenceType('yes');
   };
 
-  // Handle upvote/downvote
-  const handleVote = async (id: number, netVotes: number) => {
-    const res = await fetch('/api/evidence', {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id, netVotes }),
-    });
-    const updated = await res.json();
-    setEvidence(prev => prev.map(ev => ev.id === id ? { ...ev, netVotes: updated.netVotes } : ev));
+  // Handle upvote
+  const handleVote = async (id: number, evidenceType: 'yes' | 'no') => {
+    if (!account?.address) return;
+    
+    try {
+      const res = await fetch('/api/vote', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          evidenceId: id, 
+          walletAddress: account.address,
+          voteType: 'upvote',
+          evidenceType
+        }),
+      });
+      
+      if (res.ok) {
+        // Refresh evidence to get updated vote counts
+        const evidenceRes = await fetch('/api/evidence');
+        const updatedEvidence = await evidenceRes.json();
+        setEvidence(updatedEvidence);
+      } else {
+        const errorData = await res.json();
+        console.error('Vote failed:', errorData);
+        // You could show this error to the user with a toast notification
+      }
+    } catch (error) {
+      console.error('Vote error:', error);
+    }
   };
 
   // Filter and sort evidence for Yes/No tabs
@@ -579,6 +599,59 @@ export default function MarketsPage() {
     }
   }
 
+  // Function to update user position in database
+  const updateUserPosition = async (yesShares: string, noShares: string) => {
+    if (!account?.address) return;
+    
+    try {
+      await fetch('/api/update-user-position', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          walletAddress: account.address,
+          yesShares: parseInt(yesShares) || 0,
+          noShares: parseInt(noShares) || 0
+        }),
+      });
+    } catch (error) {
+      console.error('Failed to update user position:', error);
+    }
+  };
+
+  // Calculate user's voting weight for display
+  const getUserVotingWeight = (evidenceType: 'yes' | 'no') => {
+    const yesShares = parseInt(outcome1Balance) || 0;
+    const noShares = parseInt(outcome2Balance) || 0;
+    
+    if (evidenceType === 'yes') {
+      // Only boosted voting power if Yes shares > No shares
+      if (yesShares > noShares) {
+        return Math.max(1, yesShares - noShares);
+      } else {
+        return 1; // Base weight if No shares >= Yes shares
+      }
+    } else {
+      // Only boosted voting power if No shares > Yes shares
+      if (noShares > yesShares) {
+        return Math.max(1, noShares - yesShares);
+      } else {
+        return 1; // Base weight if Yes shares >= No shares
+      }
+    }
+  };
+
+  // Get the base voting power (before division)
+  const getBaseVotingPower = (evidenceType: 'yes' | 'no') => {
+    return getUserVotingWeight(evidenceType);
+  };
+
+  // Update user position when balances change
+  useEffect(() => {
+    if (outcome1Balance !== "--" && outcome2Balance !== "--" && !isBalanceLoading) {
+      updateUserPosition(outcome1Balance, outcome2Balance);
+    }
+  }, [outcome1Balance, outcome2Balance, isBalanceLoading, account?.address]);
+
   return (
     <div>
       <Navbar />
@@ -744,7 +817,19 @@ export default function MarketsPage() {
         {/* Evidence Section Card */}
         <div className="max-w-7xl w-full mx-auto flex">
           <div className="bg-white rounded-xl shadow border border-gray-200 p-8 max-w-4xl w-full ml-19">
-            <h2 className="text-2xl font-bold mb-6 text-[#171A22]">Evidence</h2>
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-2xl font-bold text-[#171A22]">Evidence</h2>
+              {account?.address && (
+                <div className="text-sm text-gray-600">
+                  <span className="font-medium">Voting Power:</span>
+                  <span className="ml-2 text-green-600 font-semibold">Yes: {getBaseVotingPower('yes')}x</span>
+                  <span className="ml-2 text-red-600 font-semibold">No: {getBaseVotingPower('no')}x</span>
+                  <div className="text-xs text-gray-500 mt-1">
+                    Power divided across all evidence you vote on
+                  </div>
+                </div>
+              )}
+            </div>
             <Tab.Group>
               <Tab.List className="flex w-full mb-6 bg-gray-50 rounded-lg">
                 <Tab
@@ -785,7 +870,7 @@ export default function MarketsPage() {
                           <div className="flex flex-col items-center mr-4 select-none">
                             <button
                               className="text-green-600 hover:text-green-800 text-lg p-0 mb-1"
-                              onClick={() => handleVote(evidence.id, evidence.netVotes + 1)}
+                              onClick={() => handleVote(evidence.id, 'yes')}
                               aria-label="Upvote"
                               type="button"
                             >
@@ -794,14 +879,6 @@ export default function MarketsPage() {
                             <div className={`${evidence.netVotes >= 0 ? 'bg-black' : 'bg-red-500'} text-white rounded-full px-1.5 py-0.5 text-xs font-semibold mb-1`} style={{minWidth: '1.48rem', textAlign: 'center'}}>
                               {evidence.netVotes}
                             </div>
-                            <button
-                              className="text-red-600 hover:text-red-800 text-lg p-0"
-                              onClick={() => handleVote(evidence.id, evidence.netVotes - 1)}
-                              aria-label="Downvote"
-                              type="button"
-                            >
-                              <svg width="20" height="20" viewBox="0 0 20 20" className="text-red-600" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><path d="M10 2v16" strokeLinecap="round"/><path d="M5 13l5 5 5-5" strokeLinecap="round"/></svg>
-                            </button>
                           </div>
                           {/* Evidence content */}
                           <div className="flex-1">
@@ -842,7 +919,7 @@ export default function MarketsPage() {
                           <div className="flex flex-col items-center mr-4 select-none">
                             <button
                               className="text-green-600 hover:text-green-800 text-lg p-0 mb-1"
-                              onClick={() => handleVote(evidence.id, evidence.netVotes + 1)}
+                              onClick={() => handleVote(evidence.id, 'no')}
                               aria-label="Upvote"
                               type="button"
                             >
@@ -851,14 +928,6 @@ export default function MarketsPage() {
                             <div className={`${evidence.netVotes >= 0 ? 'bg-black' : 'bg-red-500'} text-white rounded-full px-1.5 py-0.5 text-xs font-semibold mb-1`} style={{minWidth: '1.48rem', textAlign: 'center'}}>
                               {evidence.netVotes}
                             </div>
-                            <button
-                              className="text-red-600 hover:text-red-800 text-lg p-0"
-                              onClick={() => handleVote(evidence.id, evidence.netVotes - 1)}
-                              aria-label="Downvote"
-                              type="button"
-                            >
-                              <svg width="20" height="20" viewBox="0 0 20 20" className="text-red-600" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><path d="M10 2v16" strokeLinecap="round"/><path d="M5 13l5 5 5-5" strokeLinecap="round"/></svg>
-                            </button>
                           </div>
                           {/* Evidence content */}
                           <div className="flex-1">

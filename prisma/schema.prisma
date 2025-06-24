@@ -22,6 +22,9 @@ model Evidence {
   netVotes     Int      @default(0)
   createdAt   DateTime @default(now())
   walletAddress String
+  
+  // Relation to individual votes
+  votes       Vote[]
 }
 
 model OddsHistory {
@@ -29,4 +32,43 @@ model OddsHistory {
   yesProbability Float
   noProbability  Float
   timestamp      DateTime @default(now())
+}
+
+// New model to track individual votes
+model Vote {
+  id            Int      @id @default(autoincrement())
+  evidenceId    Int
+  walletAddress String
+  voteWeight    Int      @default(1) // The weighted value of this vote
+  createdAt     DateTime @default(now())
+  
+  // Relation to evidence
+  evidence      Evidence @relation(fields: [evidenceId], references: [id], onDelete: Cascade)
+  
+  // Composite unique constraint to prevent duplicate votes
+  @@unique([evidenceId, walletAddress])
+}
+
+// New model to track user market positions for voting weight calculation
+model UserMarketPosition {
+  id            Int      @id @default(autoincrement())
+  walletAddress String
+  yesShares     Int      @default(0) // Number of Yes shares held
+  noShares      Int      @default(0)  // Number of No shares held
+  lastUpdated   DateTime @default(now())
+  
+  // Unique constraint per wallet
+  @@unique([walletAddress])
+}
+
+// New model to track user's voting activity per evidence type
+model UserVotingActivity {
+  id            Int      @id @default(autoincrement())
+  walletAddress String
+  evidenceType  String   // 'yes' or 'no'
+  totalVotes    Int      @default(0) // Total number of evidence pieces voted on
+  lastUpdated   DateTime @default(now())
+  
+  // Unique constraint per wallet per evidence type
+  @@unique([walletAddress, evidenceType])
 }

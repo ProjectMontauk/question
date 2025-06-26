@@ -207,19 +207,8 @@ const EvidenceComments: React.FC<EvidenceCommentsProps> = ({
   };
 
   return (
-    <div className="bg-white rounded-xl shadow border border-gray-200 mt-4">
-      {/* Close button only */}
-      <div className="flex justify-end py-2 px-4 bg-white">
-        <button
-          onClick={onClose}
-          className="text-gray-400 hover:text-gray-600"
-        >
-          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-          </svg>
-        </button>
-      </div>
-      <div className="pt-2 pb-4 px-4 bg-white">
+    <div className="bg-white rounded-xl mt-4">
+      <div className="pb-4 bg-white">
         {/* New comment form */}
         {currentUserAddress && (
           <form onSubmit={handleSubmitComment} className="mb-4">
@@ -228,7 +217,7 @@ const EvidenceComments: React.FC<EvidenceCommentsProps> = ({
               value={newComment}
               onChange={handleTextareaInput}
               placeholder="Add a comment..."
-              className="w-full p-2.5 border border-gray-300 rounded-lg resize-none bg-white text-gray-900 min-h-[2.25rem]"
+              className="w-full p-[5px] border border-gray-300 rounded-lg resize-none bg-white text-gray-900 min-h-[2.25rem] text-[15.2px]"
               rows={1}
               style={{overflow: 'hidden'}}
               disabled={isSubmitting}
@@ -248,9 +237,7 @@ const EvidenceComments: React.FC<EvidenceCommentsProps> = ({
         )}
         {/* Comments section */}
         <div className="bg-white">
-          <h3 className="text-lg font-semibold mb-4 text-gray-900">
-            Comments ({comments.length})
-          </h3>
+          <h3 className="text-[15.2px] font-semibold text-gray-900 mb-4">Replies</h3>
           {isLoading ? (
             <div className="text-center py-8 bg-white">
               <div className="text-gray-500">Loading comments...</div>

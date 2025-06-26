@@ -1100,11 +1100,11 @@ export default function MarketsPage() {
                               </div>
                               <div className="text-gray-600 text-sm line-clamp-2">{evidence.description}</div>
                               <button
-                                className="text-xs text-blue-600 mt-0.5 hover:underline focus:outline-none"
+                                className="text-xs text-gray-600 mt-0.5 hover:underline hover:text-blue-800 focus:outline-none"
                                 type="button"
                                 onClick={() => setExpandedEvidenceId(expandedEvidenceId === evidence.id ? null : evidence.id)}
                               >
-                                View replies ({evidence.commentCount ?? 0})
+                                {expandedEvidenceId === evidence.id ? 'Hide Replies' : 'View Replies'}
                               </button>
                               {/* Show comments section if expanded */}
                               {expandedEvidenceId === evidence.id && (
@@ -1188,11 +1188,11 @@ export default function MarketsPage() {
                               </div>
                               <div className="text-gray-600 text-sm line-clamp-2">{evidence.description}</div>
                               <button
-                                className="text-xs text-blue-600 mt-0.5 hover:underline focus:outline-none"
+                                className="text-xs text-gray-600 mt-0.5 hover:underline hover:text-blue-800 focus:outline-none"
                                 type="button"
                                 onClick={() => setExpandedEvidenceId(expandedEvidenceId === evidence.id ? null : evidence.id)}
                               >
-                                View replies ({evidence.commentCount ?? 0})
+                                {expandedEvidenceId === evidence.id ? 'Hide Replies' : 'View Replies'}
                               </button>
                               {/* Show comments section if expanded */}
                               {expandedEvidenceId === evidence.id && (

@@ -9,7 +9,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         orderBy: { netVotes: 'desc' }
       });
       res.status(200).json(evidence);
-    } catch (error) {
+    } catch {
       res.status(500).json({ error: 'Failed to fetch evidence' });
     }
     return;
@@ -22,7 +22,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         data: { type, title, url, description, walletAddress, netVotes: 0 },
       });
       res.status(201).json(evidence);
-    } catch (error) {
+    } catch {
       res.status(500).json({ error: 'Failed to create evidence' });
     }
   } else if (req.method === 'PATCH') {
@@ -34,7 +34,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         data: { netVotes },
       });
       res.status(200).json(evidence);
-    } catch (error) {
+    } catch {
       res.status(500).json({ error: 'Failed to update netVotes' });
     }
   } else {

@@ -1,21 +1,18 @@
 "use client";
 
 import Navbar from "../../../components/Navbar";
-import React, { useState, useEffect, useRef } from "react";
-import { useActiveAccount, useReadContract, useSendTransaction} from "thirdweb/react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
+import { useActiveAccount, useReadContract, useSendTransaction } from "thirdweb/react";
 import { prepareContractCall, readContract } from "thirdweb";
-import { tokenContract, marketContract, conditionalTokensContract } from "../../../constants/contracts";
+import { marketContract, conditionalTokensContract } from "../../../constants/contracts";
 // import { useContract } from "@thirdweb-dev/sdk";
-const LmLSMR_CONTRACT_ADDRESS = "0x03d7fa2716c0ff897000e1dcafdd6257ecce943a";
-import { formatOdds, formatOddsToCents } from "../../utils/formatOdds";
 import { Tab } from "@headlessui/react";
-import { LineChart, Line, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer, ReferenceLine, XAxisProps } from 'recharts';
+import { LineChart, Line, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer, ReferenceLine } from 'recharts';
 import EvidenceComments from '../../components/EvidenceComments';
+import { formatOddsToCents } from "../../utils/formatOdds";
 
-// Backend API base URL
-const API_BASE_URL = process.env.NODE_ENV === 'production' 
-  ? 'https://your-backend-url.onrender.com'  // Production URL
-  : '';                                       // Development URL - use relative paths
+// Backend API base URL - use Next.js API routes for both dev and production
+const API_BASE_URL = '';
 
 // Helper to extract domain from URL
 function getDomain(url: string) {
@@ -48,35 +45,8 @@ interface OddsHistoryEntry {
   timestamp: string;
 }
 
-const FirstOnlyTick = (props: any) => {
-  const { x, y, payload, index } = props;
-  if (index !== 0) return null;
-  const date = new Date(payload.value);
-  const month = String(date.getMonth() + 1).padStart(2, '0');
-  const day = String(date.getDate()).padStart(2, '0');
-  return (
-    <g>
-      <text x={x} y={y + 16} textAnchor="middle" fill="#666" fontSize={12}>
-        {`${month}/${day}`}
-      </text>
-    </g>
-  );
-};
-
-function formatBalance(balance: bigint | undefined): string {
-  if (!balance) return "--";
-  // Divide by 10^18 and show whole numbers only
-  return (Number(balance) / 1e18).toLocaleString(undefined, { maximumFractionDigits: 0 });
-}
-
 export default function MarketsPage() {
   const account = useActiveAccount();
-  const { data: balance, isPending } = useReadContract({
-    contract: tokenContract,
-    method: "function balanceOf(address account) view returns (uint256)",
-    params: [account?.address ?? "0x0000000000000000000000000000000000000000"],
-  });
-  const { mutate: sendTransaction, status } = useSendTransaction();
 
   // For Your Balance card - hardcoded PositionIDs
   const [outcome1PositionId] = useState("51877916418744962899164470202259177085298509683534003885170535231097280890835");
@@ -85,18 +55,17 @@ export default function MarketsPage() {
   const [outcome2Balance, setOutcome2Balance] = useState<string>("--");
   const [isBalanceLoading, setIsBalanceLoading] = useState(false);
 
-  // Odds for Yes (0) and No (1)
-  const { data: oddsYes, isPending: isPendingYes } = useReadContract({
+  // Odds for Yes (0) and No (1) - with polling for real-time updates
+  const { data: oddsYes } = useReadContract({
     contract: marketContract,
     method: "function odds(uint256 _outcome) view returns (int128)",
     params: [0n],
   });
-  const { data: oddsNo, isPending: isPendingNo } = useReadContract({
+  const { data: oddsNo } = useReadContract({
     contract: marketContract,
     method: "function odds(uint256 _outcome) view returns (int128)",
     params: [1n],
   });
-
 
   const [showRules, setShowRules] = useState(false);
   const rulesShort = "The market will resolve 'Yes' if the CIA aided in the planning or execution of John F. Kennedy's Assassination. This means that a group inside the CIA or received funding from the CIA participated in the planning/execution of the 35th President's assassination. Otherwise, the market will resolve 'No.' This means that no personnel inside or funded by the CIA aided the murder of John F. Kennedy.";
@@ -116,16 +85,6 @@ export default function MarketsPage() {
     ];
   }
 
-  const handleApprove = () => {
-    if (!account || !balance) return;
-    const transaction = prepareContractCall({
-      contract: tokenContract,
-      method: "function approve(address spender, uint256 value)",
-      params: [LmLSMR_CONTRACT_ADDRESS, balance],
-    });
-    sendTransaction(transaction);
-  };
-
   // Replace individual yesMode and noMode with a single mode state
   const [mode, setMode] = useState<'buy' | 'sell'>('buy');
 
@@ -143,65 +102,97 @@ export default function MarketsPage() {
   const noIndex = BigInt(1);
 
   const handleBuyYes = (amount: string) => {
-    if (!amount) return;
+    if (!amount || !account?.address) return;
+    
+    setBuyFeedback("Preparing transaction...");
+    
     const parsedAmount = BigInt(Math.floor(Number(amount) * Math.pow(2, 64)));
+    
     const transaction = prepareContractCall({
       contract: marketContract,
       method: "function buy(uint256 _outcome, int128 _amount) returns (int128 _price)",
       params: [yesIndex, parsedAmount],
-      gas: 250000n
+      // Remove hardcoded gas limit to let the wallet estimate it
     });
+    
     sendBuyYesTransaction(transaction, {
       onError: (error) => {
-        setBuyFeedback("Purchase failed. Please try again.");
-        console.error("Sell transaction error details:", {
+        console.error("Buy Yes transaction error:", {
           error,
           message: error.message,
-          stack: error.stack,
           transaction: transaction
         });
-      },
-      onSuccess: async (data) => {
-        setAmount("");
-        setShouldPostOdds(true);
-        if (oddsYes !== undefined && !isPendingYes) {
-          await fetchOddsHistory();
+        
+        let errorMessage = "Purchase failed. Please try again.";
+        if (error.message.includes("insufficient funds")) {
+          errorMessage = "Insufficient funds for transaction.";
+        } else if (error.message.includes("user rejected")) {
+          errorMessage = "Transaction was cancelled.";
+        } else if (error.message.includes("gas")) {
+          errorMessage = "Gas estimation failed. Try a smaller amount.";
         }
+        
+        setBuyFeedback(errorMessage);
+      },
+      onSuccess: async (result) => {
+        console.log("Buy Yes transaction successful:", result);
+        setBuyFeedback("Transaction submitted! 🎉");
+        setAmount("");
+        
+        // Refresh data after successful transaction
+        await fetchOddsHistory();
+        await fetchUserBalancesWithoutLoading();
       },
       onSettled: () => {
-        setTimeout(() => setBuyFeedback(null), 4000);
+        setTimeout(() => setBuyFeedback(null), 6000);
       }
     });
   };
 
   const handleBuyNo = (amount: string) => {
-    if (!amount) return;
+    if (!amount || !account?.address) return;
+    
+    setBuyFeedback("Preparing transaction...");
+    
     const parsedAmount = BigInt(Math.floor(Number(amount) * Math.pow(2, 64)));
+    
     const transaction = prepareContractCall({
       contract: marketContract,
       method: "function buy(uint256 _outcome, int128 _amount) returns (int128 _price)",
       params: [noIndex, parsedAmount],
-      gas: 250000n
+      // Remove hardcoded gas limit to let the wallet estimate it
     });
 
     sendBuyNoTransaction(transaction, {
       onError: (error) => {
-        setBuyFeedback("Purchase failed. Please try again.");
-        console.error("Sell transaction error details:", {
+        console.error("Buy No transaction error:", {
           error,
           message: error.message,
-          stack: error.stack,
           transaction: transaction
         });
-      },
-      onSuccess: async (data) => {
-        setShouldPostOdds(true);
-        if (oddsYes !== undefined && !isPendingYes) {
-          await fetchOddsHistory();
+        
+        let errorMessage = "Purchase failed. Please try again.";
+        if (error.message.includes("insufficient funds")) {
+          errorMessage = "Insufficient funds for transaction.";
+        } else if (error.message.includes("user rejected")) {
+          errorMessage = "Transaction was cancelled.";
+        } else if (error.message.includes("gas")) {
+          errorMessage = "Gas estimation failed. Try a smaller amount.";
         }
+        
+        setBuyFeedback(errorMessage);
+      },
+      onSuccess: async (result) => {
+        console.log("Buy No transaction successful:", result);
+        setBuyFeedback("Transaction submitted! 🎉");
+        setAmount("");
+        
+        // Refresh data after successful transaction
+        await fetchOddsHistory();
+        await fetchUserBalancesWithoutLoading();
       },
       onSettled: () => {
-        setTimeout(() => setBuyFeedback(null), 4000);
+        setTimeout(() => setBuyFeedback(null), 6000);
       }
     });
   };
@@ -212,71 +203,126 @@ export default function MarketsPage() {
   const { mutate: sendSellNoTransaction, status: sellNoStatus } = useSendTransaction();
 
   const handleSellYes = (amount: string) => {
-    if (!amount) return;
+    if (!amount || !account?.address) return;
+    
+    setBuyFeedback("Preparing transaction...");
+    
     const parsedAmount = BigInt(Math.floor(Number(amount) * Math.pow(2, 64)));
+    
     const transaction = prepareContractCall({
       contract: marketContract,
       method: "function sell(uint256 _outcome, int128 _amount) returns (int128 _price)",
       params: [yesIndex, parsedAmount],
-      gas: 250000n
+      // Remove hardcoded gas limit to let the wallet estimate it
     });
+    
     sendSellYesTransaction(transaction, {
       onError: (error) => {
-        // Add more detailed error logging
-        setBuyFeedback("Sale failed. Please try again.");
-        console.error("Sell transaction error details:", {
-          error,
-          message: error.message,
-          stack: error.stack,
-          transaction: transaction
-        });
-      },
-      onSuccess: async (data) => {
-        setShouldPostOdds(true);
-        if (oddsYes !== undefined && !isPendingYes) {
-          await fetchOddsHistory();
+        // Log the complete error object
+        console.error("=== SELL YES TRANSACTION ERROR ===");
+        console.error("Error object:", error);
+        console.error("Error message:", error.message);
+        console.error("Error name:", error.name);
+        console.error("Error stack:", error.stack);
+        console.error("Error properties:", Object.getOwnPropertyNames(error));
+        console.error("Transaction details:", transaction);
+        console.error("==================================");
+        
+        let errorMessage = "Sale failed. Please try again.";
+        
+        // More detailed error analysis
+        if (error.message) {
+          const msg = error.message.toLowerCase();
+          if (msg.includes("insufficient funds")) {
+            errorMessage = "Insufficient shares to sell.";
+          } else if (msg.includes("user rejected")) {
+            errorMessage = "Transaction was cancelled.";
+          } else if (msg.includes("gas")) {
+            errorMessage = "Gas estimation failed. Try a smaller amount.";
+          } else if (msg.includes("revert")) {
+            errorMessage = "Transaction reverted. Check your shares balance.";
+          } else if (msg.includes("nonce")) {
+            errorMessage = "Transaction nonce error. Try refreshing the page.";
+          } else if (msg.includes("execution reverted")) {
+            errorMessage = "Contract execution failed. Insufficient shares or invalid amount.";
+          } else if (msg.includes("out of gas")) {
+            errorMessage = "Transaction ran out of gas. Try a smaller amount.";
+          } else if (msg.includes("already known")) {
+            errorMessage = "Transaction already submitted. Check your wallet.";
+          } else if (msg.includes("0xe237d922")) {
+            errorMessage = "Contract error: Insufficient shares or invalid sell amount. Check your balance.";
+          } else if (msg.includes("abi error signature not found")) {
+            errorMessage = "Contract error: Invalid sell request. Check your shares balance and try a smaller amount.";
+          }
         }
+        
+        setBuyFeedback(errorMessage);
+      },
+      onSuccess: async (result) => {
+        console.log("Sell Yes transaction successful:", result);
+        setBuyFeedback("Transaction submitted! 🎉");
+        setAmount("");
+        
+        // Refresh data after successful transaction
+        await fetchOddsHistory();
+        await fetchUserBalancesWithoutLoading();
       },
       onSettled: () => {
-        setTimeout(() => setBuyFeedback(null), 4000);
+        setTimeout(() => setBuyFeedback(null), 6000);
       }
     });
   };
 
   const handleSellNo = (amount: string) => {
-    if (!amount) return;
+    if (!amount || !account?.address) return;
+    
+    setBuyFeedback("Preparing transaction...");
+    
     const parsedAmount = BigInt(Math.floor(Number(amount) * Math.pow(2, 64)));
+    
     const transaction = prepareContractCall({
       contract: marketContract,
       method: "function sell(uint256 _outcome, int128 _amount) returns (int128 refund)",
       params: [noIndex, parsedAmount],
-      gas: 250000n
+      // Remove hardcoded gas limit to let the wallet estimate it
     });
+    
     sendSellNoTransaction(transaction, {
       onError: (error) => {
-        setBuyFeedback("Sell failed. Please try again.");
-        console.error("Sell transaction error details:", {
+        console.error("Sell No transaction error:", {
           error,
           message: error.message,
-          stack: error.stack,
           transaction: transaction
         });
-      },
-      onSuccess: async (data) => {
-        setShouldPostOdds(true);
-        if (oddsYes !== undefined && !isPendingYes) {
-          await fetchOddsHistory();
+        
+        let errorMessage = "Sale failed. Please try again.";
+        if (error.message.includes("insufficient funds")) {
+          errorMessage = "Insufficient shares to sell.";
+        } else if (error.message.includes("user rejected")) {
+          errorMessage = "Transaction was cancelled.";
+        } else if (error.message.includes("gas")) {
+          errorMessage = "Gas estimation failed. Try a smaller amount.";
         }
+        
+        setBuyFeedback(errorMessage);
+      },
+      onSuccess: async (result) => {
+        console.log("Sell No transaction successful:", result);
+        setBuyFeedback("Transaction submitted! 🎉");
+        setAmount("");
+        
+        // Refresh data after successful transaction
+        await fetchOddsHistory();
+        await fetchUserBalancesWithoutLoading();
       },
       onSettled: () => {
-        setTimeout(() => setBuyFeedback(null), 4000);
+        setTimeout(() => setBuyFeedback(null), 6000);
       }
     });
   };
 
   // Evidence data state
   const [evidence, setEvidence] = useState<Evidence[]>([]);
-  const [loadingEvidence, setLoadingEvidence] = useState(true);
   const [votingEvidenceId, setVotingEvidenceId] = useState<number | null>(null);
   
   // Track which evidence the user has voted on
@@ -288,12 +334,11 @@ export default function MarketsPage() {
       .then(res => res.json())
       .then(data => {
         setEvidence(data);
-        setLoadingEvidence(false);
       });
   }, []);
 
   // Fetch user's existing votes to sync state
-  const fetchUserVotes = async () => {
+  const fetchUserVotes = useCallback(async () => {
     if (!account?.address) return;
     
     try {
@@ -301,13 +346,13 @@ export default function MarketsPage() {
       if (res.ok) {
         const userVoteData = await res.json();
         // Assuming the backend returns an array of evidence IDs the user has voted on
-        const votedEvidenceIds: Set<number> = new Set(userVoteData.map((vote: any) => Number(vote.evidenceId)));
+        const votedEvidenceIds: Set<number> = new Set(userVoteData.map((vote: { evidenceId: number }) => Number(vote.evidenceId)));
         setUserVotes(votedEvidenceIds);
       }
     } catch (error) {
       console.error('Failed to fetch user votes:', error);
     }
-  };
+  }, [account?.address]);
 
   // Fetch user votes when account changes
   useEffect(() => {
@@ -316,7 +361,7 @@ export default function MarketsPage() {
     } else {
       setUserVotes(new Set());
     }
-  }, [account?.address]);
+  }, [account?.address, fetchUserVotes]);
 
   // State for submit document form
   const [evidenceType, setEvidenceType] = useState<'yes' | 'no'>('yes');
@@ -506,7 +551,7 @@ export default function MarketsPage() {
   }, []);
 
   // Fetch user balances function (with loading state)
-  const fetchUserBalances = async () => {
+  const fetchUserBalances = useCallback(async () => {
     if (!account?.address) return;
     
     setIsBalanceLoading(true);
@@ -549,37 +594,13 @@ export default function MarketsPage() {
       console.error("Error fetching user balances:", err);
       setOutcome1Balance("Error");
       setOutcome2Balance("Error");
-    }
-    
-    setIsBalanceLoading(false);
-  };
-
-  // Polling mechanism for user balances
-  useEffect(() => {
-    if (!account?.address) {
-      // Reset balances when no wallet is connected
-      setOutcome1Balance("--");
-      setOutcome2Balance("--");
+    } finally {
       setIsBalanceLoading(false);
-      return;
     }
-
-    // Initial fetch with loading state
-    setIsBalanceLoading(true);
-    fetchUserBalances();
-
-    // Set up polling interval (check every 3 seconds) without loading state
-    const interval = setInterval(() => {
-      // Don't set loading state during polling to prevent blinking
-      fetchUserBalancesWithoutLoading();
-    }, 3000);
-
-    // Cleanup interval on unmount or account change
-    return () => clearInterval(interval);
-  }, [account?.address]);
+  }, [account?.address, outcome1PositionId, outcome2PositionId]);
 
   // Fetch user balances without showing loading state (for polling)
-  const fetchUserBalancesWithoutLoading = async () => {
+  const fetchUserBalancesWithoutLoading = useCallback(async () => {
     if (!account?.address) return;
     
     try {
@@ -621,7 +642,30 @@ export default function MarketsPage() {
       }
       // Don't set error state during polling to prevent blinking
     }
-  };
+  }, [account?.address, outcome1PositionId, outcome2PositionId]);
+
+  // Polling mechanism for user balances
+  useEffect(() => {
+    if (!account?.address) {
+      // Reset balances when no wallet is connected
+      setOutcome1Balance("--");
+      setOutcome2Balance("--");
+      setIsBalanceLoading(false);
+      return;
+    }
+
+    // Initial fetch with loading state
+    fetchUserBalances();
+
+    // Set up polling interval (check every 3 seconds) without loading state
+    const interval = setInterval(() => {
+      // Don't set loading state during polling to prevent blinking
+      fetchUserBalancesWithoutLoading();
+    }, 3000);
+
+    // Cleanup interval on unmount or account change
+    return () => clearInterval(interval);
+  }, [account?.address, fetchUserBalances, fetchUserBalancesWithoutLoading]);
 
   // console.log("oddsHistory", oddsHistory);
   const ODDS_DIVISOR = Number("18446744073709551616");
@@ -639,7 +683,6 @@ export default function MarketsPage() {
 
   // console.log("chartData", chartData);
 
-  const [shouldPostOdds, setShouldPostOdds] = useState(false);
   const prevOddsRef = useRef<{ yes: bigint | null; no: bigint | null }>({ yes: null, no: null });
   const isInitializedRef = useRef(false);
 
@@ -718,22 +761,10 @@ export default function MarketsPage() {
     }
   };
 
-  // Handle manual Get Price button click
-  const handleGetPrice = async () => {
-    if (selectedOutcome && amount && parseFloat(amount) > 0) {
-      const outcome = selectedOutcome === 'yes' ? 1 : 2;
-      const amountValue = parseFloat(amount);
-      
-      if (!isNaN(amountValue) && amountValue > 0) {
-        handleAutoGetPrice(outcome, amountValue);
-      }
-    }
-  };
-
   // Calculate payout
   let payoutDisplay = '--';
   if (selectedOutcome && amount && !isNaN(Number(amount)) && Number(amount) > 0) {
-    let odds = selectedOutcome === 'yes' ? oddsYes : oddsNo;
+    const odds = selectedOutcome === 'yes' ? oddsYes : oddsNo;
     if (typeof odds === 'bigint' || typeof odds === 'number') {
       const oddsNum = Number(odds) / ODDS_DIVISOR;
       // Payout = amount * (1/odds) for buy, or amount * odds for sell (simplified, adjust as needed)
@@ -749,28 +780,6 @@ export default function MarketsPage() {
       }
     }
   }
-
-  // Calculate user's voting weight for display
-  const getUserVotingWeight = (evidenceType: 'yes' | 'no') => {
-    const yesShares = parseInt(outcome1Balance) || 0;
-    const noShares = parseInt(outcome2Balance) || 0;
-    
-    if (evidenceType === 'yes') {
-      // Only boosted voting power if Yes shares > No shares
-      if (yesShares > noShares) {
-        return Math.max(1, yesShares - noShares);
-      } else {
-        return 1; // Base weight if No shares >= Yes shares
-      }
-    } else {
-      // Only boosted voting power if No shares > Yes shares
-      if (noShares > yesShares) {
-        return Math.max(1, noShares - yesShares);
-      } else {
-        return 1; // Base weight if Yes shares >= No shares
-      }
-    }
-  };
 
   // Get user's voting contribution for a specific evidence piece
   const getUserVotingContribution = (evidenceId: number, evidenceType: 'yes' | 'no') => {
@@ -798,11 +807,11 @@ export default function MarketsPage() {
   };
 
   // Function to update user position in database
-  const updateUserPosition = async (yesShares: string, noShares: string) => {
+  const updateUserPosition = useCallback(async (yesShares: string, noShares: string) => {
     if (!account?.address) return;
     
     try {
-      await fetch('/api/update-user-position', {
+      await fetch(`${API_BASE_URL}/api/update-user-position`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -821,14 +830,14 @@ export default function MarketsPage() {
     } catch (error) {
       console.error('Failed to update user position:', error);
     }
-  };
+  }, [account?.address]);
 
   // Update user position when balances change
   useEffect(() => {
     if (outcome1Balance !== "--" && outcome2Balance !== "--" && !isBalanceLoading) {
       updateUserPosition(outcome1Balance, outcome2Balance);
     }
-  }, [outcome1Balance, outcome2Balance, isBalanceLoading, account?.address]);
+  }, [outcome1Balance, outcome2Balance, isBalanceLoading, updateUserPosition]);
 
   // Add state to track which evidence card is expanded
   const [expandedEvidenceId, setExpandedEvidenceId] = useState<number | null>(null);
@@ -848,7 +857,7 @@ export default function MarketsPage() {
         <div className="flex flex-col lg:flex-row justify-between items-start w-full max-w-7xl mx-auto mb-10 gap-2">
           {/* Odds History Chart Card */}
           <div className="bg-white rounded-xl shadow border border-gray-200 p-8 max-w-4xl w-full mb-8 lg:mb-0 ml-auto">
-            <h2 className="text-2xl font-bold mb-6 text-[#171A22]">Did the CIA aid in the planning or execution of John F. Kennedy's Assassination?</h2>
+            <h2 className="text-2xl font-bold mb-6 text-[#171A22]">Did the CIA aid in the planning or execution of John F. Kennedy&apos;s Assassination?</h2>
             <div className="mb-2">
               <span className="text-lg font-semibold text-[#171A22]">Market Odds</span>
             </div>
@@ -863,7 +872,7 @@ export default function MarketsPage() {
                     height={40}
                     tickFormatter={(_, index) => {
                       if (index === 0) {
-                        const [year, month, day] = chartData[0].timestamp.split('-');
+                        const [, month, day] = chartData[0].timestamp.split('-');
                         return `${month}/${day}`;
                       }
                       return "";
@@ -967,9 +976,9 @@ export default function MarketsPage() {
               onClick={() => {
                 if (!selectedOutcome || !amount) return;
                 if (selectedOutcome === 'yes') {
-                  mode === 'buy' ? handleBuyYes(amount) : handleSellYes(amount);
+                  if (mode === 'buy') { handleBuyYes(amount); } else { handleSellYes(amount); }
                 } else if (selectedOutcome === 'no') {
-                  mode === 'buy' ? handleBuyNo(amount) : handleSellNo(amount);
+                  if (mode === 'buy') { handleBuyNo(amount); } else { handleSellNo(amount); }
                 }
               }}
             >
@@ -1007,16 +1016,6 @@ export default function MarketsPage() {
           <div className="bg-white rounded-xl shadow border border-gray-200 p-8 max-w-4xl w-full ml-19">
             <div className="flex justify-between items-center mb-6">
               <h2 className="text-2xl font-bold text-[#171A22]">Evidence</h2>
-              {account?.address && (
-                <div className="text-sm text-gray-600">
-                  <span className="font-medium">Voting Power:</span>
-                  <span className="ml-2 text-green-600 font-semibold">Yes: {getUserVotingWeight('yes')}x</span>
-                  <span className="ml-2 text-red-600 font-semibold">No: {getUserVotingWeight('no')}x</span>
-                  <div className="text-xs text-gray-500 mt-1">
-                    Full power applied to each piece of evidence you vote on
-                  </div>
-                </div>
-              )}
             </div>
             <Tab.Group>
               <Tab.List className="flex w-full mb-6 bg-gray-50 rounded-lg">
@@ -1025,14 +1024,14 @@ export default function MarketsPage() {
                     `flex-1 px-6 py-2 rounded-lg font-medium text-sm transition focus:outline-none ${selected ? "bg-white text-[#171A22] shadow" : "bg-gray-50 text-gray-500"}`
                   }
                 >
-                  View "Yes" Documents
+                  View &quot;Yes&quot; Documents
                 </Tab>
                 <Tab
                   className={({ selected }: { selected: boolean }) =>
                     `flex-1 px-6 py-2 rounded-lg font-medium text-sm transition focus:outline-none ${selected ? "bg-white text-[#171A22] shadow" : "bg-gray-50 text-gray-500"}`
                   }
                 >
-                  View "No" Documents
+                  View &quot;No&quot; Documents
                 </Tab>
                 <Tab
                   className={({ selected }: { selected: boolean }) =>
@@ -1111,7 +1110,6 @@ export default function MarketsPage() {
                                 <EvidenceComments
                                   evidence={{ ...evidence, commentCount: evidence.commentCount ?? 0 }}
                                   currentUserAddress={account?.address}
-                                  onClose={() => setExpandedEvidenceId(null)}
                                 />
                               )}
                             </div>
@@ -1199,7 +1197,6 @@ export default function MarketsPage() {
                                 <EvidenceComments
                                   evidence={{ ...evidence, commentCount: evidence.commentCount ?? 0 }}
                                   currentUserAddress={account?.address}
-                                  onClose={() => setExpandedEvidenceId(null)}
                                 />
                               )}
                             </div>

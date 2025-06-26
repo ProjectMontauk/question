@@ -1,7 +1,7 @@
 "use client";
 
 import Navbar from "../../../components/Navbar";
-import React, { useState } from "react";
+import React, { useState, useCallback } from "react";
 import { useSendTransaction, useActiveAccount, useReadContract } from "thirdweb/react";
 import { prepareContractCall, readContract } from "thirdweb";
 import { tokenContract, conditionalTokensContract } from "../../../constants/contracts";
@@ -15,16 +15,15 @@ export default function DepositPage() {
   const account = useActiveAccount();
 
   // For getCollectionId card
-  const [conditionId, setConditionId] = useState("0x8555CCD72D38B0C0B6689C2AABF14F85B7F0153DD045A939E438B08BD8C33454");
-  const [parentCollectionId, setParentCollectionId] = useState("0000000000000000000000000000000000000000000000000000000000000000");
+  const [conditionId] = useState("0x8555CCD72D38B0C0B6689C2AABF14F85B7F0153DD045A939E438B08BD8C33454");
+  const [_parentCollectionId] = useState("0000000000000000000000000000000000000000000000000000000000000000");
   const [indexSet, setIndexSet] = useState("1");
-  const [shouldFetch, setShouldFetch] = useState(false);
 
   const [collectionIdResult, setCollectionIdResult] = useState<string | null>(null);
   const [isCollectionIdPending, setIsCollectionIdPending] = useState(false);
 
   // For getPositionId card
-  const [collateralToken, setCollateralToken] = useState("0x6e915a7a2940f3f3f95e65205b9ebf89df0aa141");
+  const [_collateralToken] = useState("0x6e915a7a2940f3f3f95e65205b9ebf89df0aa141");
   const [collectionId, setCollectionId] = useState("");
   const [positionIdResult, setPositionIdResult] = useState<string | null>(null);
   const [isPositionIdPending, setIsPositionIdPending] = useState(false);
@@ -40,8 +39,6 @@ export default function DepositPage() {
   const [outcome2PositionId] = useState("46634212102108699492488813922022044718165605089123703573217419428873160154565");
   const [outcome1Balance, setOutcome1Balance] = useState<string>("--");
   const [outcome2Balance, setOutcome2Balance] = useState<string>("--");
-  const [totalPortfolioValue, setTotalPortfolioValue] = useState<string>("--");
-  const [isBalanceLoading, setIsBalanceLoading] = useState(false);
 
   const { data: balance, isPending } = useReadContract({
     contract: tokenContract,
@@ -76,6 +73,17 @@ export default function DepositPage() {
     sendTransaction(transaction);
   };
 
+  // New LmLSMR approval function using setApprovalForAll
+  const handleLmLSMRApproval = () => {
+    if (!account) return;
+    const transaction = prepareContractCall({
+      contract: conditionalTokensContract,
+      method: "function setApprovalForAll(address operator, bool approved)",
+      params: [LmLSMR_CONTRACT_ADDRESS, true],
+    });
+    sendTransaction(transaction);
+  };
+
   // Helper to ensure '0x' is only prepended if missing and pad to 64 characters
   function ensureHexPrefix(str: string) {
     const cleanStr = str.replace('0x', '').toLowerCase();
@@ -88,7 +96,7 @@ export default function DepositPage() {
     setIsCollectionIdPending(true);
     
     // Format parameters properly
-    const formattedParentCollectionId = ensureHexPrefix(parentCollectionId);
+    const formattedParentCollectionId = ensureHexPrefix(_parentCollectionId);
     const formattedConditionId = ensureHexPrefix(conditionId);
     
     console.log('GetCollectionId called with params:', {
@@ -132,7 +140,7 @@ export default function DepositPage() {
     const formattedCollectionId = ensureHexPrefix(collectionId);
     
     console.log('GetPositionId called with params:', {
-      collateralToken,
+      collateralToken: _collateralToken,
       collectionId: formattedCollectionId
     });
     
@@ -141,7 +149,7 @@ export default function DepositPage() {
         contract: conditionalTokensContract,
         method: "function getPositionId(address collateralToken, bytes32 collectionId) pure returns (uint256)",
         params: [
-          collateralToken as `0x${string}`,
+          _collateralToken as `0x${string}`,
           formattedCollectionId as `0x${string}`
         ],
       });
@@ -178,10 +186,8 @@ export default function DepositPage() {
     setIsBalancePending(false);
   };
 
-  const fetchUserBalances = async () => {
+  const fetchUserBalances = useCallback(async () => {
     if (!account?.address) return;
-    
-    setIsBalanceLoading(true);
     
     try {
       // Fetch balance for Outcome 1 (Yes)
@@ -215,26 +221,19 @@ export default function DepositPage() {
       setOutcome1Balance(realBalance1);
       setOutcome2Balance(realBalance2);
       
-      // Calculate total portfolio value (sum of both balances)
-      const total = Number(balance1Str) / 1e18 + Number(balance2Str) / 1e18;
-      setTotalPortfolioValue(total.toFixed(4));
-      
     } catch (err) {
       console.error("Error fetching user balances:", err);
       setOutcome1Balance("Error");
       setOutcome2Balance("Error");
-      setTotalPortfolioValue("Error");
     }
-    
-    setIsBalanceLoading(false);
-  };
+  }, [account?.address, outcome1PositionId, outcome2PositionId]);
 
   // Fetch balances when account changes or component mounts
   React.useEffect(() => {
     if (account?.address) {
       fetchUserBalances();
     }
-  }, [account?.address]);
+  }, [account?.address, fetchUserBalances]);
 
   return (
     <div>
@@ -384,6 +383,17 @@ export default function DepositPage() {
             disabled={!account || !balance || status === "pending"}
           >
             {status === "pending" ? "Approving..." : "Approve Bets"}
+          </button>
+        </div>
+        <div className="bg-white rounded-xl shadow border border-gray-200 p-5 max-w-md w-full mt-8">
+          <h2 className="text-xl font-bold text-gray-900 mb-4">LmLSMR Token Approval</h2>
+          <p className="text-sm text-gray-600 mb-4">Approve the LmLSMR contract to sell your outcome tokens</p>
+          <button
+            className="bg-[#171A22] text-white px-6 py-2 rounded-lg font-medium text-base shadow hover:bg-[#232635] transition disabled:opacity-50 w-full"
+            onClick={handleLmLSMRApproval}
+            disabled={!account || status === "pending"}
+          >
+            {status === "pending" ? "Approving..." : "Approve LmLSMR"}
           </button>
         </div>
       </div>

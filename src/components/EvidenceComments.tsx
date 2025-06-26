@@ -1,5 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import Comment from './Comment';
+
+// Backend API base URL - use Next.js API routes for both dev and production
+const API_BASE_URL = '';
 
 interface Evidence {
   id: number;
@@ -27,31 +30,19 @@ interface CommentData {
 interface EvidenceCommentsProps {
   evidence: Evidence;
   currentUserAddress?: string;
-  onClose: () => void;
 }
 
 const EvidenceComments: React.FC<EvidenceCommentsProps> = ({
   evidence,
-  currentUserAddress,
-  onClose
+  currentUserAddress
 }) => {
   const [comments, setComments] = useState<CommentData[]>([]);
   const [newComment, setNewComment] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [expandedEvidenceId, setExpandedEvidenceId] = useState<number | null>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-  // Ref for the textarea to auto-expand
-  const textareaRef = React.useRef<HTMLTextAreaElement>(null);
-
-  useEffect(() => {
-    if (evidence) {
-      fetchComments();
-    }
-    // eslint-disable-next-line
-  }, [evidence]);
-
-  const fetchComments = async () => {
+  const fetchComments = useCallback(async () => {
     if (!evidence) return;
     setIsLoading(true);
     try {
@@ -61,7 +52,7 @@ const EvidenceComments: React.FC<EvidenceCommentsProps> = ({
       if (currentUserAddress) {
         params.append('walletAddress', currentUserAddress);
       }
-      const response = await fetch(`/api/comments?${params}`);
+      const response = await fetch(`${API_BASE_URL}/api/comments?${params}`);
       if (response.ok) {
         const data = await response.json();
         setComments(data);
@@ -71,7 +62,13 @@ const EvidenceComments: React.FC<EvidenceCommentsProps> = ({
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [evidence, currentUserAddress]);
+
+  // Fetch comments on mount and when evidence changes
+  useEffect(() => {
+    fetchComments();
+    // eslint-disable-next-line
+  }, [evidence]);
 
   // Auto-expand textarea as user types
   const handleTextareaInput = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
@@ -87,7 +84,7 @@ const EvidenceComments: React.FC<EvidenceCommentsProps> = ({
     if (!newComment.trim() || !evidence || !currentUserAddress) return;
     setIsSubmitting(true);
     try {
-      const response = await fetch('/api/comments', {
+      const response = await fetch(`${API_BASE_URL}/api/comments`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -110,7 +107,7 @@ const EvidenceComments: React.FC<EvidenceCommentsProps> = ({
   const handleReply = async (parentId: number, content: string) => {
     if (!evidence || !currentUserAddress) return;
     try {
-      const response = await fetch('/api/comments', {
+      const response = await fetch(`${API_BASE_URL}/api/comments`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -132,7 +129,7 @@ const EvidenceComments: React.FC<EvidenceCommentsProps> = ({
   const handleVote = async (commentId: number, voteType: 'upvote' | 'downvote') => {
     if (!currentUserAddress) return;
     try {
-      const response = await fetch('/api/comment-vote', {
+      const response = await fetch(`${API_BASE_URL}/api/comment-vote`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -188,22 +185,6 @@ const EvidenceComments: React.FC<EvidenceCommentsProps> = ({
       console.error('Failed to vote on comment:', error);
       throw error;
     }
-  };
-
-  const getDomain = (url: string) => {
-    try {
-      const { hostname } = new URL(url);
-      return hostname.replace(/^www\./, '');
-    } catch {
-      return url;
-    }
-  };
-
-  const formatCommentCount = (count: number) => {
-    if (count >= 1000) {
-      return (count / 1000).toFixed(1) + 'K';
-    }
-    return count.toString();
   };
 
   return (

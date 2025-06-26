@@ -1,16 +1,18 @@
 import React, { useState } from 'react';
 
+interface CommentData {
+  id: number;
+  content: string;
+  walletAddress: string;
+  createdAt: string;
+  upvotes: number;
+  downvotes: number;
+  userVote?: string | null;
+  replies: CommentData[];
+}
+
 interface CommentProps {
-  comment: {
-    id: number;
-    content: string;
-    walletAddress: string;
-    createdAt: string;
-    upvotes: number;
-    downvotes: number;
-    userVote?: string | null;
-    replies: any[];
-  };
+  comment: CommentData;
   evidenceId: number;
   currentUserAddress?: string;
   onReply: (parentId: number, content: string) => void;

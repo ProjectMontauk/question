@@ -1,5 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import Comment from './Comment';
+
+// Backend API base URL - use Next.js API routes for both dev and production
+const API_BASE_URL = '';
 
 interface Evidence {
   id: number;
@@ -41,14 +44,7 @@ const CommentsModal: React.FC<CommentsModalProps> = ({
   const [isLoading, setIsLoading] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Fetch comments when modal opens
-  useEffect(() => {
-    if (isOpen && evidence) {
-      fetchComments();
-    }
-  }, [isOpen, evidence]);
-
-  const fetchComments = async () => {
+  const fetchComments = useCallback(async () => {
     if (!evidence) return;
     
     setIsLoading(true);
@@ -61,7 +57,7 @@ const CommentsModal: React.FC<CommentsModalProps> = ({
         params.append('walletAddress', currentUserAddress);
       }
       
-      const response = await fetch(`/api/comments?${params}`);
+      const response = await fetch(`${API_BASE_URL}/api/comments?${params}`);
       if (response.ok) {
         const data = await response.json();
         setComments(data);
@@ -71,7 +67,14 @@ const CommentsModal: React.FC<CommentsModalProps> = ({
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [evidence, currentUserAddress]);
+
+  // Fetch comments when modal opens
+  useEffect(() => {
+    if (isOpen && evidence) {
+      fetchComments();
+    }
+  }, [isOpen, evidence, fetchComments]);
 
   const handleSubmitComment = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -79,7 +82,7 @@ const CommentsModal: React.FC<CommentsModalProps> = ({
 
     setIsSubmitting(true);
     try {
-      const response = await fetch('/api/comments', {
+      const response = await fetch(`${API_BASE_URL}/api/comments`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -104,7 +107,7 @@ const CommentsModal: React.FC<CommentsModalProps> = ({
     if (!evidence || !currentUserAddress) return;
 
     try {
-      const response = await fetch('/api/comments', {
+      const response = await fetch(`${API_BASE_URL}/api/comments`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -128,7 +131,7 @@ const CommentsModal: React.FC<CommentsModalProps> = ({
     if (!currentUserAddress) return;
 
     try {
-      const response = await fetch('/api/comment-vote', {
+      const response = await fetch(`${API_BASE_URL}/api/comment-vote`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -186,11 +189,6 @@ const CommentsModal: React.FC<CommentsModalProps> = ({
       console.error('Failed to vote on comment:', error);
       throw error;
     }
-  };
-
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    return date.toLocaleDateString();
   };
 
   const getDomain = (url: string) => {

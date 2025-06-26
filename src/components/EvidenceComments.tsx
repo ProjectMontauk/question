@@ -1,0 +1,282 @@
+import React, { useState, useEffect } from 'react';
+import Comment from './Comment';
+
+interface Evidence {
+  id: number;
+  type: 'yes' | 'no';
+  title: string;
+  url?: string;
+  description: string;
+  netVotes: number;
+  walletAddress: string;
+  createdAt?: string;
+  commentCount: number;
+}
+
+interface CommentData {
+  id: number;
+  content: string;
+  walletAddress: string;
+  createdAt: string;
+  upvotes: number;
+  downvotes: number;
+  userVote?: string | null;
+  replies: CommentData[];
+}
+
+interface EvidenceCommentsProps {
+  evidence: Evidence;
+  currentUserAddress?: string;
+  onClose: () => void;
+}
+
+const EvidenceComments: React.FC<EvidenceCommentsProps> = ({
+  evidence,
+  currentUserAddress,
+  onClose
+}) => {
+  const [comments, setComments] = useState<CommentData[]>([]);
+  const [newComment, setNewComment] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [expandedEvidenceId, setExpandedEvidenceId] = useState<number | null>(null);
+
+  // Ref for the textarea to auto-expand
+  const textareaRef = React.useRef<HTMLTextAreaElement>(null);
+
+  useEffect(() => {
+    if (evidence) {
+      fetchComments();
+    }
+    // eslint-disable-next-line
+  }, [evidence]);
+
+  const fetchComments = async () => {
+    if (!evidence) return;
+    setIsLoading(true);
+    try {
+      const params = new URLSearchParams({
+        evidenceId: evidence.id.toString()
+      });
+      if (currentUserAddress) {
+        params.append('walletAddress', currentUserAddress);
+      }
+      const response = await fetch(`/api/comments?${params}`);
+      if (response.ok) {
+        const data = await response.json();
+        setComments(data);
+      }
+    } catch (error) {
+      console.error('Failed to fetch comments:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Auto-expand textarea as user types
+  const handleTextareaInput = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    setNewComment(e.target.value);
+    if (textareaRef.current) {
+      textareaRef.current.style.height = '2.5rem'; // Reset to min height
+      textareaRef.current.style.height = textareaRef.current.scrollHeight + 'px';
+    }
+  };
+
+  const handleSubmitComment = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newComment.trim() || !evidence || !currentUserAddress) return;
+    setIsSubmitting(true);
+    try {
+      const response = await fetch('/api/comments', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          evidenceId: evidence.id,
+          content: newComment,
+          walletAddress: currentUserAddress
+        })
+      });
+      if (response.ok) {
+        setNewComment('');
+        await fetchComments();
+      }
+    } catch (error) {
+      console.error('Failed to submit comment:', error);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleReply = async (parentId: number, content: string) => {
+    if (!evidence || !currentUserAddress) return;
+    try {
+      const response = await fetch('/api/comments', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          evidenceId: evidence.id,
+          parentId,
+          content,
+          walletAddress: currentUserAddress
+        })
+      });
+      if (response.ok) {
+        await fetchComments();
+      }
+    } catch (error) {
+      console.error('Failed to submit reply:', error);
+      throw error;
+    }
+  };
+
+  const handleVote = async (commentId: number, voteType: 'upvote' | 'downvote') => {
+    if (!currentUserAddress) return;
+    try {
+      const response = await fetch('/api/comment-vote', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          commentId,
+          walletAddress: currentUserAddress,
+          voteType
+        })
+      });
+      if (response.ok) {
+        // Optimistically update the comment in the local state
+        const updateCommentVotes = (comments: CommentData[]): CommentData[] => {
+          return comments.map(comment => {
+            if (comment.id === commentId) {
+              const updatedComment = { ...comment };
+              if (comment.userVote === voteType) {
+                // Removing vote
+                if (voteType === 'upvote') {
+                  updatedComment.upvotes = Math.max(0, comment.upvotes - 1);
+                } else {
+                  updatedComment.downvotes = Math.max(0, comment.downvotes - 1);
+                }
+                updatedComment.userVote = null;
+              } else if (comment.userVote && comment.userVote !== voteType) {
+                // Changing vote
+                if (voteType === 'upvote') {
+                  updatedComment.upvotes = comment.upvotes + 1;
+                  updatedComment.downvotes = Math.max(0, comment.downvotes - 1);
+                } else {
+                  updatedComment.downvotes = comment.downvotes + 1;
+                  updatedComment.upvotes = Math.max(0, comment.upvotes - 1);
+                }
+                updatedComment.userVote = voteType;
+              } else {
+                // Adding new vote
+                if (voteType === 'upvote') {
+                  updatedComment.upvotes = comment.upvotes + 1;
+                } else {
+                  updatedComment.downvotes = comment.downvotes + 1;
+                }
+                updatedComment.userVote = voteType;
+              }
+              return updatedComment;
+            }
+            return {
+              ...comment,
+              replies: updateCommentVotes(comment.replies)
+            };
+          });
+        };
+        setComments(updateCommentVotes);
+      }
+    } catch (error) {
+      console.error('Failed to vote on comment:', error);
+      throw error;
+    }
+  };
+
+  const getDomain = (url: string) => {
+    try {
+      const { hostname } = new URL(url);
+      return hostname.replace(/^www\./, '');
+    } catch {
+      return url;
+    }
+  };
+
+  const formatCommentCount = (count: number) => {
+    if (count >= 1000) {
+      return (count / 1000).toFixed(1) + 'K';
+    }
+    return count.toString();
+  };
+
+  return (
+    <div className="bg-white rounded-xl shadow border border-gray-200 mt-4">
+      {/* Close button only */}
+      <div className="flex justify-end py-2 px-4 bg-white">
+        <button
+          onClick={onClose}
+          className="text-gray-400 hover:text-gray-600"
+        >
+          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
+      </div>
+      <div className="pt-2 pb-4 px-4 bg-white">
+        {/* New comment form */}
+        {currentUserAddress && (
+          <form onSubmit={handleSubmitComment} className="mb-4">
+            <textarea
+              ref={textareaRef}
+              value={newComment}
+              onChange={handleTextareaInput}
+              placeholder="Add a comment..."
+              className="w-full p-2.5 border border-gray-300 rounded-lg resize-none bg-white text-gray-900 min-h-[2.25rem]"
+              rows={1}
+              style={{overflow: 'hidden'}}
+              disabled={isSubmitting}
+            />
+            <div className="flex justify-end mt-2">
+              {newComment.trim().length > 0 && (
+                <button
+                  type="submit"
+                  disabled={isSubmitting}
+                  className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50"
+                >
+                  {isSubmitting ? 'Posting...' : 'Post Comment'}
+                </button>
+              )}
+            </div>
+          </form>
+        )}
+        {/* Comments section */}
+        <div className="bg-white">
+          <h3 className="text-lg font-semibold mb-4 text-gray-900">
+            Comments ({comments.length})
+          </h3>
+          {isLoading ? (
+            <div className="text-center py-8 bg-white">
+              <div className="text-gray-500">Loading comments...</div>
+            </div>
+          ) : comments.length === 0 ? (
+            <div className="text-center py-8 bg-white">
+              <div className="text-gray-500">No comments yet. Be the first to comment!</div>
+            </div>
+          ) : (
+            <div className="space-y-4 bg-white">
+              {comments.map((comment) => (
+                <Comment
+                  key={comment.id}
+                  comment={comment}
+                  evidenceId={evidence.id}
+                  currentUserAddress={currentUserAddress}
+                  onReply={handleReply}
+                  onVote={handleVote}
+                />
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default EvidenceComments; 

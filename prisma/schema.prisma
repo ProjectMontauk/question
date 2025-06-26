@@ -25,6 +25,7 @@ model Evidence {
   
   // Relation to individual votes
   votes       Vote[]
+  comments    Comment[]
 }
 
 model OddsHistory {
@@ -61,14 +62,45 @@ model UserMarketPosition {
   @@unique([walletAddress])
 }
 
-// New model to track user's voting activity per evidence type
-model UserVotingActivity {
-  id            Int      @id @default(autoincrement())
+// New model for Reddit-style comments on evidence
+model Comment {
+  id            Int       @id @default(autoincrement())
+  evidenceId    Int
+  parentId      Int?      // For nested replies (null for top-level comments)
   walletAddress String
-  evidenceType  String   // 'yes' or 'no'
-  totalVotes    Int      @default(0) // Total number of evidence pieces voted on
-  lastUpdated   DateTime @default(now())
+  content       String
+  upvotes       Int       @default(0)
+  downvotes     Int       @default(0)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
   
-  // Unique constraint per wallet per evidence type
-  @@unique([walletAddress, evidenceType])
+  // Relations
+  evidence      Evidence  @relation(fields: [evidenceId], references: [id], onDelete: Cascade)
+  parent        Comment?  @relation("CommentReplies", fields: [parentId], references: [id], onDelete: Cascade)
+  replies       Comment[] @relation("CommentReplies")
+  votes         CommentVote[]
+  
+  // Indexes for better query performance
+  @@index([evidenceId])
+  @@index([parentId])
+  @@index([walletAddress])
+}
+
+// New model to track comment votes (upvotes/downvotes)
+model CommentVote {
+  id            Int       @id @default(autoincrement())
+  commentId     Int
+  walletAddress String
+  voteType      String    // 'upvote' or 'downvote'
+  createdAt     DateTime  @default(now())
+  
+  // Relations
+  comment       Comment   @relation(fields: [commentId], references: [id], onDelete: Cascade)
+  
+  // Composite unique constraint to prevent duplicate votes per user per comment
+  @@unique([commentId, walletAddress])
+  
+  // Indexes for better query performance
+  @@index([commentId])
+  @@index([walletAddress])
 }

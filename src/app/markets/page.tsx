@@ -10,6 +10,12 @@ const LmLSMR_CONTRACT_ADDRESS = "0x03d7fa2716c0ff897000e1dcafdd6257ecce943a";
 import { formatOdds, formatOddsToCents } from "../../utils/formatOdds";
 import { Tab } from "@headlessui/react";
 import { LineChart, Line, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer, ReferenceLine, XAxisProps } from 'recharts';
+import EvidenceComments from '../../components/EvidenceComments';
+
+// Backend API base URL
+const API_BASE_URL = process.env.NODE_ENV === 'production' 
+  ? 'https://your-backend-url.onrender.com'  // Production URL
+  : '';                                       // Development URL - use relative paths
 
 // Helper to extract domain from URL
 function getDomain(url: string) {
@@ -31,6 +37,7 @@ interface Evidence {
   netVotes: number;
   walletAddress: string;
   createdAt?: string;
+  commentCount?: number;
 }
 
 // Add OddsHistoryEntry type
@@ -270,16 +277,46 @@ export default function MarketsPage() {
   // Evidence data state
   const [evidence, setEvidence] = useState<Evidence[]>([]);
   const [loadingEvidence, setLoadingEvidence] = useState(true);
+  const [votingEvidenceId, setVotingEvidenceId] = useState<number | null>(null);
+  
+  // Track which evidence the user has voted on
+  const [userVotes, setUserVotes] = useState<Set<number>>(new Set());
 
   // Fetch all evidence on mount
   useEffect(() => {
-    fetch('/api/evidence')
+    fetch(`${API_BASE_URL}/api/evidence`)
       .then(res => res.json())
       .then(data => {
         setEvidence(data);
         setLoadingEvidence(false);
       });
   }, []);
+
+  // Fetch user's existing votes to sync state
+  const fetchUserVotes = async () => {
+    if (!account?.address) return;
+    
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/user-votes?walletAddress=${account.address}`);
+      if (res.ok) {
+        const userVoteData = await res.json();
+        // Assuming the backend returns an array of evidence IDs the user has voted on
+        const votedEvidenceIds: Set<number> = new Set(userVoteData.map((vote: any) => Number(vote.evidenceId)));
+        setUserVotes(votedEvidenceIds);
+      }
+    } catch (error) {
+      console.error('Failed to fetch user votes:', error);
+    }
+  };
+
+  // Fetch user votes when account changes
+  useEffect(() => {
+    if (account?.address) {
+      fetchUserVotes();
+    } else {
+      setUserVotes(new Set());
+    }
+  }, [account?.address]);
 
   // State for submit document form
   const [evidenceType, setEvidenceType] = useState<'yes' | 'no'>('yes');
@@ -298,7 +335,7 @@ export default function MarketsPage() {
       description: text.trim(),
       walletAddress: account?.address || '',
     };
-    const res = await fetch('/api/evidence', {
+    const res = await fetch(`${API_BASE_URL}/api/evidence`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(newEvidence),
@@ -311,34 +348,139 @@ export default function MarketsPage() {
     setEvidenceType('yes');
   };
 
-  // Handle upvote
+  // Handle upvote/downvote toggle
   const handleVote = async (id: number, evidenceType: 'yes' | 'no') => {
     if (!account?.address) return;
     
+    // Set loading state for this specific evidence
+    setVotingEvidenceId(id);
+    
+    // Check if user has already voted on this evidence
+    const hasVoted = userVotes.has(id);
+    
+    // Always send 'upvote' to backend - backend will handle toggle logic
+    const voteType = 'upvote';
+    
+    // Calculate the user's full voting weight for this evidence type
+    const yesShares = parseInt(outcome1Balance) || 0;
+    const noShares = parseInt(outcome2Balance) || 0;
+    
+    let votingWeight = 1;
+    if (evidenceType === 'yes' && yesShares > noShares) {
+      votingWeight = Math.max(1, yesShares - noShares);
+    } else if (evidenceType === 'no' && noShares > yesShares) {
+      votingWeight = Math.max(1, noShares - yesShares);
+    }
+    
+    // Optimistic update - immediately update the UI
+    const optimisticEvidence = evidence.map(ev => {
+      if (ev.id === id) {
+        return {
+          ...ev,
+          netVotes: hasVoted 
+            ? ev.netVotes - votingWeight  // Remove vote
+            : ev.netVotes + votingWeight  // Add vote
+        };
+      }
+      return ev;
+    });
+    
+    // Update UI immediately
+    setEvidence(optimisticEvidence);
+    
+    // Update user votes tracking optimistically
+    if (hasVoted) {
+      setUserVotes(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(id);
+        return newSet;
+      });
+    } else {
+      setUserVotes(prev => new Set(prev).add(id));
+    }
+    
     try {
-      const res = await fetch('/api/vote', {
+      const voteData = { 
+        evidenceId: id, 
+        walletAddress: account.address,
+        voteType: voteType,
+        evidenceType: evidenceType
+      };
+      
+      console.log('Sending vote to backend:', voteData);
+      
+      const res = await fetch(`${API_BASE_URL}/api/vote`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          evidenceId: id, 
-          walletAddress: account.address,
-          voteType: 'upvote',
-          evidenceType
-        }),
+        body: JSON.stringify(voteData),
       });
       
       if (res.ok) {
-        // Refresh evidence to get updated vote counts
-        const evidenceRes = await fetch('/api/evidence');
+        // Get the updated evidence with accurate vote counts
+        const evidenceRes = await fetch(`${API_BASE_URL}/api/evidence`);
         const updatedEvidence = await evidenceRes.json();
         setEvidence(updatedEvidence);
+        
+        // Refresh user votes to get accurate state
+        await fetchUserVotes();
       } else {
-        const errorData = await res.json();
-        console.error('Vote failed:', errorData);
-        // You could show this error to the user with a toast notification
+        // Revert optimistic update on error
+        setEvidence(evidence);
+        // Revert user votes tracking
+        if (hasVoted) {
+          setUserVotes(prev => new Set(prev).add(id));
+        } else {
+          setUserVotes(prev => {
+            const newSet = new Set(prev);
+            newSet.delete(id);
+            return newSet;
+          });
+        }
+        
+        // Better error handling
+        let errorMessage = 'Vote failed';
+        try {
+          const errorData = await res.json();
+          console.error('Vote failed:', {
+            status: res.status,
+            statusText: res.statusText,
+            error: errorData,
+            evidenceId: id,
+            voteType: voteType,
+            evidenceType: evidenceType,
+            walletAddress: account.address
+          });
+          
+          errorMessage = errorData.error || errorData.message || 'Vote failed';
+        } catch (parseError) {
+          console.error('Vote failed - could not parse error response:', {
+            status: res.status,
+            statusText: res.statusText,
+            parseError
+          });
+        }
+        
+        // Show error to user (you could add a toast notification here)
+        setBuyFeedback(errorMessage);
+        setTimeout(() => setBuyFeedback(null), 4000);
       }
     } catch (error) {
+      // Revert optimistic update on error
+      setEvidence(evidence);
+      // Revert user votes tracking
+      if (hasVoted) {
+        setUserVotes(prev => new Set(prev).add(id));
+      } else {
+        setUserVotes(prev => {
+          const newSet = new Set(prev);
+          newSet.delete(id);
+          return newSet;
+        });
+      }
       console.error('Vote error:', error);
+    } finally {
+      // Clear loading state
+      setVotingEvidenceId(null);
     }
   };
 
@@ -352,7 +494,7 @@ export default function MarketsPage() {
 
   // Fetch odds history function
   const fetchOddsHistory = async () => {
-    const res = await fetch('/api/odds-history');
+    const res = await fetch(`${API_BASE_URL}/api/odds-history`);
     const data = await res.json();
     setOddsHistory(Array.isArray(data) ? data : []);
     setLoadingOdds(false);
@@ -414,7 +556,13 @@ export default function MarketsPage() {
 
   // Polling mechanism for user balances
   useEffect(() => {
-    if (!account?.address) return;
+    if (!account?.address) {
+      // Reset balances when no wallet is connected
+      setOutcome1Balance("--");
+      setOutcome2Balance("--");
+      setIsBalanceLoading(false);
+      return;
+    }
 
     // Initial fetch with loading state
     setIsBalanceLoading(true);
@@ -467,7 +615,10 @@ export default function MarketsPage() {
       setOutcome2Balance(noShares);
       
     } catch (err) {
-      console.error("Error fetching user balances:", err);
+      // Only log errors if wallet is still connected (to avoid spam when disconnecting)
+      if (account?.address) {
+        console.error("Error fetching user balances:", err);
+      }
       // Don't set error state during polling to prevent blinking
     }
   };
@@ -500,7 +651,7 @@ export default function MarketsPage() {
       (prevOddsRef.current.yes !== oddsYes || prevOddsRef.current.no !== oddsNo)
     ) {
       // POST the new odds
-      fetch('/api/odds-history', {
+      fetch(`${API_BASE_URL}/api/odds-history`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -599,25 +750,6 @@ export default function MarketsPage() {
     }
   }
 
-  // Function to update user position in database
-  const updateUserPosition = async (yesShares: string, noShares: string) => {
-    if (!account?.address) return;
-    
-    try {
-      await fetch('/api/update-user-position', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          walletAddress: account.address,
-          yesShares: parseInt(yesShares) || 0,
-          noShares: parseInt(noShares) || 0
-        }),
-      });
-    } catch (error) {
-      console.error('Failed to update user position:', error);
-    }
-  };
-
   // Calculate user's voting weight for display
   const getUserVotingWeight = (evidenceType: 'yes' | 'no') => {
     const yesShares = parseInt(outcome1Balance) || 0;
@@ -640,9 +772,55 @@ export default function MarketsPage() {
     }
   };
 
-  // Get the base voting power (before division)
-  const getBaseVotingPower = (evidenceType: 'yes' | 'no') => {
-    return getUserVotingWeight(evidenceType);
+  // Get user's voting contribution for a specific evidence piece
+  const getUserVotingContribution = (evidenceId: number, evidenceType: 'yes' | 'no') => {
+    if (!userVotes.has(evidenceId)) {
+      return 0; // User hasn't voted on this evidence
+    }
+    
+    // Calculate current voting weight based on current balances
+    const yesShares = parseInt(outcome1Balance) || 0;
+    const noShares = parseInt(outcome2Balance) || 0;
+    
+    if (evidenceType === 'yes') {
+      if (yesShares > noShares) {
+        return Math.max(1, yesShares - noShares);
+      } else {
+        return 1;
+      }
+    } else {
+      if (noShares > yesShares) {
+        return Math.max(1, noShares - yesShares);
+      } else {
+        return 1;
+      }
+    }
+  };
+
+  // Function to update user position in database
+  const updateUserPosition = async (yesShares: string, noShares: string) => {
+    if (!account?.address) return;
+    
+    try {
+      await fetch('/api/update-user-position', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          walletAddress: account.address,
+          yesShares: parseInt(yesShares) || 0,
+          noShares: parseInt(noShares) || 0
+        }),
+      });
+      
+      // Refresh evidence data to show updated vote counts
+      const evidenceRes = await fetch(`${API_BASE_URL}/api/evidence`);
+      if (evidenceRes.ok) {
+        const updatedEvidence = await evidenceRes.json();
+        setEvidence(updatedEvidence);
+      }
+    } catch (error) {
+      console.error('Failed to update user position:', error);
+    }
   };
 
   // Update user position when balances change
@@ -651,6 +829,16 @@ export default function MarketsPage() {
       updateUserPosition(outcome1Balance, outcome2Balance);
     }
   }, [outcome1Balance, outcome2Balance, isBalanceLoading, account?.address]);
+
+  // Add state to track which evidence card is expanded
+  const [expandedEvidenceId, setExpandedEvidenceId] = useState<number | null>(null);
+
+  // Add state for view more/less
+  const [showAllYes, setShowAllYes] = useState(false);
+  const [showAllNo, setShowAllNo] = useState(false);
+
+  // In the Yes Documents Tab
+  const yesToShow = showAllYes ? sortedYesEvidence : sortedYesEvidence.slice(0, 5);
 
   return (
     <div>
@@ -822,10 +1010,10 @@ export default function MarketsPage() {
               {account?.address && (
                 <div className="text-sm text-gray-600">
                   <span className="font-medium">Voting Power:</span>
-                  <span className="ml-2 text-green-600 font-semibold">Yes: {getBaseVotingPower('yes')}x</span>
-                  <span className="ml-2 text-red-600 font-semibold">No: {getBaseVotingPower('no')}x</span>
+                  <span className="ml-2 text-green-600 font-semibold">Yes: {getUserVotingWeight('yes')}x</span>
+                  <span className="ml-2 text-red-600 font-semibold">No: {getUserVotingWeight('no')}x</span>
                   <div className="text-xs text-gray-500 mt-1">
-                    Power divided across all evidence you vote on
+                    Full power applied to each piece of evidence you vote on
                   </div>
                 </div>
               )}
@@ -860,48 +1048,87 @@ export default function MarketsPage() {
                   {sortedYesEvidence.length === 0 ? (
                     <div className="text-gray-500">No evidence submitted yet.</div>
                   ) : (
-                    sortedYesEvidence.map((evidence, idx) => (
-                      <div
-                        key={evidence.id}
-                        className="mb-6 border rounded-lg p-6 bg-white shadow-sm border-gray-200"
-                      >
-                        <div className="flex">
-                          {/* Voting column */}
-                          <div className="flex flex-col items-center mr-4 select-none">
-                            <button
-                              className="text-green-600 hover:text-green-800 text-lg p-0 mb-1"
-                              onClick={() => handleVote(evidence.id, 'yes')}
-                              aria-label="Upvote"
-                              type="button"
-                            >
-                              <svg width="20" height="20" viewBox="0 0 20 20" className="text-green-600" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><path d="M10 2v16" strokeLinecap="round"/><path d="M5 7l5-5 5 5" strokeLinecap="round"/></svg>
-                            </button>
-                            <div className={`${evidence.netVotes >= 0 ? 'bg-black' : 'bg-red-500'} text-white rounded-full px-1.5 py-0.5 text-xs font-semibold mb-1`} style={{minWidth: '1.48rem', textAlign: 'center'}}>
-                              {evidence.netVotes}
+                    <>
+                      {yesToShow.map((evidence, idx) => (
+                        <div
+                          key={evidence.id}
+                          className="mb-6 border rounded-lg p-6 bg-white shadow-sm border-gray-200"
+                        >
+                          <div className="flex">
+                            {/* Voting column */}
+                            <div className="flex flex-col items-center mr-4 select-none">
+                              <button
+                                className={`text-lg p-0 mb-1 transition-all duration-200 ${
+                                  votingEvidenceId === evidence.id ? 'opacity-50 cursor-not-allowed' : ''
+                                } ${userVotes.has(evidence.id) ? 'bg-green-600 rounded-lg p-1' : ''}`}
+                                onClick={() => handleVote(evidence.id, 'yes')}
+                                aria-label={userVotes.has(evidence.id) ? "Remove vote" : "Upvote"}
+                                type="button"
+                                disabled={votingEvidenceId === evidence.id}
+                              >
+                                <svg width="20" height="20" viewBox="0 0 20 20" className={userVotes.has(evidence.id) ? "text-white" : "text-green-600"} fill={userVotes.has(evidence.id) ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2" aria-hidden="true">
+                                  <path d="M10 2v16" strokeLinecap="round"/>
+                                  <path d="M5 7l5-5 5 5" strokeLinecap="round"/>
+                                </svg>
+                              </button>
+                              <div className="flex flex-col items-center">
+                                <div className={`bg-black text-white rounded-full px-1.5 py-0.5 text-xs font-semibold mb-1`} style={{minWidth: '1.48rem', textAlign: 'center'}}>
+                                  {evidence.netVotes}
+                                </div>
+                                <div className="text-green-600 text-xs font-semibold min-h-[1.25rem]" style={{minHeight: '1.25rem'}}>
+                                  {userVotes.has(evidence.id) ? `+${getUserVotingContribution(evidence.id, 'yes')}` : <span className="opacity-0">+0</span>}
+                                </div>
+                              </div>
                             </div>
-                          </div>
-                          {/* Evidence content */}
-                          <div className="flex-1">
-                            <div className="flex items-center mb-2">
-                              <span className="text-sm font-semibold mr-2">#{idx + 1}</span>
-                              {evidence.url ? (
-                                <a
-                                  href={evidence.url}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="text-sm font-bold text-[#171A22] hover:underline text-[95%]"
-                                >
-                                  {evidence.title} ({getDomain(evidence.url)})
-                                </a>
-                              ) : (
-                                <span className="text-sm font-bold text-[#171A22] text-[95%]">{evidence.title}</span>
+                            {/* Evidence content */}
+                            <div className="flex-1">
+                              <div className="flex items-center mb-2">
+                                <span className="text-sm font-semibold mr-2">#{idx + 1}</span>
+                                {evidence.url ? (
+                                  <a
+                                    href={evidence.url}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="text-sm font-bold text-[#171A22] hover:underline text-[95%]"
+                                    onClick={e => e.stopPropagation()} // Prevent expand/collapse when clicking link
+                                  >
+                                    {evidence.title} ({getDomain(evidence.url)})
+                                  </a>
+                                ) : (
+                                  <span className="text-sm font-bold text-[#171A22] text-[95%]">{evidence.title}</span>
+                                )}
+                              </div>
+                              <div className="text-gray-600 text-sm line-clamp-2">{evidence.description}</div>
+                              <button
+                                className="text-xs text-blue-600 mt-0.5 hover:underline focus:outline-none"
+                                type="button"
+                                onClick={() => setExpandedEvidenceId(expandedEvidenceId === evidence.id ? null : evidence.id)}
+                              >
+                                View replies ({evidence.commentCount ?? 0})
+                              </button>
+                              {/* Show comments section if expanded */}
+                              {expandedEvidenceId === evidence.id && (
+                                <EvidenceComments
+                                  evidence={{ ...evidence, commentCount: evidence.commentCount ?? 0 }}
+                                  currentUserAddress={account?.address}
+                                  onClose={() => setExpandedEvidenceId(null)}
+                                />
                               )}
                             </div>
-                            <div className="text-gray-600 mb-2 text-sm">{evidence.description}</div>
                           </div>
                         </div>
-                      </div>
-                    ))
+                      ))}
+                      {sortedYesEvidence.length > 5 && (
+                        <div className="flex justify-center mt-4">
+                          <button
+                            className="px-4 py-2 rounded bg-gray-100 text-black font-medium hover:bg-gray-200"
+                            onClick={() => setShowAllYes(v => !v)}
+                          >
+                            {showAllYes ? 'View Less' : 'View More'}
+                          </button>
+                        </div>
+                      )}
+                    </>
                   )}
                 </Tab.Panel>
                 {/* No Documents Tab */}
@@ -909,48 +1136,87 @@ export default function MarketsPage() {
                   {sortedNoEvidence.length === 0 ? (
                     <div className="text-gray-500">No evidence submitted yet.</div>
                   ) : (
-                    sortedNoEvidence.map((evidence, idx) => (
-                      <div
-                        key={evidence.id}
-                        className="mb-6 border rounded-lg p-6 bg-white shadow-sm border-gray-200"
-                      >
-                        <div className="flex">
-                          {/* Voting column */}
-                          <div className="flex flex-col items-center mr-4 select-none">
-                            <button
-                              className="text-green-600 hover:text-green-800 text-lg p-0 mb-1"
-                              onClick={() => handleVote(evidence.id, 'no')}
-                              aria-label="Upvote"
-                              type="button"
-                            >
-                              <svg width="20" height="20" viewBox="0 0 20 20" className="text-green-600" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><path d="M10 2v16" strokeLinecap="round"/><path d="M5 7l5-5 5 5" strokeLinecap="round"/></svg>
-                            </button>
-                            <div className={`${evidence.netVotes >= 0 ? 'bg-black' : 'bg-red-500'} text-white rounded-full px-1.5 py-0.5 text-xs font-semibold mb-1`} style={{minWidth: '1.48rem', textAlign: 'center'}}>
-                              {evidence.netVotes}
+                    <>
+                      {sortedNoEvidence.map((evidence, idx) => (
+                        <div
+                          key={evidence.id}
+                          className="mb-6 border rounded-lg p-6 bg-white shadow-sm border-gray-200"
+                        >
+                          <div className="flex">
+                            {/* Voting column */}
+                            <div className="flex flex-col items-center mr-4 select-none">
+                              <button
+                                className={`text-lg p-0 mb-1 transition-all duration-200 ${
+                                  votingEvidenceId === evidence.id ? 'opacity-50 cursor-not-allowed' : ''
+                                } ${userVotes.has(evidence.id) ? 'bg-green-600 rounded-lg p-1' : ''}`}
+                                onClick={() => handleVote(evidence.id, 'no')}
+                                aria-label={userVotes.has(evidence.id) ? "Remove vote" : "Upvote"}
+                                type="button"
+                                disabled={votingEvidenceId === evidence.id}
+                              >
+                                <svg width="20" height="20" viewBox="0 0 20 20" className={userVotes.has(evidence.id) ? "text-white" : "text-green-600"} fill={userVotes.has(evidence.id) ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2" aria-hidden="true">
+                                  <path d="M10 2v16" strokeLinecap="round"/>
+                                  <path d="M5 7l5-5 5 5" strokeLinecap="round"/>
+                                </svg>
+                              </button>
+                              <div className="flex flex-col items-center">
+                                <div className={`bg-black text-white rounded-full px-1.5 py-0.5 text-xs font-semibold mb-1`} style={{minWidth: '1.48rem', textAlign: 'center'}}>
+                                  {evidence.netVotes}
+                                </div>
+                                <div className="text-green-600 text-xs font-semibold min-h-[1.25rem]" style={{minHeight: '1.25rem'}}>
+                                  {userVotes.has(evidence.id) ? `+${getUserVotingContribution(evidence.id, 'no')}` : <span className="opacity-0">+0</span>}
+                                </div>
+                              </div>
                             </div>
-                          </div>
-                          {/* Evidence content */}
-                          <div className="flex-1">
-                            <div className="flex items-center mb-2">
-                              <span className="text-sm font-semibold mr-2">#{idx + 1}</span>
-                              {evidence.url ? (
-                                <a
-                                  href={evidence.url}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="text-sm font-bold text-[#171A22] hover:underline text-[95%]"
-                                >
-                                  {evidence.title} ({getDomain(evidence.url)})
-                                </a>
-                              ) : (
-                                <span className="text-sm font-bold text-[#171A22] text-[95%]">{evidence.title}</span>
+                            {/* Evidence content */}
+                            <div className="flex-1">
+                              <div className="flex items-center mb-2">
+                                <span className="text-sm font-semibold mr-2">#{idx + 1}</span>
+                                {evidence.url ? (
+                                  <a
+                                    href={evidence.url}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="text-sm font-bold text-[#171A22] hover:underline text-[95%]"
+                                    onClick={e => e.stopPropagation()} // Prevent expand/collapse when clicking link
+                                  >
+                                    {evidence.title} ({getDomain(evidence.url)})
+                                  </a>
+                                ) : (
+                                  <span className="text-sm font-bold text-[#171A22] text-[95%]">{evidence.title}</span>
+                                )}
+                              </div>
+                              <div className="text-gray-600 text-sm line-clamp-2">{evidence.description}</div>
+                              <button
+                                className="text-xs text-blue-600 mt-0.5 hover:underline focus:outline-none"
+                                type="button"
+                                onClick={() => setExpandedEvidenceId(expandedEvidenceId === evidence.id ? null : evidence.id)}
+                              >
+                                View replies ({evidence.commentCount ?? 0})
+                              </button>
+                              {/* Show comments section if expanded */}
+                              {expandedEvidenceId === evidence.id && (
+                                <EvidenceComments
+                                  evidence={{ ...evidence, commentCount: evidence.commentCount ?? 0 }}
+                                  currentUserAddress={account?.address}
+                                  onClose={() => setExpandedEvidenceId(null)}
+                                />
                               )}
                             </div>
-                            <div className="text-gray-600 mb-2 text-sm">{evidence.description}</div>
                           </div>
                         </div>
-                      </div>
-                    ))
+                      ))}
+                      {sortedNoEvidence.length > 5 && (
+                        <div className="flex justify-center mt-4">
+                          <button
+                            className="px-4 py-2 rounded bg-gray-100 text-black font-medium hover:bg-gray-200"
+                            onClick={() => setShowAllNo(v => !v)}
+                          >
+                            {showAllNo ? 'View Less' : 'View More'}
+                          </button>
+                        </div>
+                      )}
+                    </>
                   )}
                 </Tab.Panel>
                 {/* Submit Document Tab */}

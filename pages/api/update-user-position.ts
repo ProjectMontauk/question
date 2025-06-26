@@ -1,15 +1,17 @@
-import type { NextApiRequest, NextApiResponse } from 'next';
-import prisma from '../../lib/prisma';
+import { NextApiRequest, NextApiResponse } from 'next';
+import { PrismaClient } from '@prisma/client';
+
+const prisma = new PrismaClient();
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method === 'POST') {
-    const { walletAddress, yesShares, noShares } = req.body;
-    
-    if (!walletAddress) {
-      return res.status(400).json({ error: 'Missing wallet address' });
-    }
-    
     try {
+      const { walletAddress, yesShares, noShares } = req.body;
+
+      if (!walletAddress) {
+        return res.status(400).json({ error: 'Wallet address is required' });
+      }
+
       // Upsert user position (create if doesn't exist, update if it does)
       const userPosition = await prisma.userMarketPosition.upsert({
         where: { walletAddress },
@@ -30,11 +32,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       
       res.status(200).json(userPosition);
     } catch (error) {
-      console.error('Update user position error:', error);
+      console.error('Error updating user position:', error);
       res.status(500).json({ error: 'Failed to update user position' });
     }
   } else {
-    res.setHeader('Allow', ['POST']);
     res.status(405).end(`Method ${req.method} Not Allowed`);
   }
 }
@@ -43,64 +44,41 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 async function recalculateUserVotes(walletAddress: string, yesShares: number, noShares: number) {
   // Get all votes by this user
   const userVotes = await prisma.vote.findMany({
-    where: { walletAddress }
-  });
-  
-  // Get user's voting activity for both evidence types
-  const yesActivity = await prisma.userVotingActivity.findUnique({
-    where: {
-      walletAddress_evidenceType: {
-        walletAddress,
-        evidenceType: 'yes'
-      }
+    where: { walletAddress },
+    include: {
+      evidence: true // Include evidence to get the type
     }
   });
   
-  const noActivity = await prisma.userVotingActivity.findUnique({
-    where: {
-      walletAddress_evidenceType: {
-        walletAddress,
-        evidenceType: 'no'
-      }
-    }
-  });
-  
-  // Calculate base voting weights
-  let yesBaseWeight = 1;
-  let noBaseWeight = 1;
+  // Calculate new voting weights for each evidence type
+  let yesVotingWeight = 1;
+  let noVotingWeight = 1;
   
   if (yesShares > noShares) {
-    yesBaseWeight = Math.max(1, yesShares - noShares);
+    yesVotingWeight = Math.max(1, yesShares - noShares);
   }
   if (noShares > yesShares) {
-    noBaseWeight = Math.max(1, noShares - yesShares);
+    noVotingWeight = Math.max(1, noShares - yesShares);
   }
   
-  // Update each vote with new divided weight
+  // Update each vote with new weight
   for (const vote of userVotes) {
-    // Get the evidence to determine its type
-    const evidence = await prisma.evidence.findUnique({
-      where: { id: vote.evidenceId }
+    let newVoteWeight = 1;
+    
+    if (vote.evidence.type === 'yes') {
+      newVoteWeight = yesVotingWeight;
+    } else if (vote.evidence.type === 'no') {
+      newVoteWeight = noVotingWeight;
+    }
+    
+    // Update the vote weight
+    await prisma.vote.update({
+      where: { id: vote.id },
+      data: { voteWeight: newVoteWeight }
     });
     
-    if (evidence) {
-      let dividedWeight = 1;
-      
-      if (evidence.type === 'yes' && yesActivity) {
-        dividedWeight = Math.floor(yesBaseWeight / yesActivity.totalVotes);
-      } else if (evidence.type === 'no' && noActivity) {
-        dividedWeight = Math.floor(noBaseWeight / noActivity.totalVotes);
-      }
-      
-      // Update the vote weight
-      await prisma.vote.update({
-        where: { id: vote.id },
-        data: { voteWeight: dividedWeight }
-      });
-      
-      // Recalculate net votes for this evidence
-      await recalculateEvidenceVotes(vote.evidenceId);
-    }
+    // Recalculate net votes for this evidence
+    await recalculateEvidenceVotes(vote.evidenceId);
   }
 }
 
@@ -110,14 +88,7 @@ async function recalculateEvidenceVotes(evidenceId: number) {
     where: { evidenceId }
   });
   
-  let netVotes = 0;
-  for (const vote of votes) {
-    if (vote.voteType === 'upvote') {
-      netVotes += vote.voteWeight;
-    } else if (vote.voteType === 'downvote') {
-      netVotes -= vote.voteWeight;
-    }
-  }
+  const netVotes = votes.reduce((sum, vote) => sum + vote.voteWeight, 0);
   
   // Update the evidence with new net votes
   await prisma.evidence.update({

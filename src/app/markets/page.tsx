@@ -10,6 +10,7 @@ import { Tab } from "@headlessui/react";
 import { LineChart, Line, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer, ReferenceLine } from 'recharts';
 import EvidenceComments from '../../components/EvidenceComments';
 import { formatOddsToCents } from "../../utils/formatOdds";
+import { submitTrade } from "../../utils/tradeApi";
 
 // Backend API base URL - use Next.js API routes for both dev and production
 const API_BASE_URL = '';
@@ -106,47 +107,129 @@ export default function MarketsPage() {
     
     setBuyFeedback("Preparing transaction...");
     
-    const parsedAmount = BigInt(Math.floor(Number(amount) * Math.pow(2, 64)));
+    // For buy functions, input is USD amount, but smart contract expects shares
+    // We need to convert USD to shares using the current price
+    const usdAmount = parseFloat(amount);
     
+    // Calculate how many shares the USD amount buys using priceResult
+    if (priceResult !== undefined && !isPricePending && !priceError) {
+      const totalCost = Number(priceResult) / Math.pow(2, 64);
+      const pricePerShare = totalCost / usdAmount;
+      const sharesToBuy = usdAmount / pricePerShare;
+      
+      // Validate the calculation
+      if (isNaN(sharesToBuy) || sharesToBuy <= 0) {
+        console.error("Invalid shares calculation:", {
+          usdAmount,
+          totalCost,
+          pricePerShare,
+          sharesToBuy
+        });
+        setBuyFeedback("Invalid price calculation. Please try again.");
+        setTimeout(() => setBuyFeedback(null), 3000);
+        return;
+      }
+      
+      console.log('Buy calculation:', {
+        usdInput: `$${usdAmount}`,
+        totalCost: `$${totalCost.toFixed(2)}`,
+        pricePerShare: `$${pricePerShare.toFixed(4)}`,
+        sharesToBuy: `${sharesToBuy.toFixed(2)} shares`
+      });
+      
+      // Convert shares to the format expected by the smart contract
+      const parsedAmount = BigInt(Math.floor(sharesToBuy * Math.pow(2, 64)));
+      
+      console.log('Transaction preparation:', {
+        outcome: 'Yes',
+        sharesToBuy,
+        parsedAmount: parsedAmount.toString(),
+        yesIndex
+      });
+      
     const transaction = prepareContractCall({
       contract: marketContract,
       method: "function buy(uint256 _outcome, int128 _amount) returns (int128 _price)",
       params: [yesIndex, parsedAmount],
-      // Remove hardcoded gas limit to let the wallet estimate it
+        // Remove hardcoded gas limit to let the wallet estimate it
     });
-    
+      
     sendBuyYesTransaction(transaction, {
       onError: (error) => {
-        console.error("Buy Yes transaction error:", {
-          error,
-          message: error.message,
-          transaction: transaction
-        });
-        
-        let errorMessage = "Purchase failed. Please try again.";
-        if (error.message.includes("insufficient funds")) {
-          errorMessage = "Insufficient funds for transaction.";
-        } else if (error.message.includes("user rejected")) {
-          errorMessage = "Transaction was cancelled.";
-        } else if (error.message.includes("gas")) {
-          errorMessage = "Gas estimation failed. Try a smaller amount.";
-        }
-        
-        setBuyFeedback(errorMessage);
+          console.error("=== BUY YES TRANSACTION ERROR ===");
+          console.error("Error object:", error);
+          console.error("Error type:", typeof error);
+          console.error("Error message:", error?.message);
+          console.error("Error name:", error?.name);
+          console.error("Error stack:", error?.stack);
+          console.error("Error properties:", Object.getOwnPropertyNames(error || {}));
+          console.error("Transaction details:", transaction);
+          console.error("USD amount:", usdAmount);
+          console.error("Shares to buy:", sharesToBuy);
+          console.error("Parsed amount:", parsedAmount.toString());
+          console.error("Price result:", priceResult?.toString());
+          console.error("Is price pending:", isPricePending);
+          console.error("Price error:", priceError);
+          console.error("==================================");
+          
+          let errorMessage = "Purchase failed. Please try again.";
+          if (error?.message) {
+            const msg = error.message.toLowerCase();
+            if (msg.includes("insufficient funds")) {
+              errorMessage = "Insufficient funds for transaction.";
+            } else if (msg.includes("user rejected")) {
+              errorMessage = "Transaction was cancelled.";
+            } else if (msg.includes("gas")) {
+              errorMessage = "Gas estimation failed. Try a smaller amount.";
+            } else if (msg.includes("revert")) {
+              errorMessage = "Transaction reverted. Check your input.";
+            } else if (msg.includes("execution reverted")) {
+              errorMessage = "Contract execution failed. Check your input.";
+            }
+          }
+          
+          setBuyFeedback(errorMessage);
       },
-      onSuccess: async (result) => {
-        console.log("Buy Yes transaction successful:", result);
-        setBuyFeedback("Transaction submitted! 🎉");
+        onSuccess: async (result) => {
+          console.log("Buy Yes transaction successful:", result);
+          setBuyFeedback("Transaction submitted! 🎉");
         setAmount("");
-        
-        // Refresh data after successful transaction
-        await fetchOddsHistory();
-        await fetchUserBalancesWithoutLoading();
+          
+          // Submit trade to database
+          try {
+            const tradeData = {
+              walletAddress: account?.address || '',
+              marketTitle: "Did the CIA aid in the planning or execution of John F. Kennedy's Assassination?",
+              marketId: 1, // You may want to make this dynamic
+              outcome: "Yes",
+              shares: sharesToBuy,
+              avgPrice: pricePerShare,
+              betAmount: usdAmount,
+              toWin: usdAmount * (1 / pricePerShare - 1), // Calculate potential winnings
+              status: "OPEN"
+            };
+            
+            await submitTrade(tradeData);
+            console.log("Trade submitted to database successfully");
+          } catch (error) {
+            console.error("Failed to submit trade to database:", error);
+            // Don't show error to user since the blockchain transaction was successful
+          }
+          
+          // Refresh data after successful transaction
+          await fetchOddsHistory();
+          await fetchUserBalancesWithoutLoading();
       },
       onSettled: () => {
-        setTimeout(() => setBuyFeedback(null), 6000);
+          setTimeout(() => setBuyFeedback(null), 6000);
       }
     });
+    } else {
+      // Fallback if priceResult is not available
+      console.error("Price result not available for buy calculation");
+      setBuyFeedback("Unable to calculate price. Please try again.");
+      setTimeout(() => setBuyFeedback(null), 3000);
+    }
   };
 
   const handleBuyNo = (amount: string) => {
@@ -154,47 +237,129 @@ export default function MarketsPage() {
     
     setBuyFeedback("Preparing transaction...");
     
-    const parsedAmount = BigInt(Math.floor(Number(amount) * Math.pow(2, 64)));
+    // For buy functions, input is USD amount, but smart contract expects shares
+    // We need to convert USD to shares using the current price
+    const usdAmount = parseFloat(amount);
     
+    // Calculate how many shares the USD amount buys using priceResult
+    if (priceResult !== undefined && !isPricePending && !priceError) {
+      const totalCost = Number(priceResult) / Math.pow(2, 64);
+      const pricePerShare = totalCost / usdAmount;
+      const sharesToBuy = usdAmount / pricePerShare;
+      
+      // Validate the calculation
+      if (isNaN(sharesToBuy) || sharesToBuy <= 0) {
+        console.error("Invalid shares calculation:", {
+          usdAmount,
+          totalCost,
+          pricePerShare,
+          sharesToBuy
+        });
+        setBuyFeedback("Invalid price calculation. Please try again.");
+        setTimeout(() => setBuyFeedback(null), 3000);
+        return;
+      }
+      
+      console.log('Buy calculation:', {
+        usdInput: `$${usdAmount}`,
+        totalCost: `$${totalCost.toFixed(2)}`,
+        pricePerShare: `$${pricePerShare.toFixed(4)}`,
+        sharesToBuy: `${sharesToBuy.toFixed(2)} shares`
+      });
+      
+      // Convert shares to the format expected by the smart contract
+      const parsedAmount = BigInt(Math.floor(sharesToBuy * Math.pow(2, 64)));
+      
+      console.log('Transaction preparation:', {
+        outcome: 'No',
+        sharesToBuy,
+        parsedAmount: parsedAmount.toString(),
+        noIndex
+      });
+      
     const transaction = prepareContractCall({
       contract: marketContract,
       method: "function buy(uint256 _outcome, int128 _amount) returns (int128 _price)",
       params: [noIndex, parsedAmount],
-      // Remove hardcoded gas limit to let the wallet estimate it
+        // Remove hardcoded gas limit to let the wallet estimate it
     });
 
     sendBuyNoTransaction(transaction, {
       onError: (error) => {
-        console.error("Buy No transaction error:", {
-          error,
-          message: error.message,
-          transaction: transaction
-        });
-        
-        let errorMessage = "Purchase failed. Please try again.";
-        if (error.message.includes("insufficient funds")) {
-          errorMessage = "Insufficient funds for transaction.";
-        } else if (error.message.includes("user rejected")) {
-          errorMessage = "Transaction was cancelled.";
-        } else if (error.message.includes("gas")) {
-          errorMessage = "Gas estimation failed. Try a smaller amount.";
-        }
-        
-        setBuyFeedback(errorMessage);
+          console.error("=== BUY NO TRANSACTION ERROR ===");
+          console.error("Error object:", error);
+          console.error("Error type:", typeof error);
+          console.error("Error message:", error?.message);
+          console.error("Error name:", error?.name);
+          console.error("Error stack:", error?.stack);
+          console.error("Error properties:", Object.getOwnPropertyNames(error || {}));
+          console.error("Transaction details:", transaction);
+          console.error("USD amount:", usdAmount);
+          console.error("Shares to buy:", sharesToBuy);
+          console.error("Parsed amount:", parsedAmount.toString());
+          console.error("Price result:", priceResult?.toString());
+          console.error("Is price pending:", isPricePending);
+          console.error("Price error:", priceError);
+          console.error("==================================");
+          
+          let errorMessage = "Purchase failed. Please try again.";
+          if (error?.message) {
+            const msg = error.message.toLowerCase();
+            if (msg.includes("insufficient funds")) {
+              errorMessage = "Insufficient funds for transaction.";
+            } else if (msg.includes("user rejected")) {
+              errorMessage = "Transaction was cancelled.";
+            } else if (msg.includes("gas")) {
+              errorMessage = "Gas estimation failed. Try a smaller amount.";
+            } else if (msg.includes("revert")) {
+              errorMessage = "Transaction reverted. Check your input.";
+            } else if (msg.includes("execution reverted")) {
+              errorMessage = "Contract execution failed. Check your input.";
+            }
+          }
+          
+          setBuyFeedback(errorMessage);
       },
-      onSuccess: async (result) => {
-        console.log("Buy No transaction successful:", result);
-        setBuyFeedback("Transaction submitted! 🎉");
-        setAmount("");
-        
-        // Refresh data after successful transaction
-        await fetchOddsHistory();
-        await fetchUserBalancesWithoutLoading();
+        onSuccess: async (result) => {
+          console.log("Buy No transaction successful:", result);
+          setBuyFeedback("Transaction submitted! 🎉");
+          setAmount("");
+          
+          // Submit trade to database
+          try {
+            const tradeData = {
+              walletAddress: account?.address || '',
+              marketTitle: "Did the CIA aid in the planning or execution of John F. Kennedy's Assassination?",
+              marketId: 1, // You may want to make this dynamic
+              outcome: "No",
+              shares: sharesToBuy,
+              avgPrice: pricePerShare,
+              betAmount: usdAmount,
+              toWin: usdAmount * (1 / pricePerShare - 1), // Calculate potential winnings
+              status: "OPEN"
+            };
+            
+            await submitTrade(tradeData);
+            console.log("Trade submitted to database successfully");
+          } catch (error) {
+            console.error("Failed to submit trade to database:", error);
+            // Don't show error to user since the blockchain transaction was successful
+          }
+          
+          // Refresh data after successful transaction
+          await fetchOddsHistory();
+          await fetchUserBalancesWithoutLoading();
       },
       onSettled: () => {
-        setTimeout(() => setBuyFeedback(null), 6000);
+          setTimeout(() => setBuyFeedback(null), 6000);
       }
     });
+    } else {
+      // Fallback if priceResult is not available
+      console.error("Price result not available for buy calculation");
+      setBuyFeedback("Unable to calculate price. Please try again.");
+      setTimeout(() => setBuyFeedback(null), 3000);
+    }
   };
 
   // For Sell Yes
@@ -202,12 +367,16 @@ export default function MarketsPage() {
   // For Sell No
   const { mutate: sendSellNoTransaction, status: sellNoStatus } = useSendTransaction();
 
+  // Note: Buy functions convert USD input to shares using priceResult
+  // Sell functions expect share input directly (no conversion needed)
   const handleSellYes = (amount: string) => {
     if (!amount || !account?.address) return;
     
     setBuyFeedback("Preparing transaction...");
     
-    const parsedAmount = BigInt(Math.floor(Number(amount) * Math.pow(2, 64)));
+    // For sell functions, input is number of shares, not USD
+    const shareAmount = parseFloat(amount);
+    const parsedAmount = BigInt(Math.floor(shareAmount * Math.pow(2, 64)));
     
     const transaction = prepareContractCall({
       contract: marketContract,
@@ -218,7 +387,6 @@ export default function MarketsPage() {
     
     sendSellYesTransaction(transaction, {
       onError: (error) => {
-        // Log the complete error object
         console.error("=== SELL YES TRANSACTION ERROR ===");
         console.error("Error object:", error);
         console.error("Error message:", error.message);
@@ -226,6 +394,8 @@ export default function MarketsPage() {
         console.error("Error stack:", error.stack);
         console.error("Error properties:", Object.getOwnPropertyNames(error));
         console.error("Transaction details:", transaction);
+        console.error("Share amount:", shareAmount);
+        console.error("Parsed amount:", parsedAmount.toString());
         console.error("==================================");
         
         let errorMessage = "Sale failed. Please try again.";
@@ -264,7 +434,7 @@ export default function MarketsPage() {
         setAmount("");
         
         // Refresh data after successful transaction
-        await fetchOddsHistory();
+          await fetchOddsHistory();
         await fetchUserBalancesWithoutLoading();
       },
       onSettled: () => {
@@ -278,7 +448,9 @@ export default function MarketsPage() {
     
     setBuyFeedback("Preparing transaction...");
     
-    const parsedAmount = BigInt(Math.floor(Number(amount) * Math.pow(2, 64)));
+    // For sell functions, input is number of shares, not USD
+    const shareAmount = parseFloat(amount);
+    const parsedAmount = BigInt(Math.floor(shareAmount * Math.pow(2, 64)));
     
     const transaction = prepareContractCall({
       contract: marketContract,
@@ -292,7 +464,9 @@ export default function MarketsPage() {
         console.error("Sell No transaction error:", {
           error,
           message: error.message,
-          transaction: transaction
+          transaction: transaction,
+          shareAmount,
+          parsedAmount: parsedAmount.toString()
         });
         
         let errorMessage = "Sale failed. Please try again.";
@@ -312,7 +486,7 @@ export default function MarketsPage() {
         setAmount("");
         
         // Refresh data after successful transaction
-        await fetchOddsHistory();
+          await fetchOddsHistory();
         await fetchUserBalancesWithoutLoading();
       },
       onSettled: () => {
@@ -456,7 +630,7 @@ export default function MarketsPage() {
       
       const res = await fetch(`${API_BASE_URL}/api/vote`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(voteData),
       });
       
@@ -595,7 +769,7 @@ export default function MarketsPage() {
       setOutcome1Balance("Error");
       setOutcome2Balance("Error");
     } finally {
-      setIsBalanceLoading(false);
+    setIsBalanceLoading(false);
     }
   }, [account?.address, outcome1PositionId, outcome2PositionId]);
 
@@ -638,7 +812,7 @@ export default function MarketsPage() {
     } catch (err) {
       // Only log errors if wallet is still connected (to avoid spam when disconnecting)
       if (account?.address) {
-        console.error("Error fetching user balances:", err);
+      console.error("Error fetching user balances:", err);
       }
       // Don't set error state during polling to prevent blinking
     }
@@ -761,14 +935,50 @@ export default function MarketsPage() {
     }
   };
 
-  // Calculate payout
+  // Calculate payout based on actual price from priceResult
   let payoutDisplay = '--';
   if (selectedOutcome && amount && !isNaN(Number(amount)) && Number(amount) > 0) {
-    const odds = selectedOutcome === 'yes' ? oddsYes : oddsNo;
+    if (priceResult !== undefined && !isPricePending && !priceError) {
+      // Use the actual price from priceResult for more accurate calculation
+      const totalCost = Number(priceResult) / Math.pow(2, 64);
+      const amountNum = parseFloat(amount);
+      
+      if (mode === 'buy') {
+        // For buy: Input is USD amount, calculate how many shares that buys
+        // totalCost is the total cost to buy shares, amountNum is the USD input
+        // Price per share = totalCost / amountNum
+        // Number of shares = amountNum / price per share = amountNum / (totalCost / amountNum) = amountNum^2 / totalCost
+        const pricePerShare = totalCost / amountNum;
+        const sharesBought = amountNum / pricePerShare;
+        const totalReturn = sharesBought; // $1 per share * number of shares
+        payoutDisplay = `$${totalReturn.toFixed(2)}`;
+        
+        console.log('Max Win calculation (buy):', {
+          usdInput: `$${amountNum} (USD input)`,
+          costToBuy: `$${totalCost.toFixed(2)} (cost to buy shares)`,
+          pricePerShare: `$${pricePerShare.toFixed(4)} per share`,
+          sharesBought: `${sharesBought.toFixed(2)} shares`,
+          totalReturn: `$${totalReturn.toFixed(2)} (total return if outcome wins)`,
+          profit: `$${(totalReturn - totalCost).toFixed(2)} (profit)`,
+          priceResult: priceResult.toString()
+        });
+      } else {
+        // For sell: Input is number of shares, calculate USD received
+        // When selling shares, user receives the current market value
+        // totalCost represents the USD received for selling the shares
+        payoutDisplay = `$${totalCost.toFixed(2)}`;
+        
+        console.log('Receive calculation (sell):', {
+          sharesInput: `${amountNum} shares`,
+          usdReceived: `$${totalCost.toFixed(2)} (USD received)`,
+          priceResult: priceResult.toString()
+        });
+      }
+    } else {
+      // Fallback to odds-based calculation if priceResult not available
+      const odds = selectedOutcome === 'yes' ? oddsYes : oddsNo;
     if (typeof odds === 'bigint' || typeof odds === 'number') {
       const oddsNum = Number(odds) / ODDS_DIVISOR;
-      // Payout = amount * (1/odds) for buy, or amount * odds for sell (simplified, adjust as needed)
-      // For prediction markets, usually payout = amount * (1/odds) for buy, amount * odds for sell
       let payout = 0;
       if (mode === 'buy') {
         payout = Number(amount) / oddsNum;
@@ -778,6 +988,8 @@ export default function MarketsPage() {
       if (isFinite(payout)) {
         payoutDisplay = `$${payout.toFixed(2)}`;
       }
+    }
+      console.log('Using fallback odds-based calculation:', { priceResult, isPricePending, priceError });
     }
   }
 
@@ -939,11 +1151,13 @@ export default function MarketsPage() {
             <div className="text-[1.15rem] font-medium text-black mb-4">{mode === 'buy' ? 'Bet Amount ($)' : 'Sell Shares'}</div>
             {/* Amount input */}
             <input
-              type="number"
-              min="0"
+              type="text"
               placeholder={`Enter ${mode === 'buy' ? 'Buy' : 'Sell'} Amount`}
-              value={amount}
-              onChange={e => setAmount(e.target.value)}
+              value={amount ? (mode === 'buy' ? `$${amount}` : amount) : ''}
+              onChange={e => {
+                const value = e.target.value.replace(/[^0-9.]/g, '');
+                setAmount(value);
+              }}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-black text-base mb-4"
             />
             {/* Yes/No Cent Price buttons */}
@@ -968,7 +1182,16 @@ export default function MarketsPage() {
               </button>
             </div>
             {/* Max. Win/Receive sub-title */}
-            <div className="text-[1.15rem] font-medium text-black mb-4">{mode === 'buy' ? 'Max. Win:' : 'Receive:'} <span className="text-green-600 font-bold">{payoutDisplay}</span></div>
+            <div className="text-[1.15rem] font-medium text-black">{mode === 'buy' ? 'Max. Win:' : 'Receive:'} <span className="text-green-600 font-bold">{payoutDisplay}</span></div>
+            {/* Avg. Price display */}
+            <div className="text-left text-sm text-gray-600 mb-4">
+              Avg. Price
+              {priceResult !== undefined && !isPricePending && !priceError && amount.trim() !== '' && parseFloat(amount) > 0 && (
+                <span className="ml-2 text-sm text-gray-600">
+                  ¢{(((Number(priceResult) / Math.pow(2, 64)) / parseFloat(amount)) * 100).toFixed(0)}
+                </span>
+              )}
+            </div>
             {/* Trade button */}
             <button
               className="w-full font-semibold px-6 py-2 rounded-lg shadow transition disabled:opacity-50 bg-black text-white mb-4"
@@ -984,14 +1207,6 @@ export default function MarketsPage() {
             >
               Trade
             </button>
-            <div className="text-left text-sm text-gray-600 mb-4">
-              Avg. Price
-              {priceResult !== undefined && !isPricePending && !priceError && (
-                <span className="ml-2 text-sm text-gray-600">
-                  ¢{(((Number(priceResult) / Math.pow(2, 64)) / parseFloat(amount)) * 100).toFixed(0)}
-                </span>
-              )}
-            </div>
             {buyFeedback && (
               <div className={`text-center my-4 ${buyFeedback.includes('success') ? 'text-green-600' : 'text-red-600'}`}>{buyFeedback}</div>
             )}
@@ -1049,54 +1264,54 @@ export default function MarketsPage() {
                   ) : (
                     <>
                       {yesToShow.map((evidence, idx) => (
-                        <div
-                          key={evidence.id}
-                          className="mb-6 border rounded-lg p-6 bg-white shadow-sm border-gray-200"
-                        >
-                          <div className="flex">
-                            {/* Voting column */}
-                            <div className="flex flex-col items-center mr-4 select-none">
-                              <button
+                      <div
+                        key={evidence.id}
+                        className="mb-6 border rounded-lg p-6 bg-white shadow-sm border-gray-200"
+                      >
+                        <div className="flex">
+                          {/* Voting column */}
+                          <div className="flex flex-col items-center mr-4 select-none">
+                            <button
                                 className={`text-lg p-0 mb-1 transition-all duration-200 ${
                                   votingEvidenceId === evidence.id ? 'opacity-50 cursor-not-allowed' : ''
                                 } ${userVotes.has(evidence.id) ? 'bg-green-600 rounded-lg p-1' : ''}`}
                                 onClick={() => handleVote(evidence.id, 'yes')}
                                 aria-label={userVotes.has(evidence.id) ? "Remove vote" : "Upvote"}
-                                type="button"
+                              type="button"
                                 disabled={votingEvidenceId === evidence.id}
-                              >
+                            >
                                 <svg width="20" height="20" viewBox="0 0 20 20" className={userVotes.has(evidence.id) ? "text-white" : "text-green-600"} fill={userVotes.has(evidence.id) ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2" aria-hidden="true">
                                   <path d="M10 2v16" strokeLinecap="round"/>
                                   <path d="M5 7l5-5 5 5" strokeLinecap="round"/>
                                 </svg>
-                              </button>
+                            </button>
                               <div className="flex flex-col items-center">
                                 <div className={`bg-black text-white rounded-full px-1.5 py-0.5 text-xs font-semibold mb-1`} style={{minWidth: '1.48rem', textAlign: 'center'}}>
-                                  {evidence.netVotes}
-                                </div>
+                              {evidence.netVotes}
+                            </div>
                                 <div className="text-green-600 text-xs font-semibold min-h-[1.25rem]" style={{minHeight: '1.25rem'}}>
                                   {userVotes.has(evidence.id) ? `+${getUserVotingContribution(evidence.id, 'yes')}` : <span className="opacity-0">+0</span>}
                                 </div>
                               </div>
-                            </div>
-                            {/* Evidence content */}
-                            <div className="flex-1">
-                              <div className="flex items-center mb-2">
-                                <span className="text-sm font-semibold mr-2">#{idx + 1}</span>
-                                {evidence.url ? (
-                                  <a
-                                    href={evidence.url}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="text-sm font-bold text-[#171A22] hover:underline text-[95%]"
+                          </div>
+                          {/* Evidence content */}
+                          <div className="flex-1">
+                            <div className="flex items-center mb-2">
+                              <span className="text-sm font-semibold mr-2">#{idx + 1}</span>
+                              {evidence.url ? (
+                                <a
+                                  href={evidence.url}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="text-sm font-bold text-[#171A22] hover:underline text-[95%]"
                                     onClick={e => e.stopPropagation()} // Prevent expand/collapse when clicking link
-                                  >
-                                    {evidence.title} ({getDomain(evidence.url)})
-                                  </a>
-                                ) : (
-                                  <span className="text-sm font-bold text-[#171A22] text-[95%]">{evidence.title}</span>
-                                )}
-                              </div>
+                                >
+                                  {evidence.title} ({getDomain(evidence.url)})
+                                </a>
+                              ) : (
+                                <span className="text-sm font-bold text-[#171A22] text-[95%]">{evidence.title}</span>
+                              )}
+                            </div>
                               <div className="text-gray-600 text-sm line-clamp-2">{evidence.description}</div>
                               <button
                                 className="text-xs text-gray-600 mt-0.5 hover:underline hover:text-blue-800 focus:outline-none"
@@ -1112,9 +1327,9 @@ export default function MarketsPage() {
                                   currentUserAddress={account?.address}
                                 />
                               )}
-                            </div>
                           </div>
                         </div>
+                      </div>
                       ))}
                       {sortedYesEvidence.length > 5 && (
                         <div className="flex justify-center mt-4">
@@ -1136,54 +1351,54 @@ export default function MarketsPage() {
                   ) : (
                     <>
                       {sortedNoEvidence.map((evidence, idx) => (
-                        <div
-                          key={evidence.id}
-                          className="mb-6 border rounded-lg p-6 bg-white shadow-sm border-gray-200"
-                        >
-                          <div className="flex">
-                            {/* Voting column */}
-                            <div className="flex flex-col items-center mr-4 select-none">
-                              <button
+                      <div
+                        key={evidence.id}
+                        className="mb-6 border rounded-lg p-6 bg-white shadow-sm border-gray-200"
+                      >
+                        <div className="flex">
+                          {/* Voting column */}
+                          <div className="flex flex-col items-center mr-4 select-none">
+                            <button
                                 className={`text-lg p-0 mb-1 transition-all duration-200 ${
                                   votingEvidenceId === evidence.id ? 'opacity-50 cursor-not-allowed' : ''
                                 } ${userVotes.has(evidence.id) ? 'bg-green-600 rounded-lg p-1' : ''}`}
                                 onClick={() => handleVote(evidence.id, 'no')}
                                 aria-label={userVotes.has(evidence.id) ? "Remove vote" : "Upvote"}
-                                type="button"
+                              type="button"
                                 disabled={votingEvidenceId === evidence.id}
-                              >
+                            >
                                 <svg width="20" height="20" viewBox="0 0 20 20" className={userVotes.has(evidence.id) ? "text-white" : "text-green-600"} fill={userVotes.has(evidence.id) ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2" aria-hidden="true">
                                   <path d="M10 2v16" strokeLinecap="round"/>
                                   <path d="M5 7l5-5 5 5" strokeLinecap="round"/>
                                 </svg>
-                              </button>
+                            </button>
                               <div className="flex flex-col items-center">
                                 <div className={`bg-black text-white rounded-full px-1.5 py-0.5 text-xs font-semibold mb-1`} style={{minWidth: '1.48rem', textAlign: 'center'}}>
-                                  {evidence.netVotes}
-                                </div>
+                              {evidence.netVotes}
+                            </div>
                                 <div className="text-green-600 text-xs font-semibold min-h-[1.25rem]" style={{minHeight: '1.25rem'}}>
                                   {userVotes.has(evidence.id) ? `+${getUserVotingContribution(evidence.id, 'no')}` : <span className="opacity-0">+0</span>}
                                 </div>
                               </div>
-                            </div>
-                            {/* Evidence content */}
-                            <div className="flex-1">
-                              <div className="flex items-center mb-2">
-                                <span className="text-sm font-semibold mr-2">#{idx + 1}</span>
-                                {evidence.url ? (
-                                  <a
-                                    href={evidence.url}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="text-sm font-bold text-[#171A22] hover:underline text-[95%]"
+                          </div>
+                          {/* Evidence content */}
+                          <div className="flex-1">
+                            <div className="flex items-center mb-2">
+                              <span className="text-sm font-semibold mr-2">#{idx + 1}</span>
+                              {evidence.url ? (
+                                <a
+                                  href={evidence.url}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="text-sm font-bold text-[#171A22] hover:underline text-[95%]"
                                     onClick={e => e.stopPropagation()} // Prevent expand/collapse when clicking link
-                                  >
-                                    {evidence.title} ({getDomain(evidence.url)})
-                                  </a>
-                                ) : (
-                                  <span className="text-sm font-bold text-[#171A22] text-[95%]">{evidence.title}</span>
-                                )}
-                              </div>
+                                >
+                                  {evidence.title} ({getDomain(evidence.url)})
+                                </a>
+                              ) : (
+                                <span className="text-sm font-bold text-[#171A22] text-[95%]">{evidence.title}</span>
+                              )}
+                            </div>
                               <div className="text-gray-600 text-sm line-clamp-2">{evidence.description}</div>
                               <button
                                 className="text-xs text-gray-600 mt-0.5 hover:underline hover:text-blue-800 focus:outline-none"
@@ -1199,9 +1414,9 @@ export default function MarketsPage() {
                                   currentUserAddress={account?.address}
                                 />
                               )}
-                            </div>
                           </div>
                         </div>
+                      </div>
                       ))}
                       {sortedNoEvidence.length > 5 && (
                         <div className="flex justify-center mt-4">
@@ -1269,7 +1484,7 @@ export default function MarketsPage() {
                     <div>
                       <label className="block font-medium text-gray-700 mb-2 text-[95%]">Text</label>
                       <textarea
-                        placeholder="Enter the document text or analysis..."
+                        placeholder="Enter brief description of document (maximum two lines)"
                         value={text}
                         onChange={e => setText(e.target.value)}
                         className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-600 text-base min-h-[60px] placeholder:text-[95%]"

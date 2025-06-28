@@ -104,3 +104,28 @@ model CommentVote {
   @@index([commentId])
   @@index([walletAddress])
 }
+
+model Trade {
+  id           Int      @id @default(autoincrement())
+  walletAddress String  // User's wallet address
+  marketTitle   String  // Market title for display
+  marketId      Int     // Optional: reference to a Market table if you have one
+  outcome       String  // 'yes' or 'no'
+  shares        Float   // Number of shares bought
+  avgPrice      Float   // Average price paid per share (in cents)
+  betAmount     Float   // Total USD amount spent
+  toWin         Float   // Potential payout if outcome wins
+  status        String  @default("OPEN") // 'OPEN', 'WON', 'LOST', etc.
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+model UserPnLHistory {
+  id            Int      @id @default(autoincrement())
+  walletAddress String
+  pnl           Float    // Net profit/loss at this point in time
+  timestamp     DateTime @default(now())
+  
+  @@index([walletAddress])
+  @@index([timestamp])
+}

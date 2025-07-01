@@ -2,43 +2,81 @@
 
 import React from "react";
 import { useRouter } from "next/navigation";
+import Image from "next/image";
+import { useReadContract } from "thirdweb/react";
+import { marketContract } from "../constants/contracts";
+import { getAllMarkets } from "../src/data/markets";
 
 const Homepage = () => {
   const router = useRouter();
+  
+  // Fetch current odds for Yes (0) and No (1) positions
+  const { data: oddsYes } = useReadContract({
+    contract: marketContract,
+    method: "function odds(uint256 _outcome) view returns (int128)",
+    params: [0n],
+  });
+  
+  const { data: oddsNo } = useReadContract({
+    contract: marketContract,
+    method: "function odds(uint256 _outcome) view returns (int128)",
+    params: [1n],
+  });
+
+  // Convert odds to probabilities
+  const yesProbability = oddsYes !== undefined ? Number(oddsYes) / Math.pow(2, 64) : 0;
+  const noProbability = oddsNo !== undefined ? Number(oddsNo) / Math.pow(2, 64) : 0;
+
+  // Get all markets
+  const markets = getAllMarkets();
   return (
     <div className="min-h-screen bg-[#f8f9fa] flex flex-col items-center w-full pt-10">
       <h1 className="text-4xl font-bold mb-4 text-center w-full">Welcome to Tinfoil</h1>
       <div className="text-xl text-gray-600 mb-8 text-center w-full">
-        A home for honest debate about anything on the internet
+        A home for honest debate about anything on the internet. <br />
+        Bet on what you believe, challenge convention, and earn for being right.
       </div>
-      <div className="flex flex-col sm:flex-row gap-6">
-        {/* Deposit Card */}
-        <div className="bg-white rounded-xl shadow border border-gray-200 p-5 max-w-xs w-full">
-          <div className="flex items-center mb-3">
-            {/* Example icon, replace with a better one if desired */}
-            <svg className="w-4 h-4 text-gray-700 mr-2" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" d="M12 3v18m9-9H3" /></svg>
-            <h2 className="text-xl font-bold text-gray-900">Deposit</h2>
-          </div>
-          <p className="text-gray-700 mb-4 text-sm">Mint funds to your account so you can participate in markets</p>
-          <button className="w-full bg-[#171A22] text-white py-2 rounded-lg font-medium text-base shadow hover:bg-[#232635] transition" onClick={() => router.push("/deposit")}>Deposit Funds</button>
-        </div>
-        {/* Prediction Markets Card */}
-        <div className="bg-white rounded-xl shadow border border-gray-200 p-5 max-w-xs w-full">
-          <div className="flex items-center mb-3">
-            <svg className="w-4 h-4 text-gray-700 mr-2" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" d="M4 4h16v16H4z" /></svg>
-            <h2 className="text-xl font-bold text-gray-900">Prediction Markets</h2>
-          </div>
-          <p className="text-gray-700 mb-4 text-sm">Make predictions and earn rewards by contributing to collective knowledge.</p>
-          <button className="w-full bg-[#171A22] text-white py-2 rounded-lg font-medium text-base shadow hover:bg-[#232635] transition" onClick={() => router.push("/markets")}>View Prediction Markets</button>
-        </div>
-        {/* Portfolio Balance Card */}
-        <div className="bg-white rounded-xl shadow border border-gray-200 p-5 max-w-xs w-full">
-          <div className="flex items-center mb-3">
-            <svg className="w-4 h-4 text-gray-700 mr-2" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2H5a2 2 0 00-2-2z" /><path strokeLinecap="round" strokeLinejoin="round" d="M8 5a2 2 0 012-2h4a2 2 0 012 2v2H8V5z" /></svg>
-            <h2 className="text-xl font-bold text-gray-900">Portfolio Balance</h2>
-          </div>
-          <p className="text-gray-700 mb-4 text-sm">Track your prediction market positions, performance, and earnings.</p>
-          <button className="w-full bg-[#171A22] text-white py-2 rounded-lg font-medium text-base shadow hover:bg-[#232635] transition" onClick={() => router.push("/portfolio")}>View Portfolio</button>
+      {/* Active Markets Section */}
+      <div className="w-full flex flex-col items-center mt-10">
+        <h2 className="text-2xl font-bold mb-4 text-gray-900 w-full text-left max-w-5xl px-2">Markets</h2>
+        <div className="flex flex-col sm:flex-row gap-6 w-full max-w-5xl">
+          {markets.map((market) => (
+            <div
+              key={market.id}
+              className="bg-white rounded-xl shadow border border-gray-200 p-5 w-1/2 cursor-pointer hover:shadow-lg transition"
+              onClick={() => router.push(`/markets/${market.id}`)}
+              role="button"
+              tabIndex={0}
+              onKeyPress={e => { if (e.key === 'Enter') router.push(`/markets/${market.id}`); }}
+            >
+              <div className="mb-4">
+                <Image
+                  src={market.image}
+                  alt={market.title}
+                  width={400}
+                  height={200}
+                  className="w-full h-auto rounded-lg"
+                />
+              </div>
+              <div className="mb-3">
+                <h3 className="text-xl font-bold text-gray-900">{market.title}</h3>
+              </div>
+              <div className="mb-0">
+                <div className="flex items-center mb-1">
+                  <span className="text-sm font-semibold text-black mr-16">{market.outcomes[0]}:</span>
+                  <span className="text-lg font-bold text-green-600">
+                    {yesProbability > 0 ? `${Math.round(yesProbability * 100)}%` : '--'}
+                  </span>
+                </div>
+                <div className="flex items-center">
+                  <span className="text-sm font-semibold text-black mr-8">{market.outcomes[1]}:</span>
+                  <span className="text-lg font-bold text-red-600">
+                    {noProbability > 0 ? `${Math.round(noProbability * 100)}%` : '--'}
+                  </span>
+                </div>
+              </div>
+            </div>
+          ))}
         </div>
       </div>
     </div>

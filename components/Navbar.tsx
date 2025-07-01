@@ -83,16 +83,35 @@ const Navbar = () => {
 
   return (
     <nav className="w-full flex items-center justify-between px-8 py-1 border-b border-gray-200 bg-white">
-      <div className="ml-18 flex flex-col items-start">
-        <h1 className="text-2xl font-bold text-[#171A22]">Tinfoil</h1>
-        <p className="text-sm text-gray-500 mb-0">Time Discovers Truth</p>
-        <button
-          className="mt-3 py-1 bg-white text-[#171A22] rounded-md text-xs font-semibold hover:bg-gray-100 transition border-none shadow-none text-left"
-          style={{ fontSize: 12, paddingLeft: 0, paddingRight: 0, minWidth: 0 }}
-          onClick={() => router.push("/")}
-        >
-          View Markets
-        </button>
+      <div className="ml-32 flex flex-col items-start">
+        <h1 className="text-3xl font-bold text-[#171A22] mt-4">Tinfoil</h1>
+        <div className="flex gap-0 mt-1 -ml-2">
+          <button
+            className="py-1 px-3 bg-white text-[#171A22] rounded-md text-xs font-semibold hover:bg-gray-100 transition border-none shadow-none text-left"
+            style={{ fontSize: 12, minWidth: 0 }}
+            onClick={() => router.push("/")}
+          >
+            All Markets
+          </button>
+          <button
+            className="py-1 px-3 bg-white text-[#171A22] rounded-md text-xs font-semibold hover:bg-gray-100 transition border-none shadow-none text-left"
+            style={{ fontSize: 12, minWidth: 0 }}
+          >
+            History
+          </button>
+          <button
+            className="py-1 px-3 bg-white text-[#171A22] rounded-md text-xs font-semibold hover:bg-gray-100 transition border-none shadow-none text-left"
+            style={{ fontSize: 12, minWidth: 0 }}
+          >
+            Science
+          </button>
+          <button
+            className="py-1 px-3 bg-white text-[#171A22] rounded-md text-xs font-semibold hover:bg-gray-100 transition border-none shadow-none text-left"
+            style={{ fontSize: 12, minWidth: 0 }}
+          >
+            New
+          </button>
+        </div>
       </div>
       <div className="flex items-center gap-4">
         <button

@@ -502,21 +502,21 @@ export default function MarketsPage() {
   // Track which evidence the user has voted on
   const [userVotes, setUserVotes] = useState<Set<number>>(new Set());
 
-  // Fetch all evidence on mount
+  // Fetch all evidence on mount (JFK market)
   useEffect(() => {
-    fetch(`${API_BASE_URL}/api/evidence`)
+    fetch(`${API_BASE_URL}/api/evidence?marketId=jfk`)
       .then(res => res.json())
       .then(data => {
         setEvidence(data);
       });
   }, []);
 
-  // Fetch user's existing votes to sync state
+  // Fetch user's existing votes to sync state (JFK market)
   const fetchUserVotes = useCallback(async () => {
     if (!account?.address) return;
     
     try {
-      const res = await fetch(`${API_BASE_URL}/api/user-votes?walletAddress=${account.address}`);
+      const res = await fetch(`${API_BASE_URL}/api/user-votes?walletAddress=${account.address}&marketId=jfk`);
       if (res.ok) {
         const userVoteData = await res.json();
         // Assuming the backend returns an array of evidence IDs the user has voted on
@@ -548,6 +548,7 @@ export default function MarketsPage() {
     e.preventDefault();
     if (!title.trim() && !url.trim() && !text.trim()) return;
     const newEvidence = {
+      marketId: 'jfk',
       type: evidenceType,
       title: title.trim(),
       url: url.trim(),
@@ -623,7 +624,8 @@ export default function MarketsPage() {
         evidenceId: id, 
         walletAddress: account.address,
         voteType: voteType,
-        evidenceType: evidenceType
+        evidenceType: evidenceType,
+        marketId: 'jfk'
       };
       
       console.log('Sending vote to backend:', voteData);
@@ -636,7 +638,7 @@ export default function MarketsPage() {
       
       if (res.ok) {
         // Get the updated evidence with accurate vote counts
-        const evidenceRes = await fetch(`${API_BASE_URL}/api/evidence`);
+        const evidenceRes = await fetch(`${API_BASE_URL}/api/evidence?marketId=jfk`);
         const updatedEvidence = await evidenceRes.json();
         setEvidence(updatedEvidence);
         
@@ -711,9 +713,9 @@ export default function MarketsPage() {
   const [oddsHistory, setOddsHistory] = useState<OddsHistoryEntry[]>([]);
   const [loadingOdds, setLoadingOdds] = useState(true);
 
-  // Fetch odds history function
+  // Fetch odds history function (JFK market)
   const fetchOddsHistory = async () => {
-    const res = await fetch(`${API_BASE_URL}/api/odds-history`);
+    const res = await fetch(`${API_BASE_URL}/api/odds-history?marketId=jfk`);
     const data = await res.json();
     setOddsHistory(Array.isArray(data) ? data : []);
     setLoadingOdds(false);

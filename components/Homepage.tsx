@@ -30,7 +30,7 @@ const Homepage = () => {
   // Get all markets
   const markets = getAllMarkets();
   return (
-    <div className="min-h-screen bg-[#f8f9fa] flex flex-col items-center w-full pt-10">
+    <div className="min-h-screen bg-[#f8f9fa] flex flex-col items-center w-full pt-20">
       <h1 className="text-4xl font-bold mb-4 text-center w-full">Welcome to Tinfoil</h1>
       <div className="text-xl text-gray-600 mb-8 text-center w-full">
         A home for honest debate about anything on the internet. <br />
@@ -38,7 +38,6 @@ const Homepage = () => {
       </div>
       {/* Active Markets Section */}
       <div className="w-full flex flex-col items-center mt-10">
-        <h2 className="text-2xl font-bold mb-4 text-gray-900 w-full text-left max-w-5xl px-2">Markets</h2>
         <div className="flex flex-col sm:flex-row gap-6 w-full max-w-5xl">
           {markets.map((market) => (
             <div
@@ -55,24 +54,22 @@ const Homepage = () => {
                   alt={market.title}
                   width={400}
                   height={200}
-                  className="w-full h-auto rounded-lg"
+                  className="w-full h-48 rounded-lg object-cover"
                 />
               </div>
               <div className="mb-3">
                 <h3 className="text-xl font-bold text-gray-900">{market.title}</h3>
               </div>
               <div className="mb-0">
-                <div className="flex items-center mb-1">
-                  <span className="text-sm font-semibold text-black mr-16">{market.outcomes[0]}:</span>
-                  <span className="text-lg font-bold text-green-600">
+                <div className="grid grid-cols-4 gap-2 items-center">
+                  <div className="text-sm font-semibold text-black col-span-3">{market.outcomes[0]}:</div>
+                  <div className="text-lg font-bold text-green-600 text-right bg-green-100 rounded pr-7 px-1">
                     {yesProbability > 0 ? `${Math.round(yesProbability * 100)}%` : '--'}
-                  </span>
-                </div>
-                <div className="flex items-center">
-                  <span className="text-sm font-semibold text-black mr-8">{market.outcomes[1]}:</span>
-                  <span className="text-lg font-bold text-red-600">
+                  </div>
+                  <div className="text-sm font-semibold text-black col-span-3">{market.outcomes[1]}:</div>
+                  <div className="text-lg font-bold text-red-600 text-right bg-red-100 rounded pr-7 px-1">
                     {noProbability > 0 ? `${Math.round(noProbability * 100)}%` : '--'}
-                  </span>
+                  </div>
                 </div>
               </div>
             </div>

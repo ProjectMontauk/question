@@ -3,9 +3,9 @@ import prisma from '../../lib/prisma';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method === 'POST') {
-    const { evidenceId, walletAddress, voteType, evidenceType } = req.body;
+    const { evidenceId, walletAddress, voteType, evidenceType, marketId } = req.body;
     
-    if (!evidenceId || !walletAddress || !voteType || !evidenceType) {
+    if (!evidenceId || !walletAddress || !voteType || !evidenceType || !marketId) {
       return res.status(400).json({ error: 'Missing required fields' });
     }
     
@@ -22,13 +22,19 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       const result = await prisma.$transaction(async (tx) => {
         // Get user's market position to calculate voting weight
         let userPosition = await tx.userMarketPosition.findUnique({
-          where: { walletAddress }
+          where: { 
+            marketId_walletAddress: {
+              marketId,
+              walletAddress
+            }
+          }
         });
         
         // If no position exists, create one with zero shares
         if (!userPosition) {
           userPosition = await tx.userMarketPosition.create({
             data: {
+              marketId,
               walletAddress,
               yesShares: 0,
               noShares: 0
@@ -87,6 +93,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           const voteResult = await tx.vote.create({
             data: {
               evidenceId,
+              marketId,
               walletAddress,
               voteWeight: baseVotingWeight
             }

@@ -49,10 +49,13 @@ interface OddsHistoryEntry {
 
 export default function MarketPage({ params }: { params: Promise<{ marketId: string }> }) {
   const resolvedParams = use(params);
+  console.log('Resolved params:', resolvedParams);
   const market = getMarketById(resolvedParams.marketId);
+  console.log('Found market:', market);
   
   // If market doesn't exist, show 404
   if (!market) {
+    console.error('Market not found for ID:', resolvedParams.marketId);
     notFound();
   }
 
@@ -140,7 +143,7 @@ export default function MarketPage({ params }: { params: Promise<{ marketId: str
 
   // Fetch odds history function
   const fetchOddsHistory = async () => {
-    const res = await fetch(`${API_BASE_URL}/api/odds-history`);
+    const res = await fetch(`${API_BASE_URL}/api/odds-history?marketId=${market.id}`);
     const data = await res.json();
     setOddsHistory(Array.isArray(data) ? data : []);
     setLoadingOdds(false);
@@ -149,23 +152,40 @@ export default function MarketPage({ params }: { params: Promise<{ marketId: str
   // Fetch odds history on mount
   useEffect(() => {
     fetchOddsHistory();
-  }, []);
+  }, [market.id]);
 
   // Fetch evidence on mount
   useEffect(() => {
-    fetch(`${API_BASE_URL}/api/evidence`)
-      .then(res => res.json())
+    console.log('Fetching evidence for market:', market.id);
+    fetch(`${API_BASE_URL}/api/evidence?marketId=${market.id}`)
+      .then(res => {
+        console.log('Evidence response status:', res.status);
+        if (!res.ok) {
+          throw new Error(`HTTP error! status: ${res.status}`);
+        }
+        return res.json();
+      })
       .then(data => {
-        setEvidence(data);
+        console.log('Evidence data received:', data);
+        if (Array.isArray(data)) {
+          setEvidence(data);
+        } else {
+          console.error('Evidence data is not an array:', data);
+          setEvidence([]);
+        }
+      })
+      .catch(error => {
+        console.error('Error fetching evidence:', error);
+        setEvidence([]);
       });
-  }, []);
+  }, [market.id]);
 
   // Fetch user's existing votes to sync state
   const fetchUserVotes = useCallback(async () => {
     if (!account?.address) return;
     
     try {
-      const res = await fetch(`${API_BASE_URL}/api/user-votes?walletAddress=${account.address}`);
+      const res = await fetch(`${API_BASE_URL}/api/user-votes?walletAddress=${account.address}&marketId=${market.id}`);
       if (res.ok) {
         const userVoteData = await res.json();
         // Assuming the backend returns an array of evidence IDs the user has voted on
@@ -175,7 +195,7 @@ export default function MarketPage({ params }: { params: Promise<{ marketId: str
     } catch (error) {
       console.error('Failed to fetch user votes:', error);
     }
-  }, [account?.address]);
+  }, [account?.address, market.id]);
 
   // Fetch user votes when account changes
   useEffect(() => {
@@ -308,6 +328,7 @@ export default function MarketPage({ params }: { params: Promise<{ marketId: str
     e.preventDefault();
     if (!title.trim() && !url.trim() && !text.trim()) return;
     const newEvidence = {
+      marketId: market.id,
       type: evidenceType,
       title: title.trim(),
       url: url.trim(),
@@ -383,7 +404,8 @@ export default function MarketPage({ params }: { params: Promise<{ marketId: str
         evidenceId: id, 
         walletAddress: account.address,
         voteType: voteType,
-        evidenceType: evidenceType
+        evidenceType: evidenceType,
+        marketId: market.id
       };
       
       console.log('Sending vote to backend:', voteData);
@@ -396,7 +418,7 @@ export default function MarketPage({ params }: { params: Promise<{ marketId: str
       
       if (res.ok) {
         // Get the updated evidence with accurate vote counts
-        const evidenceRes = await fetch(`${API_BASE_URL}/api/evidence`);
+        const evidenceRes = await fetch(`${API_BASE_URL}/api/evidence?marketId=${market.id}`);
         const updatedEvidence = await evidenceRes.json();
         setEvidence(updatedEvidence);
         
@@ -463,8 +485,8 @@ export default function MarketPage({ params }: { params: Promise<{ marketId: str
   };
 
   // Filter and sort evidence for Yes/No tabs
-  const sortedYesEvidence = evidence.filter(ev => ev.type === 'yes').sort((a, b) => b.netVotes - a.netVotes);
-  const sortedNoEvidence = evidence.filter(ev => ev.type === 'no').sort((a, b) => b.netVotes - a.netVotes);
+  const sortedYesEvidence = (Array.isArray(evidence) ? evidence : []).filter(ev => ev.type === 'yes').sort((a, b) => b.netVotes - a.netVotes);
+  const sortedNoEvidence = (Array.isArray(evidence) ? evidence : []).filter(ev => ev.type === 'no').sort((a, b) => b.netVotes - a.netVotes);
 
   // Show limited evidence initially
   const yesToShow = showAllYes ? sortedYesEvidence : sortedYesEvidence.slice(0, 5);

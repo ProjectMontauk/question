@@ -3,16 +3,23 @@ import prisma from '../../lib/prisma';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method === 'GET') {
-    const { walletAddress } = req.query;
+    const { walletAddress, marketId } = req.query;
     
     if (!walletAddress || typeof walletAddress !== 'string') {
       return res.status(400).json({ error: 'Missing or invalid wallet address' });
     }
     
+    if (!marketId || typeof marketId !== 'string') {
+      return res.status(400).json({ error: 'Missing or invalid marketId parameter' });
+    }
+    
     try {
-      // Get all votes by this user
+      // Get all votes by this user for the specific market
       const userVotes = await prisma.vote.findMany({
-        where: { walletAddress },
+        where: { 
+          walletAddress,
+          marketId
+        },
         select: {
           evidenceId: true,
           voteWeight: true,

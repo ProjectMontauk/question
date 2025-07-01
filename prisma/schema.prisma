@@ -15,6 +15,7 @@ datasource db {
 
 model Evidence {
   id          Int      @id @default(autoincrement())
+  marketId    String   // Market identifier (e.g., 'jfk', 'moon')
   type        String   // 'yes' or 'no'
   title       String
   url         String?
@@ -26,19 +27,29 @@ model Evidence {
   // Relation to individual votes
   votes       Vote[]
   comments    Comment[]
+  
+  // Index for better query performance
+  @@index([marketId])
+  @@index([marketId, type])
 }
 
 model OddsHistory {
   id            Int      @id @default(autoincrement())
+  marketId      String   // Market identifier
   yesProbability Float
   noProbability  Float
   timestamp      DateTime @default(now())
+  
+  // Index for better query performance
+  @@index([marketId])
+  @@index([marketId, timestamp])
 }
 
 // New model to track individual votes
 model Vote {
   id            Int      @id @default(autoincrement())
   evidenceId    Int
+  marketId      String   // Market identifier
   walletAddress String
   voteWeight    Int      @default(1) // The weighted value of this vote
   createdAt     DateTime @default(now())
@@ -48,24 +59,34 @@ model Vote {
   
   // Composite unique constraint to prevent duplicate votes
   @@unique([evidenceId, walletAddress])
+  
+  // Indexes for better query performance
+  @@index([marketId])
+  @@index([walletAddress])
 }
 
 // New model to track user market positions for voting weight calculation
 model UserMarketPosition {
   id            Int      @id @default(autoincrement())
+  marketId      String   // Market identifier
   walletAddress String
   yesShares     Int      @default(0) // Number of Yes shares held
   noShares      Int      @default(0)  // Number of No shares held
   lastUpdated   DateTime @default(now())
   
-  // Unique constraint per wallet
-  @@unique([walletAddress])
+  // Unique constraint per wallet per market
+  @@unique([marketId, walletAddress])
+  
+  // Indexes for better query performance
+  @@index([marketId])
+  @@index([walletAddress])
 }
 
 // New model for Reddit-style comments on evidence
 model Comment {
   id            Int       @id @default(autoincrement())
   evidenceId    Int
+  marketId      String    // Market identifier
   parentId      Int?      // For nested replies (null for top-level comments)
   walletAddress String
   content       String
@@ -82,6 +103,7 @@ model Comment {
   
   // Indexes for better query performance
   @@index([evidenceId])
+  @@index([marketId])
   @@index([parentId])
   @@index([walletAddress])
 }
@@ -90,6 +112,7 @@ model Comment {
 model CommentVote {
   id            Int       @id @default(autoincrement())
   commentId     Int
+  marketId      String    // Market identifier
   walletAddress String
   voteType      String    // 'upvote' or 'downvote'
   createdAt     DateTime  @default(now())
@@ -102,6 +125,7 @@ model CommentVote {
   
   // Indexes for better query performance
   @@index([commentId])
+  @@index([marketId])
   @@index([walletAddress])
 }
 
@@ -109,7 +133,7 @@ model Trade {
   id           Int      @id @default(autoincrement())
   walletAddress String  // User's wallet address
   marketTitle   String  // Market title for display
-  marketId      Int     // Optional: reference to a Market table if you have one
+  marketId      String  // Market identifier
   outcome       String  // 'yes' or 'no'
   shares        Float   // Number of shares bought
   avgPrice      Float   // Average price paid per share (in cents)
@@ -118,6 +142,9 @@ model Trade {
   status        String  @default("OPEN") // 'OPEN', 'WON', 'LOST', etc.
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
+  
+  // Index for better query performance
+  @@index([marketId])
 }
 
 model UserPnLHistory {

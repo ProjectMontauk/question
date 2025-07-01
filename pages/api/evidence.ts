@@ -3,26 +3,46 @@ import prisma from '../../lib/prisma';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method === 'GET') {
-    // Fetch all evidence, ordered by netVotes descending
+    // Get marketId from query parameters
+    const { marketId } = req.query;
+    
+    console.log('Evidence API called with marketId:', marketId);
+    
+    if (!marketId || typeof marketId !== 'string') {
+      console.error('Missing or invalid marketId:', marketId);
+      return res.status(400).json({ error: 'Missing or invalid marketId parameter' });
+    }
+    
+    // Fetch evidence for the specific market, ordered by netVotes descending
     try {
+      console.log('Querying database for marketId:', marketId);
       const evidence = await prisma.evidence.findMany({
+        where: { marketId },
         orderBy: { netVotes: 'desc' }
       });
+      console.log('Found evidence count:', evidence.length);
       res.status(200).json(evidence);
-    } catch {
+    } catch (error) {
+      console.error('Failed to fetch evidence:', error);
       res.status(500).json({ error: 'Failed to fetch evidence' });
     }
     return;
   }
   if (req.method === 'POST') {
-    // Create new evidence
-    const { type, title, url, description, walletAddress } = req.body;
+    // Create new evidence with marketId
+    const { marketId, type, title, url, description, walletAddress } = req.body;
+    
+    if (!marketId || typeof marketId !== 'string') {
+      return res.status(400).json({ error: 'Missing or invalid marketId' });
+    }
+    
     try {
       const evidence = await prisma.evidence.create({
-        data: { type, title, url, description, walletAddress, netVotes: 0 },
+        data: { marketId, type, title, url, description, walletAddress, netVotes: 0 },
       });
       res.status(201).json(evidence);
-    } catch {
+    } catch (error) {
+      console.error('Failed to create evidence:', error);
       res.status(500).json({ error: 'Failed to create evidence' });
     }
   } else if (req.method === 'PATCH') {
@@ -34,7 +54,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         data: { netVotes },
       });
       res.status(200).json(evidence);
-    } catch {
+    } catch (error) {
+      console.error('Failed to update netVotes:', error);
       res.status(500).json({ error: 'Failed to update netVotes' });
     }
   } else {

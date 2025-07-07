@@ -1,7 +1,7 @@
 export async function submitTrade(tradeData: {
   walletAddress: string;
   marketTitle: string;
-  marketId: number;
+  marketId: string;
   outcome: string;
   shares: number;
   avgPrice: number;

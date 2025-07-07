@@ -1,10 +1,10 @@
 "use client";
 
 import Navbar from "../../../../components/Navbar";
-import React, { useState, useEffect, useRef, useCallback, use } from "react";
+import React, { useState, useEffect, useCallback, use } from "react";
 import { useActiveAccount, useReadContract, useSendTransaction } from "thirdweb/react";
 import { prepareContractCall, readContract } from "thirdweb";
-import { marketContract, conditionalTokensContract } from "../../../../constants/contracts";
+import { getContractsForMarket, tokenContract } from "../../../../constants/contracts";
 import { Tab } from "@headlessui/react";
 import { LineChart, Line, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer, ReferenceLine } from 'recharts';
 import EvidenceComments from '../../../components/EvidenceComments';
@@ -61,9 +61,10 @@ export default function MarketPage({ params }: { params: Promise<{ marketId: str
 
   const account = useActiveAccount();
 
-  // For Your Balance card - hardcoded PositionIDs (you'll need to make these dynamic per market)
-  const [outcome1PositionId] = useState("51877916418744962899164470202259177085298509683534003885170535231097280890835");
-  const [outcome2PositionId] = useState("46634212102108699492488813922022044718165605089123703573217419428873160154565");
+  // Get contracts and position IDs based on market ID
+  const { marketContract, conditionalTokensContract, outcome1PositionId, outcome2PositionId } = getContractsForMarket(market.id);
+
+  // For Your Balance card - use market-specific PositionIDs
   const [outcome1Balance, setOutcome1Balance] = useState<string>("--");
   const [outcome2Balance, setOutcome2Balance] = useState<string>("--");
   const [isBalanceLoading, setIsBalanceLoading] = useState(false);
@@ -105,6 +106,7 @@ export default function MarketPage({ params }: { params: Promise<{ marketId: str
   const [amount, setAmount] = useState("");
 
   const [buyFeedback, setBuyFeedback] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
   // For Buy Yes
   const { mutate: sendBuyYesTransaction, status: buyYesStatus } = useSendTransaction();
@@ -114,8 +116,471 @@ export default function MarketPage({ params }: { params: Promise<{ marketId: str
   const yesIndex = BigInt(0);
   const noIndex = BigInt(1);
 
-  // Add the rest of your existing market page logic here...
-  // (handleBuyNo, handleSellYes, handleSellNo, evidence handling, etc.)
+  // For allowance check
+  const { data: allowance, isPending: isAllowancePending, refetch: refetchAllowance } = useReadContract({
+    contract: tokenContract,
+    method: "function allowance(address owner, address spender) view returns (uint256)",
+    params: [account?.address || "", marketContract.address || ""],
+  });
+  const { mutate: sendApproveTransaction, status: approveStatus } = useSendTransaction();
+
+  // Get user's ERC20 token balance (cash)
+  const { data: userTokenBalance } = useReadContract({
+    contract: tokenContract,
+    method: "function balanceOf(address owner) view returns (uint256)",
+    params: [account?.address || ""],
+  });
+
+  // Convert to 64x64 fixed point
+  const userDeposit = userTokenBalance ? BigInt(userTokenBalance) * BigInt(2 ** 64) : 0n;
+
+  const handleApproveIfNeeded = async () => {
+    if (isAllowancePending || !account?.address) return false;
+    if (!allowance || BigInt(allowance) < userDeposit) {
+      const transaction = prepareContractCall({
+        contract: tokenContract,
+        method: "function approve(address spender, uint256 value) returns (bool)",
+        params: [marketContract.address, userDeposit],
+      });
+      let approved = false;
+      await new Promise((resolve) => {
+        sendApproveTransaction(transaction, {
+          onSuccess: async () => {
+            // Wait 4 seconds after approval
+            await new Promise((r) => setTimeout(r, 4000));
+            refetchAllowance();
+            approved = true;
+            resolve(true);
+          },
+          onError: () => resolve(false),
+        });
+      });
+      return approved;
+    }
+    return false;
+  };
+
+  // Wrap the buy handler to check approval first
+  const handleBuyYesWithApproval = async (amount: string) => {
+    setBuyFeedback("Checking approval...");
+    const approved = await handleApproveIfNeeded();
+    if (approved || (allowance && Number(allowance) >= userDeposit)) {
+      setBuyFeedback(null);
+      handleBuyYes(amount);
+    } else {
+      setBuyFeedback("Approval failed or not completed.");
+    }
+  };
+
+  // Buy/Sell handlers
+  const handleBuyYes = (amount: string) => {
+    if (!amount || !account?.address) return;
+    
+    setBuyFeedback("Preparing transaction...");
+    
+    // For buy functions, input is USD amount, but smart contract expects shares
+    // We need to convert USD to shares using the current price
+    const usdAmount = parseFloat(amount);
+    
+    // Calculate how many shares the USD amount buys using priceResult
+    if (priceResult !== undefined && !isPricePending && !priceError) {
+      const totalCost = Number(priceResult) / Math.pow(2, 64);
+      const pricePerShare = totalCost / usdAmount;
+      const sharesToBuy = usdAmount / pricePerShare;
+      
+      // Validate the calculation
+      if (isNaN(sharesToBuy) || sharesToBuy <= 0) {
+        console.error("Invalid shares calculation:", {
+          usdAmount,
+          totalCost,
+          pricePerShare,
+          sharesToBuy
+        });
+        setBuyFeedback("Invalid price calculation. Please try again.");
+        setTimeout(() => setBuyFeedback(null), 3000);
+        return;
+      }
+      
+      console.log('Buy calculation:', {
+        usdInput: `$${usdAmount}`,
+        totalCost: `$${totalCost.toFixed(2)}`,
+        pricePerShare: `$${pricePerShare.toFixed(4)}`,
+        sharesToBuy: `${sharesToBuy.toFixed(2)} shares`
+      });
+      
+      // Convert shares to the format expected by the smart contract
+      const parsedAmount = BigInt(Math.floor(sharesToBuy * Math.pow(2, 64)));
+      
+      console.log('Transaction preparation:', {
+        outcome: 'Yes',
+        sharesToBuy,
+        parsedAmount: parsedAmount.toString(),
+        yesIndex
+      });
+      
+    const transaction = prepareContractCall({
+      contract: marketContract,
+      method: "function buy(uint256 _outcome, int128 _amount) returns (int128 _price)",
+      params: [yesIndex, parsedAmount],
+    });
+      
+    sendBuyYesTransaction(transaction, {
+      onError: (error) => {
+          console.error("=== BUY YES TRANSACTION ERROR ===");
+          console.error("Error object:", error);
+          console.error("Error type:", typeof error);
+          console.error("Error message:", error?.message);
+          console.error("Error name:", error?.name);
+          console.error("Error stack:", error?.stack);
+          console.error("Error properties:", Object.getOwnPropertyNames(error || {}));
+          console.error("Transaction details:", transaction);
+          console.error("USD amount:", usdAmount);
+          console.error("Shares to buy:", sharesToBuy);
+          console.error("Parsed amount:", parsedAmount.toString());
+          console.error("Price result:", priceResult?.toString());
+          console.error("Is price pending:", isPricePending);
+          console.error("Price error:", priceError);
+          console.error("==================================");
+          
+          let errorMessage = "Purchase failed. Please try again.";
+          if (error?.message) {
+            const msg = error.message.toLowerCase();
+            if (msg.includes("insufficient funds")) {
+              errorMessage = "Insufficient funds for transaction.";
+            } else if (msg.includes("user rejected") || msg.includes("user denied transaction signature")) {
+              errorMessage = "User cancelled transaction";
+            } else if (msg.includes("gas")) {
+              errorMessage = "Gas estimation failed. Try a smaller amount.";
+            } else if (msg.includes("revert")) {
+              errorMessage = "Transaction reverted. Check your input.";
+            } else if (msg.includes("execution reverted")) {
+              errorMessage = "Contract execution failed. Check your input.";
+            }
+          }
+          
+          setBuyFeedback(errorMessage);
+      },
+        onSuccess: async (result) => {
+          console.log("Buy Yes transaction successful:", result);
+          setBuyFeedback("Transaction submitted");
+        setAmount("");
+          
+          // Submit trade to database
+          try {
+            const tradeData = {
+              walletAddress: account?.address || '',
+              marketTitle: market.title,
+              marketId: market.id, // Use the market ID string directly
+              outcome: "Yes",
+              shares: sharesToBuy,
+              avgPrice: pricePerShare,
+              betAmount: usdAmount,
+              toWin: usdAmount * (1 / pricePerShare - 1), // Calculate potential winnings
+              status: "OPEN"
+            };
+            
+            await submitTrade(tradeData);
+            console.log("Trade submitted to database successfully");
+          } catch (error) {
+            console.error("Failed to submit trade to database:", error);
+            // Don't show error to user since the blockchain transaction was successful
+          }
+          
+          // Wait for transaction confirmation and update balances
+          await waitForTransactionConfirmation(result, "Purchase Successful!");
+          
+          // Record odds in the background (don't wait for it)
+          recordNewOdds();
+      },
+      onSettled: () => {
+          setTimeout(() => {
+            setBuyFeedback(null);
+            setSuccessMessage(null);
+          }, 10000);
+      }
+    });
+    } else {
+      // Fallback if priceResult is not available
+      console.error("Price result not available for buy calculation");
+      setBuyFeedback("Unable to calculate price. Please try again.");
+      setTimeout(() => setBuyFeedback(null), 3000);
+    }
+  };
+
+  const handleBuyNo = (amount: string) => {
+    if (!amount || !account?.address) return;
+    
+    setBuyFeedback("Preparing transaction...");
+    
+    // For buy functions, input is USD amount, but smart contract expects shares
+    // We need to convert USD to shares using the current price
+    const usdAmount = parseFloat(amount);
+    
+    // Calculate how many shares the USD amount buys using priceResult
+    if (priceResult !== undefined && !isPricePending && !priceError) {
+      const totalCost = Number(priceResult) / Math.pow(2, 64);
+      const pricePerShare = totalCost / usdAmount;
+      const sharesToBuy = usdAmount / pricePerShare;
+      
+      // Validate the calculation
+      if (isNaN(sharesToBuy) || sharesToBuy <= 0) {
+        console.error("Invalid shares calculation:", {
+          usdAmount,
+          totalCost,
+          pricePerShare,
+          sharesToBuy
+        });
+        setBuyFeedback("Invalid price calculation. Please try again.");
+        setTimeout(() => setBuyFeedback(null), 3000);
+        return;
+      }
+      
+      console.log('Buy calculation:', {
+        usdInput: `$${usdAmount}`,
+        totalCost: `$${totalCost.toFixed(2)}`,
+        pricePerShare: `$${pricePerShare.toFixed(4)}`,
+        sharesToBuy: `${sharesToBuy.toFixed(2)} shares`
+      });
+      
+      // Convert shares to the format expected by the smart contract
+      const parsedAmount = BigInt(Math.floor(sharesToBuy * Math.pow(2, 64)));
+      
+      console.log('Transaction preparation:', {
+        outcome: 'No',
+        sharesToBuy,
+        parsedAmount: parsedAmount.toString(),
+        noIndex
+      });
+      
+    const transaction = prepareContractCall({
+      contract: marketContract,
+      method: "function buy(uint256 _outcome, int128 _amount) returns (int128 _price)",
+      params: [noIndex, parsedAmount],
+    });
+
+    sendBuyNoTransaction(transaction, {
+      onError: (error) => {
+          console.error("=== BUY NO TRANSACTION ERROR ===");
+          console.error("Error object:", error);
+          console.error("Error type:", typeof error);
+          console.error("Error message:", error?.message);
+          console.error("Error name:", error?.name);
+          console.error("Error stack:", error?.stack);
+          console.error("Error properties:", Object.getOwnPropertyNames(error || {}));
+          console.error("Transaction details:", transaction);
+          console.error("USD amount:", usdAmount);
+          console.error("Shares to buy:", sharesToBuy);
+          console.error("Parsed amount:", parsedAmount.toString());
+          console.error("Price result:", priceResult?.toString());
+          console.error("Is price pending:", isPricePending);
+          console.error("Price error:", priceError);
+          console.error("==================================");
+          
+          let errorMessage = "Purchase failed. Please try again.";
+          if (error?.message) {
+            const msg = error.message.toLowerCase();
+            if (msg.includes("insufficient funds")) {
+              errorMessage = "Insufficient funds for transaction.";
+            } else if (msg.includes("user rejected") || msg.includes("user denied transaction signature")) {
+              errorMessage = "User cancelled transaction";
+            } else if (msg.includes("gas")) {
+              errorMessage = "Gas estimation failed. Try a smaller amount.";
+            } else if (msg.includes("revert")) {
+              errorMessage = "Transaction reverted. Check your input.";
+            } else if (msg.includes("execution reverted")) {
+              errorMessage = "Contract execution failed. Check your input.";
+            }
+          }
+          
+          setBuyFeedback(errorMessage);
+      },
+        onSuccess: async (result) => {
+          console.log("Buy No transaction successful:", result);
+          setBuyFeedback("Transaction submitted!");
+          setAmount("");
+          
+          // Submit trade to database
+          try {
+            const tradeData = {
+              walletAddress: account?.address || '',
+              marketTitle: market.title,
+              marketId: market.id, // Use the market ID string directly
+              outcome: "No",
+              shares: sharesToBuy,
+              avgPrice: pricePerShare,
+              betAmount: usdAmount,
+              toWin: usdAmount * (1 / pricePerShare - 1), // Calculate potential winnings
+              status: "OPEN"
+            };
+            
+            await submitTrade(tradeData);
+            console.log("Trade submitted to database successfully");
+          } catch (error) {
+            console.error("Failed to submit trade to database:", error);
+            // Don't show error to user since the blockchain transaction was successful
+          }
+          
+          // Wait for transaction confirmation and update balances
+          await waitForTransactionConfirmation(result, "Purchase Successful");
+          
+          // Record odds in the background (don't wait for it)
+          recordNewOdds();
+      },
+      onSettled: () => {
+          setTimeout(() => {
+            setBuyFeedback(null);
+            setSuccessMessage(null);
+          }, 10000);
+      }
+    });
+    } else {
+      // Fallback if priceResult is not available
+      console.error("Price result not available for buy calculation");
+      setBuyFeedback("Unable to calculate price. Please try again.");
+      setTimeout(() => setBuyFeedback(null), 3000);
+    }
+  };
+
+  // For Sell Yes
+  const { mutate: sendSellYesTransaction, status: sellYesStatus } = useSendTransaction();
+  // For Sell No
+  const { mutate: sendSellNoTransaction, status: sellNoStatus } = useSendTransaction();
+
+  // Note: Buy functions convert USD input to shares using priceResult
+  // Sell functions expect share input directly (no conversion needed)
+  const handleSellYes = (amount: string) => {
+    if (!amount || !account?.address) return;
+    
+    setBuyFeedback("Preparing transaction...");
+    
+    // For sell functions, input is number of shares, not USD
+    const shareAmount = parseFloat(amount);
+    const parsedAmount = BigInt(Math.floor(shareAmount * Math.pow(2, 64)));
+    
+    const transaction = prepareContractCall({
+      contract: marketContract,
+      method: "function sell(uint256 _outcome, int128 _amount) returns (int128 _price)",
+      params: [yesIndex, parsedAmount],
+    });
+    
+    sendSellYesTransaction(transaction, {
+      onError: (error) => {
+        console.error("=== SELL YES TRANSACTION ERROR ===");
+        console.error("Error object:", error);
+        console.error("Error message:", error.message);
+        console.error("Error name:", error.name);
+        console.error("Error stack:", error.stack);
+        console.error("Error properties:", Object.getOwnPropertyNames(error));
+        console.error("Transaction details:", transaction);
+        console.error("Share amount:", shareAmount);
+        console.error("Parsed amount:", parsedAmount.toString());
+        console.error("==================================");
+        
+        let errorMessage = "Sale failed. Please try again.";
+        
+        // More detailed error analysis
+        if (error.message) {
+          const msg = error.message.toLowerCase();
+          if (msg.includes("insufficient funds")) {
+            errorMessage = "Insufficient shares to sell.";
+          } else if (msg.includes("user rejected") || msg.includes("user denied transaction signature")) {
+            errorMessage = "User cancelled transaction";
+          } else if (msg.includes("gas")) {
+            errorMessage = "Gas estimation failed. Try a smaller amount.";
+          } else if (msg.includes("revert")) {
+            errorMessage = "Transaction reverted. Check your shares balance.";
+          } else if (msg.includes("nonce")) {
+            errorMessage = "Transaction nonce error. Try refreshing the page.";
+          } else if (msg.includes("execution reverted")) {
+            errorMessage = "Contract execution failed. Insufficient shares or invalid amount.";
+          } else if (msg.includes("out of gas")) {
+            errorMessage = "Transaction ran out of gas. Try a smaller amount.";
+          } else if (msg.includes("already known")) {
+            errorMessage = "Transaction already submitted. Check your wallet.";
+          } else if (msg.includes("0xe237d922")) {
+            errorMessage = "Contract error: Insufficient shares or invalid sell amount. Check your balance.";
+          } else if (msg.includes("abi error signature not found")) {
+            errorMessage = "Contract error: Invalid sell request. Check your shares balance and try a smaller amount.";
+          }
+        }
+        
+        setBuyFeedback(errorMessage);
+      },
+      onSuccess: async (result) => {
+        console.log("Sell Yes transaction successful:", result);
+        setBuyFeedback("Transaction submitted!");
+        setAmount("");
+        
+        // Wait for transaction confirmation and update balances
+        await waitForTransactionConfirmation(result, "Sale Successful!");
+        
+        // Record odds in the background (don't wait for it)
+        recordNewOdds();
+      },
+      onSettled: () => {
+        setTimeout(() => {
+          setBuyFeedback(null);
+          setSuccessMessage(null);
+        }, 10000);
+      }
+    });
+  };
+
+  const handleSellNo = (amount: string) => {
+    if (!amount || !account?.address) return;
+    
+    setBuyFeedback("Preparing transaction...");
+    
+    // For sell functions, input is number of shares, not USD
+    const shareAmount = parseFloat(amount);
+    const parsedAmount = BigInt(Math.floor(shareAmount * Math.pow(2, 64)));
+    
+    const transaction = prepareContractCall({
+      contract: marketContract,
+      method: "function sell(uint256 _outcome, int128 _amount) returns (int128 refund)",
+      params: [noIndex, parsedAmount],
+    });
+    
+    sendSellNoTransaction(transaction, {
+      onError: (error) => {
+        console.error("Sell No transaction error:", {
+          error,
+          message: error.message,
+          transaction: transaction,
+          shareAmount,
+          parsedAmount: parsedAmount.toString()
+        });
+        
+        let errorMessage = "Sale failed. Please try again.";
+        if (error.message.includes("insufficient funds")) {
+          errorMessage = "Insufficient shares to sell.";
+        } else if (error.message.includes("user rejected") || error.message.includes("user denied transaction signature")) {
+          errorMessage = "User cancelled transaction";
+        } else if (error.message.includes("gas")) {
+          errorMessage = "Gas estimation failed. Try a smaller amount.";
+        }
+        
+        setBuyFeedback(errorMessage);
+      },
+      onSuccess: async (result) => {
+        console.log("Sell No transaction successful:", result);
+        setBuyFeedback("Transaction submitted!");
+        setAmount("");
+        
+        // Wait for transaction confirmation and update balances
+        await waitForTransactionConfirmation(result, "Sale Successful");
+        
+        // Record odds in the background (don't wait for it)
+        recordNewOdds();
+      },
+      onSettled: () => {
+        setTimeout(() => {
+          setBuyFeedback(null);
+          setSuccessMessage(null);
+        }, 10000);
+      }
+    });
+  };
 
   // Evidence state
   const [evidence, setEvidence] = useState<Evidence[]>([]);
@@ -141,15 +606,107 @@ export default function MarketPage({ params }: { params: Promise<{ marketId: str
   const [url, setUrl] = useState('');
   const [text, setText] = useState('');
 
-  // Fetch odds history function
+  // Handle automatic price calculation
+  const handleAutoGetPrice = async (outcome: number, amount: number) => {
+    setIsPricePending(true);
+    setPriceError(null);
+    setPriceResult(undefined);
+    
+    try {
+      const result = await readContract({
+        contract: marketContract,
+        method: "function price(uint256 _outcome, int128 _amount) view returns (int128)",
+        params: [BigInt(outcome), BigInt(Math.floor(amount * Math.pow(2, 64)))],
+      });
+      setPriceResult(result);
+      console.log('Auto price result:', {
+        rawResult: result.toString(),
+        formattedPrice: `$${(Number(result) / Math.pow(2, 64)).toFixed(2)}`,
+        pricePerShare: `$${((Number(result) / Math.pow(2, 64)) / amount).toFixed(2)}`,
+        pricePerShareCents: `¢${(((Number(result) / Math.pow(2, 64)) / amount) * 100).toFixed(0)}`,
+        outcome,
+        amount
+      });
+    } catch (error) {
+      setPriceError(error as Error);
+      console.error('Auto price function error:', error);
+    } finally {
+      setIsPricePending(false);
+    }
+  };
+
+  // Auto-calculate price when both outcome and amount are available
+  useEffect(() => {
+    if (selectedOutcome && amount && parseFloat(amount) > 0) {
+      const outcome = selectedOutcome === 'yes' ? 1 : 2;
+      const amountValue = parseFloat(amount);
+      
+      if (!isNaN(amountValue) && amountValue > 0) {
+        handleAutoGetPrice(outcome, amountValue);
+      }
+    }
+  }, [selectedOutcome, amount]);
+
+  // Fetch odds history function (read-only, for page loads)
   const fetchOddsHistory = async () => {
+    // Only fetch existing odds history, don't record new ones
     const res = await fetch(`${API_BASE_URL}/api/odds-history?marketId=${market.id}`);
     const data = await res.json();
     setOddsHistory(Array.isArray(data) ? data : []);
     setLoadingOdds(false);
   };
 
-  // Fetch odds history on mount
+  // Record new odds function (for after trades)
+  const recordNewOdds = async () => {
+    try {
+      // Wait a bit for the transaction to be processed
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      
+      const currentYesOdds = await readContract({
+        contract: marketContract,
+        method: "function odds(uint256 _outcome) view returns (int128)",
+        params: [0n],
+      });
+      
+      const currentNoOdds = await readContract({
+        contract: marketContract,
+        method: "function odds(uint256 _outcome) view returns (int128)",
+        params: [1n],
+      });
+      
+      console.log('Raw odds from contract (after delay):', {
+        yesOdds: currentYesOdds.toString(),
+        noOdds: currentNoOdds.toString(),
+        yesOddsNumber: Number(currentYesOdds),
+        noOddsNumber: Number(currentNoOdds)
+      });
+      
+      // Store the raw odds values (not converted to probabilities)
+      const yesProbability = Number(currentYesOdds);
+      const noProbability = Number(currentNoOdds);
+      
+      // Record to database (after trade, odds should have changed)
+      await fetch(`${API_BASE_URL}/api/odds-history`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          marketId: market.id,
+          yesProbability,
+          noProbability,
+          timestamp: new Date().toISOString()
+        }),
+      });
+      
+      console.log('Recorded new odds to database after trade:', { yesProbability, noProbability });
+      
+      // Refresh the odds history to show the new entry
+      await fetchOddsHistory();
+    } catch (error) {
+      console.error('Failed to record odds:', error);
+    }
+  };
+
+  // Fetch odds history on mount (read-only)
   useEffect(() => {
     fetchOddsHistory();
   }, [market.id]);
@@ -253,11 +810,21 @@ export default function MarketPage({ params }: { params: Promise<{ marketId: str
     } finally {
     setIsBalanceLoading(false);
     }
-  }, [account?.address, outcome1PositionId, outcome2PositionId]);
+  }, [account?.address, outcome1PositionId, outcome2PositionId, conditionalTokensContract.address]);
 
+  // Track last call time to prevent excessive API calls
+  const lastCallTime = React.useRef<number>(0);
+  
   // Fetch user balances without showing loading state (for polling)
   const fetchUserBalancesWithoutLoading = useCallback(async () => {
     if (!account?.address) return;
+    
+    // Add a simple debounce to prevent excessive calls
+    const currentTime = Date.now();
+    if (lastCallTime.current && currentTime - lastCallTime.current < 5000) {
+      return; // Don't call if last call was less than 5 seconds ago
+    }
+    lastCallTime.current = currentTime;
     
     try {
       // Fetch balance for Outcome 1 (Yes)
@@ -288,8 +855,9 @@ export default function MarketPage({ params }: { params: Promise<{ marketId: str
       const yesShares = Math.floor(Number(balance1Str) / 1e18).toString();
       const noShares = Math.floor(Number(balance2Str) / 1e18).toString();
       
-      setOutcome1Balance(yesShares);
-      setOutcome2Balance(noShares);
+      // Only update state if values actually changed to prevent blinking
+      setOutcome1Balance(prev => prev !== yesShares ? yesShares : prev);
+      setOutcome2Balance(prev => prev !== noShares ? noShares : prev);
       
     } catch (err) {
       // Only log errors if wallet is still connected (to avoid spam when disconnecting)
@@ -298,7 +866,7 @@ export default function MarketPage({ params }: { params: Promise<{ marketId: str
       }
       // Don't set error state during polling to prevent blinking
     }
-  }, [account?.address, outcome1PositionId, outcome2PositionId]);
+  }, [account?.address, outcome1PositionId, outcome2PositionId, conditionalTokensContract.address]);
 
   // Polling mechanism for user balances
   useEffect(() => {
@@ -313,11 +881,11 @@ export default function MarketPage({ params }: { params: Promise<{ marketId: str
     // Initial fetch with loading state
     fetchUserBalances();
 
-    // Set up polling interval (check every 3 seconds) without loading state
+    // Set up polling interval (check every 30 seconds) without loading state
     const interval = setInterval(() => {
       // Don't set loading state during polling to prevent blinking
       fetchUserBalancesWithoutLoading();
-    }, 3000);
+    }, 30000);
 
     // Cleanup interval on unmount or account change
     return () => clearInterval(interval);
@@ -523,39 +1091,196 @@ export default function MarketPage({ params }: { params: Promise<{ marketId: str
 
   // Calculate payout based on actual price from priceResult
   let payoutDisplay = '--';
+  let avgPriceDisplay = '--';
   if (selectedOutcome && amount && !isNaN(Number(amount)) && Number(amount) > 0) {
-    if (priceResult !== undefined && !isPricePending && !priceError) {
+    if (mode === 'sell') {
+      // Use live market price for sell
+      const odds = selectedOutcome === 'yes' ? oddsYes : oddsNo;
+      if (typeof odds === 'bigint' || typeof odds === 'number') {
+        const oddsNum = Number(odds) / ODDS_DIVISOR;
+        const payout = Number(amount) * oddsNum;
+        if (isFinite(payout)) {
+          payoutDisplay = `$${payout.toFixed(2)}`;
+        }
+        avgPriceDisplay = `¢${(oddsNum * 100).toFixed(0)}`;
+      }
+    } else if (priceResult !== undefined && !isPricePending && !priceError) {
       // Use the actual price from priceResult for more accurate calculation
       const totalCost = Number(priceResult) / Math.pow(2, 64);
       const amountNum = parseFloat(amount);
-      
-      if (mode === 'buy') {
-        // For buy: Input is USD amount, calculate how many shares that buys
-        const pricePerShare = totalCost / amountNum;
-        const sharesBought = amountNum / pricePerShare;
-        const totalReturn = sharesBought; // $1 per share * number of shares
-        payoutDisplay = `$${totalReturn.toFixed(2)}`;
-      } else {
-        // For sell: Input is number of shares, calculate USD received
-        payoutDisplay = `$${totalCost.toFixed(2)}`;
-      }
+      // For buy: Input is USD amount, calculate how many shares that buys
+      const pricePerShare = totalCost / amountNum;
+      const sharesBought = amountNum / pricePerShare;
+      const totalReturn = sharesBought; // $1 per share * number of shares
+      payoutDisplay = `$${totalReturn.toFixed(2)}`;
+      avgPriceDisplay = `¢${((totalCost / amountNum) * 100).toFixed(0)}`;
     } else {
       // Fallback to odds-based calculation if priceResult not available
       const odds = selectedOutcome === 'yes' ? oddsYes : oddsNo;
-    if (typeof odds === 'bigint' || typeof odds === 'number') {
-      const oddsNum = Number(odds) / ODDS_DIVISOR;
-      let payout = 0;
-      if (mode === 'buy') {
-        payout = Number(amount) / oddsNum;
-      } else {
-        payout = Number(amount) * oddsNum;
+      if (typeof odds === 'bigint' || typeof odds === 'number') {
+        const oddsNum = Number(odds) / ODDS_DIVISOR;
+        let payout = 0;
+        if (mode === 'buy') {
+          payout = Number(amount) / oddsNum;
+        } else {
+          payout = Number(amount) * oddsNum;
+        }
+        if (isFinite(payout)) {
+          payoutDisplay = `$${payout.toFixed(2)}`;
+        }
+        avgPriceDisplay = `¢${(oddsNum * 100).toFixed(0)}`;
       }
-      if (isFinite(payout)) {
-        payoutDisplay = `$${payout.toFixed(2)}`;
-      }
-    }
     }
   }
+
+  const updateUserPosition = useCallback(async (marketId: string, walletAddress: string, yesShares: string, noShares: string) => {
+    try {
+      await fetch("/api/update-user-position", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          marketId,
+          walletAddress,
+          yesShares: parseInt(yesShares) || 0,
+          noShares: parseInt(noShares) || 0,
+        }),
+      });
+
+      // Refetch evidence for the current market
+      const evidenceRes = await fetch(`/api/evidence?marketId=${marketId}`);
+      if (evidenceRes.ok) {
+        const updatedEvidence = await evidenceRes.json();
+        setEvidence(updatedEvidence);
+      }
+    } catch (error) {
+      console.error("Failed to update user position or fetch evidence:", error);
+    }
+  }, []);
+
+  useEffect(() => {
+    const updatePositionAndEvidence = async () => {
+      if (
+        account?.address &&
+        outcome1Balance !== "--" &&
+        outcome2Balance !== "--" &&
+        !isBalanceLoading
+      ) {
+        // Update backend position
+        await fetch("/api/update-user-position", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            marketId: market.id,
+            walletAddress: account.address,
+            yesShares: parseInt(outcome1Balance) || 0,
+            noShares: parseInt(outcome2Balance) || 0,
+          }),
+        });
+
+        // Refetch evidence for the current market
+        const evidenceRes = await fetch(`/api/evidence?marketId=${market.id}`);
+        if (evidenceRes.ok) {
+          const updatedEvidence = await evidenceRes.json();
+          setEvidence(updatedEvidence);
+        }
+      }
+    };
+
+    updatePositionAndEvidence();
+  }, [account?.address, market.id]);
+
+  // Wait for transaction confirmation and update balances
+  const waitForTransactionConfirmation = async (transactionResult: any, successMessage: string) => {
+    try {
+      // Wait for the transaction to be mined
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      
+      // Update balances immediately after confirmation
+      await fetchUserBalancesWithoutLoading();
+      
+      // Show success message immediately after balance is updated
+      setBuyFeedback(null);
+      setSuccessMessage(successMessage);
+      
+      // Set up a retry mechanism to ensure balances are updated
+      let retries = 0;
+      const maxRetries = 5;
+      
+      while (retries < maxRetries) {
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        await fetchUserBalancesWithoutLoading();
+        retries++;
+      }
+    } catch (error) {
+      console.error("Error waiting for transaction confirmation:", error);
+      // Fallback to immediate balance update
+      await fetchUserBalancesWithoutLoading();
+      // Still show success message even if there's an error
+      setBuyFeedback(null);
+      setSuccessMessage(successMessage);
+    }
+  };
+
+  // Calculate user's voting power for Yes and No
+  const yesShares = parseInt(outcome1Balance) || 0;
+  const noShares = parseInt(outcome2Balance) || 0;
+  const yesVotingPower = yesShares > noShares ? Math.max(1, yesShares - noShares) : 1;
+  const noVotingPower = noShares > yesShares ? Math.max(1, noShares - yesShares) : 1;
+
+  // For conditional tokens approval (for selling)
+  const { mutate: sendSetApprovalForAll, status: setApprovalStatus } = useSendTransaction();
+  const { data: isOperatorApproved, refetch: refetchOperatorApproval } = useReadContract({
+    contract: conditionalTokensContract,
+    method: "function isApprovedForAll(address owner, address operator) view returns (bool)",
+    params: [account?.address || "", marketContract.address || ""],
+  });
+
+  const handleSetApprovalForAllIfNeeded = async () => {
+    if (!isOperatorApproved) {
+      const transaction = prepareContractCall({
+        contract: conditionalTokensContract,
+        method: "function setApprovalForAll(address operator, bool approved)",
+        params: [marketContract.address, true],
+      });
+      let approved = false;
+      await new Promise((resolve) => {
+        sendSetApprovalForAll(transaction, {
+          onSuccess: async () => {
+            // Wait 4 seconds after approval
+            await new Promise((r) => setTimeout(r, 4000));
+            refetchOperatorApproval();
+            approved = true;
+            resolve(true);
+          },
+          onError: () => resolve(false),
+        });
+      });
+      return approved;
+    }
+    return true;
+  };
+
+  // Wrap the sell handlers to check approval first
+  const handleSellYesWithApproval = async (amount: string) => {
+    setBuyFeedback("Checking approval for selling...");
+    const approved = await handleSetApprovalForAllIfNeeded();
+    if (approved) {
+      setBuyFeedback(null);
+      handleSellYes(amount);
+    } else {
+      setBuyFeedback("Approval for selling failed or not completed.");
+    }
+  };
+  const handleSellNoWithApproval = async (amount: string) => {
+    setBuyFeedback("Checking approval for selling...");
+    const approved = await handleSetApprovalForAllIfNeeded();
+    if (approved) {
+      setBuyFeedback(null);
+      handleSellNo(amount);
+    } else {
+      setBuyFeedback("Approval for selling failed or not completed.");
+    }
+  };
 
   return (
     <div>
@@ -625,17 +1350,17 @@ export default function MarketPage({ params }: { params: Promise<{ marketId: str
           {/* Betting Card */}
           <div className="bg-white rounded-xl shadow border border-gray-200 p-8 w-full" style={{ maxWidth: '300px' }}>
             {/* Buy/Sell Toggle */}
-            <div className="flex items-center mb-4">
-              <div className="flex gap-2 mr-6">
+            <div className="flex items-center mb-2">
+              <div className="flex gap-2">
                 <button
-                  className={`px-4 py-1 rounded-l-lg font-medium text-sm border ${mode === 'buy' ? 'bg-black text-white border-black' : 'bg-white text-black border-black'}`}
+                  className={`py-1 px-3 text-base rounded-full border ${mode === 'buy' ? 'bg-gray-100 text-green-600 border-gray-300 font-bold' : 'bg-white text-black border-gray-300 font-normal'}`}
                   onClick={() => setMode('buy')}
                   type="button"
                 >
                   Buy
                 </button>
                 <button
-                  className={`px-4 py-1 rounded-r-lg font-medium text-sm border ${mode === 'sell' ? 'bg-black text-white border-black' : 'bg-white text-black border-black'}`}
+                  className={`py-1 px-3 text-base rounded-full border ${mode === 'sell' ? 'bg-gray-100 text-green-600 border-gray-300 font-bold' : 'bg-white text-black border-gray-300 font-normal'}`}
                   onClick={() => setMode('sell')}
                   type="button"
                 >
@@ -682,10 +1407,8 @@ export default function MarketPage({ params }: { params: Promise<{ marketId: str
             {/* Avg. Price display */}
             <div className="text-left text-sm text-gray-600 mb-4">
               Avg. Price
-              {priceResult !== undefined && !isPricePending && !priceError && amount.trim() !== '' && parseFloat(amount) > 0 && (
-                <span className="ml-2 text-sm text-gray-600">
-                  ¢{(((Number(priceResult) / Math.pow(2, 64)) / parseFloat(amount)) * 100).toFixed(0)}
-                </span>
+              {avgPriceDisplay !== '--' && (
+                <span className="ml-2 text-sm text-gray-600">{avgPriceDisplay}</span>
               )}
             </div>
             {/* Trade button */}
@@ -695,17 +1418,14 @@ export default function MarketPage({ params }: { params: Promise<{ marketId: str
               onClick={() => {
                 if (!selectedOutcome || !amount) return;
                 if (selectedOutcome === 'yes') {
-                  if (mode === 'buy') { /* handleBuyYes(amount); */ } else { /* handleSellYes(amount); */ }
+                  if (mode === 'buy') { handleBuyYesWithApproval(amount); } else { handleSellYesWithApproval(amount); }
                 } else if (selectedOutcome === 'no') {
-                  if (mode === 'buy') { /* handleBuyNo(amount); */ } else { /* handleSellNo(amount); */ }
+                  if (mode === 'buy') { handleBuyNo(amount); } else { handleSellNoWithApproval(amount); }
                 }
               }}
             >
-              Trade
+              Submit Trade
             </button>
-            {buyFeedback && (
-              <div className={`text-center my-4 ${buyFeedback.includes('success') ? 'text-green-600' : 'text-red-600'}`}>{buyFeedback}</div>
-            )}
             {/* Your Balance Section */}
             <div className="border-t border-gray-200 pt-4 mt-4">
               <h3 className="text-lg font-bold text-gray-900 mb-4">Your Purchased Shares</h3>
@@ -720,6 +1440,20 @@ export default function MarketPage({ params }: { params: Promise<{ marketId: str
                 </div>
               </div>
             </div>
+            {/* Transaction feedback moved below Your Purchased Shares */}
+            {buyFeedback && (
+              <div className={`text-center mt-4 font-semibold ${
+                buyFeedback.includes('success') || buyFeedback.includes('submitted') || buyFeedback.includes('🎉') 
+                  ? 'text-green-600' 
+                  : buyFeedback.includes('Preparing transaction') 
+                    ? 'text-black' 
+                    : 'text-red-600'
+              }`}>{buyFeedback}</div>
+            )}
+            {/* Success message after balance update */}
+            {successMessage && (
+              <div className="text-center mt-4 text-green-600 font-semibold">{successMessage}</div>
+            )}
           </div>
         </div>
         {/* Evidence Section Card */}
@@ -727,6 +1461,12 @@ export default function MarketPage({ params }: { params: Promise<{ marketId: str
           <div className="bg-white rounded-xl shadow border border-gray-200 p-8 max-w-4xl w-full ml-19">
             <div className="flex justify-between items-center mb-6">
               <h2 className="text-2xl font-bold text-[#171A22]">Evidence</h2>
+              {/* Voting Power Display */}
+              <div className="flex items-center space-x-2 text-xs font-medium">
+                <span className="text-green-600 font-semibold">Yes Power: {yesVotingPower}x</span>
+                <span className="text-gray-400">|</span>
+                <span className="text-red-600 font-semibold">No Power: {noVotingPower}x</span>
+              </div>
             </div>
             <Tab.Group>
               <Tab.List className="flex w-full mb-6 bg-gray-50 rounded-lg">

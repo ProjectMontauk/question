@@ -25,7 +25,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         data: {
           walletAddress,
           marketTitle,
-          marketId,
+          marketId: marketId as string,
           outcome,
           shares,
           avgPrice,

@@ -68,29 +68,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         });
         
         if (existingVote) {
-          // User is toggling their vote - remove it
+          // User is toggling their vote off (remove upvote)
           await tx.vote.delete({
             where: { id: existingVote.id }
           });
-          
-          // Calculate new net votes for this evidence
-          const votes = await tx.vote.findMany({
-            where: { evidenceId },
-            select: { voteWeight: true }
-          });
-          
-          const netVotes = votes.reduce((sum, vote) => sum + vote.voteWeight, 0);
-          
-          // Update the evidence with new net votes
-          await tx.evidence.update({
-            where: { id: evidenceId },
-            data: { netVotes }
-          });
-          
-          return { voteResult: null, netVotes, action: 'removed' };
         } else {
-          // User is voting on a new evidence piece - give full voting weight
-          const voteResult = await tx.vote.create({
+          // User is voting for the first time (add upvote)
+          await tx.vote.create({
             data: {
               evidenceId,
               marketId,
@@ -98,23 +82,22 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
               voteWeight: baseVotingWeight
             }
           });
-          
-          // Calculate new net votes for this evidence
-          const votes = await tx.vote.findMany({
-            where: { evidenceId },
-            select: { voteWeight: true }
-          });
-          
-          const netVotes = votes.reduce((sum, vote) => sum + vote.voteWeight, 0);
-          
-          // Update the evidence with new net votes
-          await tx.evidence.update({
-            where: { id: evidenceId },
-            data: { netVotes }
-          });
-          
-          return { voteResult, netVotes, action: 'added' };
         }
+        // Calculate new net votes for this evidence
+        const votes = await tx.vote.findMany({
+          where: { evidenceId },
+          select: { voteWeight: true }
+        });
+        
+        const netVotes = votes.reduce((sum, vote) => sum + vote.voteWeight, 0);
+        
+        // Update the evidence with new net votes
+        await tx.evidence.update({
+          where: { id: evidenceId },
+          data: { netVotes }
+        });
+        
+        return { netVotes, action: 'toggled' };
       });
       
       res.status(201).json(result);

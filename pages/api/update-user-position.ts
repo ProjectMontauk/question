@@ -1,98 +1,73 @@
-import { NextApiRequest, NextApiResponse } from 'next';
-import { PrismaClient } from '@prisma/client';
-
-const prisma = new PrismaClient();
+import type { NextApiRequest, NextApiResponse } from 'next';
+import prisma from '../../lib/prisma';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-  if (req.method === 'POST') {
-    try {
-      const { walletAddress, yesShares, noShares } = req.body;
+  if (req.method !== 'POST') {
+    res.setHeader('Allow', ['POST']);
+    return res.status(405).end(`Method ${req.method} Not Allowed`);
+  }
 
-      if (!walletAddress) {
-        return res.status(400).json({ error: 'Wallet address is required' });
-      }
+  const { walletAddress, marketId, yesShares, noShares } = req.body;
+  if (!walletAddress || !marketId || yesShares === undefined || noShares === undefined) {
+    return res.status(400).json({ error: 'Missing required fields' });
+  }
 
-      // Upsert user position (create if doesn't exist, update if it does)
-      const userPosition = await prisma.userMarketPosition.upsert({
-        where: { walletAddress },
-        update: {
-          yesShares: yesShares || 0,
-          noShares: noShares || 0,
-          lastUpdated: new Date()
+  try {
+    const position = await prisma.userMarketPosition.upsert({
+      where: {
+        marketId_walletAddress: {
+          marketId: String(marketId),
+          walletAddress: String(walletAddress),
         },
-        create: {
-          walletAddress,
-          yesShares: yesShares || 0,
-          noShares: noShares || 0
-        }
-      });
-      
-      // Recalculate all existing votes for this user with new position
-      await recalculateUserVotes(walletAddress, yesShares || 0, noShares || 0);
-      
-      res.status(200).json(userPosition);
-    } catch (error) {
-      console.error('Error updating user position:', error);
-      res.status(500).json({ error: 'Failed to update user position' });
-    }
-  } else {
-    res.status(405).end(`Method ${req.method} Not Allowed`);
-  }
-}
-
-// Helper function to recalculate all votes for a user
-async function recalculateUserVotes(walletAddress: string, yesShares: number, noShares: number) {
-  // Get all votes by this user
-  const userVotes = await prisma.vote.findMany({
-    where: { walletAddress },
-    include: {
-      evidence: true // Include evidence to get the type
-    }
-  });
-  
-  // Calculate new voting weights for each evidence type
-  let yesVotingWeight = 1;
-  let noVotingWeight = 1;
-  
-  if (yesShares > noShares) {
-    yesVotingWeight = Math.max(1, yesShares - noShares);
-  }
-  if (noShares > yesShares) {
-    noVotingWeight = Math.max(1, noShares - yesShares);
-  }
-  
-  // Update each vote with new weight
-  for (const vote of userVotes) {
-    let newVoteWeight = 1;
-    
-    if (vote.evidence.type === 'yes') {
-      newVoteWeight = yesVotingWeight;
-    } else if (vote.evidence.type === 'no') {
-      newVoteWeight = noVotingWeight;
-    }
-    
-    // Update the vote weight
-    await prisma.vote.update({
-      where: { id: vote.id },
-      data: { voteWeight: newVoteWeight }
+      },
+      update: {
+        yesShares: Number(yesShares),
+        noShares: Number(noShares),
+      },
+      create: {
+        marketId: String(marketId),
+        walletAddress: String(walletAddress),
+        yesShares: Number(yesShares),
+        noShares: Number(noShares),
+      },
     });
-    
-    // Recalculate net votes for this evidence
-    await recalculateEvidenceVotes(vote.evidenceId);
-  }
-}
 
-// Helper function to recalculate net votes for evidence
-async function recalculateEvidenceVotes(evidenceId: number) {
-  const votes = await prisma.vote.findMany({
-    where: { evidenceId }
-  });
-  
-  const netVotes = votes.reduce((sum, vote) => sum + vote.voteWeight, 0);
-  
-  // Update the evidence with new net votes
-  await prisma.evidence.update({
-    where: { id: evidenceId },
-    data: { netVotes }
-  });
+    // Recalculate all votes for this user in this market
+    const userVotes = await prisma.vote.findMany({
+      where: { walletAddress: String(walletAddress), marketId: String(marketId) },
+      include: { evidence: true }
+    });
+
+    for (const vote of userVotes) {
+      let newVoteWeight = 1;
+      if (vote.evidence.type === 'yes') {
+        if (Number(yesShares) > Number(noShares)) {
+          newVoteWeight = Math.max(1, Number(yesShares) - Number(noShares));
+        }
+      } else if (vote.evidence.type === 'no') {
+        if (Number(noShares) > Number(yesShares)) {
+          newVoteWeight = Math.max(1, Number(noShares) - Number(yesShares));
+        }
+      }
+      // Update the vote weight if it changed
+      if (vote.voteWeight !== newVoteWeight) {
+        await prisma.vote.update({
+          where: { id: vote.id },
+          data: { voteWeight: newVoteWeight }
+        });
+      }
+      // Recalculate netVotes for this evidence
+      const votes = await prisma.vote.findMany({ where: { evidenceId: vote.evidenceId } });
+      const netVotes = votes.reduce((sum, v) => sum + v.voteWeight, 0);
+      await prisma.evidence.update({
+        where: { id: vote.evidenceId },
+        data: { netVotes }
+      });
+    }
+
+    res.status(200).json(position);
+  } catch (error) {
+    console.error('Failed to update user position:', error);
+    res.status(500).json({ error: 'Failed to update user position' });
+  }
 } 

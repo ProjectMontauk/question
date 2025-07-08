@@ -11,7 +11,7 @@ import { fetchTrades } from "../src/utils/tradeApi";
 // import { InAppWalletButton } from "thirdweb-package-path";
 
 function formatBalance(balance: bigint | undefined): string {
-  if (!balance) return "--";
+  if (!balance) return "0";
   // Divide by 10^18 and show whole numbers only
   return (Number(balance) / 1e18).toLocaleString(undefined, { maximumFractionDigits: 0 });
 }
@@ -120,7 +120,7 @@ const Navbar = () => {
           onClick={() => router.push("/portfolio")}
         >
           <span className="text-[#171A22] font-medium text-sm">Portfolio</span>
-          <span className="text-green-600 font-semibold text-sm">{portfolioValue === "--" ? "--" : `$${Number(portfolioValue).toLocaleString(undefined, { maximumFractionDigits: 0 })}`}</span>
+          <span className="text-green-600 font-semibold text-sm">{portfolioValue === "--" ? "$--" : `$${Number(portfolioValue).toLocaleString(undefined, { maximumFractionDigits: 0 })}`}</span>
         </button>
         <button
           className="flex flex-col items-center justify-center bg-white px-2 py-1 rounded transition-colors duration-200 cursor-pointer focus:outline-none hover:bg-gray-200 text-center"
@@ -128,7 +128,7 @@ const Navbar = () => {
           onClick={() => router.push("/deposit")}
         >
           <span className="text-[#171A22] font-medium text-sm">Cash</span>
-          <span className="text-green-600 font-semibold text-sm">${isPending ? "..." : formatBalance(balance)}</span>
+          <span className="text-green-600 font-semibold text-sm">${isPending ? "--" : formatBalance(balance)}</span>
         </button>
         <ConnectButton client={client} />
         {/* Example: <InAppWalletButton /> */}

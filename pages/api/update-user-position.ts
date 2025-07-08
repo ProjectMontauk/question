@@ -10,7 +10,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const { walletAddress, marketId, yesShares, noShares } = req.body;
   if (!walletAddress || !marketId || yesShares === undefined || noShares === undefined) {
     return res.status(400).json({ error: 'Missing required fields' });
-  }
+      }
 
   try {
     const position = await prisma.userMarketPosition.upsert({
@@ -20,11 +20,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           walletAddress: String(walletAddress),
         },
       },
-      update: {
+        update: {
         yesShares: Number(yesShares),
         noShares: Number(noShares),
-      },
-      create: {
+        },
+        create: {
         marketId: String(marketId),
         walletAddress: String(walletAddress),
         yesShares: Number(yesShares),
@@ -33,36 +33,36 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     });
 
     // Recalculate all votes for this user in this market
-    const userVotes = await prisma.vote.findMany({
+  const userVotes = await prisma.vote.findMany({
       where: { walletAddress: String(walletAddress), marketId: String(marketId) },
       include: { evidence: true }
     });
 
-    for (const vote of userVotes) {
-      let newVoteWeight = 1;
-      if (vote.evidence.type === 'yes') {
+  for (const vote of userVotes) {
+    let newVoteWeight = 1;
+    if (vote.evidence.type === 'yes') {
         if (Number(yesShares) > Number(noShares)) {
           newVoteWeight = Math.max(1, Number(yesShares) - Number(noShares));
         }
-      } else if (vote.evidence.type === 'no') {
+    } else if (vote.evidence.type === 'no') {
         if (Number(noShares) > Number(yesShares)) {
           newVoteWeight = Math.max(1, Number(noShares) - Number(yesShares));
         }
-      }
+    }
       // Update the vote weight if it changed
       if (vote.voteWeight !== newVoteWeight) {
-        await prisma.vote.update({
-          where: { id: vote.id },
-          data: { voteWeight: newVoteWeight }
-        });
+    await prisma.vote.update({
+      where: { id: vote.id },
+      data: { voteWeight: newVoteWeight }
+    });
       }
       // Recalculate netVotes for this evidence
       const votes = await prisma.vote.findMany({ where: { evidenceId: vote.evidenceId } });
       const netVotes = votes.reduce((sum, v) => sum + v.voteWeight, 0);
-      await prisma.evidence.update({
+  await prisma.evidence.update({
         where: { id: vote.evidenceId },
-        data: { netVotes }
-      });
+    data: { netVotes }
+  });
     }
 
     res.status(200).json(position);

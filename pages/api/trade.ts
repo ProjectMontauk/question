@@ -4,9 +4,23 @@ import { PrismaClient } from '@prisma/client';
 const prisma = new PrismaClient();
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+  // Add CORS headers
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  
+  // Handle preflight requests
+  if (req.method === 'OPTIONS') {
+    return res.status(200).end();
+  }
+
   if (req.method === 'POST') {
     // Record a new trade
     try {
+      console.log('Trade API called with method:', req.method);
+      console.log('Trade API request headers:', req.headers);
+      console.log('Trade API request body:', req.body);
+      
       const {
         walletAddress,
         marketTitle,
@@ -18,9 +32,24 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         toWin,
         status
       } = req.body;
+      
       if (!walletAddress || !marketTitle || !marketId || !outcome || !shares || !avgPrice || !betAmount || !toWin) {
+        console.error('Missing required fields:', { walletAddress, marketTitle, marketId, outcome, shares, avgPrice, betAmount, toWin });
         return res.status(400).json({ error: 'Missing required fields' });
       }
+      
+      console.log('Creating trade with data:', {
+        walletAddress,
+        marketTitle,
+        marketId,
+        outcome,
+        shares,
+        avgPrice,
+        betAmount,
+        toWin,
+        status: status || 'OPEN',
+      });
+      
       const trade = await prisma.trade.create({
         data: {
           walletAddress,
@@ -34,6 +63,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           status: status || 'OPEN',
         },
       });
+      
+      console.log('Trade created successfully:', trade);
       return res.status(201).json(trade);
     } catch (error) {
       console.error('Error creating trade:', error);

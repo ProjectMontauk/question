@@ -35,6 +35,33 @@ export const markets: Market[] = [
     contractAddress: "0x6186AB73d155CdFdcB18BC9c912469aE4c256129", // Alien market contract
     outcomes: ["Yes, aliens have visited Earth", "No, aliens have never visited Earth"],
     rules: "The market will resolve 'Yes' if credible evidence emerges, accepted by the scientific community, that intelligent extraterrestrial life has visited Earth at any point in history. Otherwise, the market will resolve 'No.' This means that no such evidence is accepted by the scientific community by the market's resolution date."
+  },
+  {
+    id: 'vaccine',
+    title: "Do Childhood Vaccines Cause Autism?",
+    description: "Is there a causal relationship between vaccines and autism spectrum disorders?",
+    image: "/Vaccine.png", // You'll need to add this image
+    contractAddress: "0xe36bfa5dd89d06b96a17f8b5260f431cf1510d9a", // Vaccine market contract
+    outcomes: ["Yes, vaccines cause autism", "No, vaccines do not cause autism"],
+    rules: "The market will resolve 'Yes' if credible scientific evidence emerges, accepted by the medical and scientific community, that vaccines cause autism spectrum disorders. This means that a causal relationship between vaccination and autism is established through rigorous scientific research. Otherwise, the market will resolve 'No.' This means that no such causal relationship is established by the market's resolution date."
+  },
+  {
+    id: 'string-theory',
+    title: "Is String Theory a Failed Model?",
+    description: "Has string theory been proven to be an unsuccessful approach to quantum gravity?",
+    image: "/StringTheory.png", // You'll need to add this image
+    contractAddress: "0xBCe88Dc45cb1fcA6BAb6ca8A679fAC8C36867274", // String theory market contract
+    outcomes: ["Yes, string theory is a failed model", "No, string theory is not a failed model"],
+    rules: "The market will resolve 'Yes' if the scientific community broadly accepts that string theory has failed as a viable approach to quantum gravity. This means that string theory is widely considered to be unsuccessful in providing a unified theory of physics. Otherwise, the market will resolve 'No.' This means that string theory remains a viable or promising approach to quantum gravity by the market's resolution date."
+  },
+  {
+    id: 'covid-vaccine',
+    title: "Are the COVID-19 MRNA Vaccinations Safe?",
+    description: "Are the mRNA-based COVID-19 vaccines safe for human use?",
+    image: "/CovidVaccine.png", // You'll need to add this image
+    contractAddress: "0x615ed9da950d81b949b6347275aed697f4407ba0", // COVID vaccine market contract
+    outcomes: ["Yes, COVID-19 mRNA vaccines are safe", "No, COVID-19 mRNA vaccines are not safe"],
+    rules: "The market will resolve 'Yes' if the scientific and medical community broadly accepts that COVID-19 mRNA vaccines are safe for human use. This means that the vaccines are considered safe by regulatory authorities and the medical community. Otherwise, the market will resolve 'No.' This means that the vaccines are found to be unsafe or have significant safety concerns by the market's resolution date."
   }
 ];
 

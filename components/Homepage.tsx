@@ -93,32 +93,20 @@ const Homepage = () => {
               <MarketCard key={market.id} market={market} />
             ))}
           </div>
-                    {/* Second row - Alien market */}
+          {/* Second row - Alien and Vaccine markets */}
           {markets.length > 2 && (
             <div className="flex flex-col sm:flex-row gap-6 w-full">
-              <MarketCard market={markets[2]} />
-              <div className="w-1/2 bg-gray-100 rounded-xl border border-gray-200 p-5">
-                <div className="mb-4">
-                  <div className="w-full h-48 rounded-lg bg-gray-200 flex items-center justify-center">
-                    <span className="text-gray-500 text-lg">Coming Soon</span>
-                  </div>
-                </div>
-                <div className="mb-3">
-                  <h3 className="text-xl font-bold text-gray-400">New Market</h3>
-                </div>
-                <div className="mb-0">
-                  <div className="grid grid-cols-4 gap-2 items-center">
-                    <div className="text-sm font-semibold text-gray-400 col-span-3">Yes:</div>
-                    <div className="text-lg font-bold text-gray-400 text-right bg-gray-100 rounded pr-7 px-1">
-                      --
-                    </div>
-                    <div className="text-sm font-semibold text-gray-400 col-span-3">No:</div>
-                    <div className="text-lg font-bold text-gray-400 text-right bg-gray-100 rounded pr-7 px-1">
-                      --
-                    </div>
-                  </div>
-                </div>
-              </div>
+              {markets.slice(2, 4).map((market) => (
+                <MarketCard key={market.id} market={market} />
+              ))}
+            </div>
+          )}
+          {/* Third row - String Theory and COVID Vaccine markets */}
+          {markets.length > 4 && (
+            <div className="flex flex-col sm:flex-row gap-6 w-full">
+              {markets.slice(4, 6).map((market) => (
+                <MarketCard key={market.id} market={market} />
+              ))}
             </div>
           )}
         </div>

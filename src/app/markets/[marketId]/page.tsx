@@ -9,7 +9,7 @@ import { Tab } from "@headlessui/react";
 import { LineChart, Line, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer, ReferenceLine } from 'recharts';
 import EvidenceComments from '../../../components/EvidenceComments';
 import { formatOddsToCents } from "../../../utils/formatOdds";
-import { submitTrade } from "../../../utils/tradeApi";
+import { submitTrade, warmUpApis } from "../../../utils/tradeApi";
 import { getMarketById } from "../../../data/markets";
 import { notFound } from "next/navigation";
 
@@ -218,87 +218,116 @@ export default function MarketPage({ params }: { params: Promise<{ marketId: str
         yesIndex
       });
       
-    const transaction = prepareContractCall({
-      contract: marketContract,
-      method: "function buy(uint256 _outcome, int128 _amount) returns (int128 _price)",
-      params: [yesIndex, parsedAmount],
-    });
-      
-    sendBuyYesTransaction(transaction, {
-      onError: (error) => {
-          console.error("=== BUY YES TRANSACTION ERROR ===");
-          console.error("Error object:", error);
-          console.error("Error type:", typeof error);
-          console.error("Error message:", error?.message);
-          console.error("Error name:", error?.name);
-          console.error("Error stack:", error?.stack);
-          console.error("Error properties:", Object.getOwnPropertyNames(error || {}));
-          console.error("Transaction details:", transaction);
-          console.error("USD amount:", usdAmount);
-          console.error("Shares to buy:", sharesToBuy);
-          console.error("Parsed amount:", parsedAmount.toString());
-          console.error("Price result:", priceResult?.toString());
-          console.error("Is price pending:", isPricePending);
-          console.error("Price error:", priceError);
-          console.error("==================================");
-          
-          let errorMessage = "Purchase failed. Please try again.";
-          if (error?.message) {
-            const msg = error.message.toLowerCase();
-            if (msg.includes("insufficient funds")) {
-              errorMessage = "Insufficient funds for transaction.";
-            } else if (msg.includes("user rejected") || msg.includes("user denied transaction signature")) {
-              errorMessage = "User cancelled transaction";
-            } else if (msg.includes("gas")) {
-              errorMessage = "Gas estimation failed. Try a smaller amount.";
-            } else if (msg.includes("revert")) {
-              errorMessage = "Transaction reverted. Check your input.";
-            } else if (msg.includes("execution reverted")) {
-              errorMessage = "Contract execution failed. Check your input.";
-            }
-          }
-          
-          setBuyFeedback(errorMessage);
-      },
-        onSuccess: async (result) => {
-          console.log("Buy Yes transaction successful:", result);
-          setBuyFeedback("Transaction submitted");
-        setAmount("");
-          
-          // Submit trade to database
-          try {
-            const tradeData = {
-              walletAddress: account?.address || '',
-              marketTitle: market.title,
-              marketId: market.id, // Use the market ID string directly
-              outcome: "Yes",
-              shares: sharesToBuy,
-              avgPrice: pricePerShare,
-              betAmount: usdAmount,
-              toWin: usdAmount * (1 / pricePerShare - 1), // Calculate potential winnings
-              status: "OPEN"
-            };
+      try {
+        const transaction = prepareContractCall({
+          contract: marketContract,
+          method: "function buy(uint256 _outcome, int128 _amount) returns (int128 _price)",
+          params: [yesIndex, parsedAmount],
+        });
+        
+        console.log('Transaction prepared successfully:', transaction);
+        
+        sendBuyYesTransaction(transaction, {
+          onError: (error) => {
+            console.error("=== BUY YES TRANSACTION ERROR ===");
+            console.error("Error object:", error);
+            console.error("Error type:", typeof error);
+            console.error("Error message:", error?.message);
+            console.error("Error name:", error?.name);
+            console.error("Error stack:", error?.stack);
+            console.error("Error properties:", Object.getOwnPropertyNames(error || {}));
+            console.error("Transaction details:", transaction);
+            console.error("USD amount:", usdAmount);
+            console.error("Shares to buy:", sharesToBuy);
+            console.error("Parsed amount:", parsedAmount.toString());
+            console.error("Price result:", priceResult?.toString());
+            console.error("Is price pending:", isPricePending);
+            console.error("Price error:", priceError);
+            console.error("==================================");
             
-            await submitTrade(tradeData);
-            console.log("Trade submitted to database successfully");
-          } catch (error) {
-            console.error("Failed to submit trade to database:", error);
-            // Don't show error to user since the blockchain transaction was successful
+            let errorMessage = "Purchase failed. Please try again.";
+            if (error?.message) {
+              const msg = error.message.toLowerCase();
+              if (msg.includes("insufficient funds")) {
+                errorMessage = "Insufficient funds for transaction.";
+              } else if (msg.includes("user rejected") || msg.includes("user denied transaction signature")) {
+                errorMessage = "User cancelled transaction";
+              } else if (msg.includes("gas")) {
+                errorMessage = "Gas estimation failed. Try a smaller amount.";
+              } else if (msg.includes("revert")) {
+                errorMessage = "Transaction reverted. Check your input.";
+              } else if (msg.includes("execution reverted")) {
+                errorMessage = "Contract execution failed. Check your input.";
+              }
+            }
+            
+            setBuyFeedback(errorMessage);
+          },
+          onSuccess: async (result) => {
+            console.log("Buy Yes transaction successful:", result);
+            setBuyFeedback("Transaction submitted...");
+            setAmount("");
+            
+            // Submit trade to database
+            try {
+              const tradeData = {
+                walletAddress: account?.address || '',
+                marketTitle: market.title,
+                marketId: market.id, // Use the market ID string directly
+                outcome: "Yes",
+                shares: sharesToBuy,
+                avgPrice: pricePerShare,
+                betAmount: usdAmount,
+                toWin: usdAmount * (1 / pricePerShare - 1), // Calculate potential winnings
+                status: "OPEN"
+              };
+              
+              const tradeResult = await submitTrade(tradeData);
+              if (tradeResult) {
+                console.log("Trade submitted to database successfully");
+              } else {
+                console.log("Trade submitted to database (no response)");
+              }
+            } catch (error) {
+              console.error("Failed to submit trade to database:", error);
+              // Don't show error to user since the blockchain transaction was successful
+            }
+            
+            // Wait for transaction confirmation and update balances
+            await waitForTransactionConfirmation(result, "Purchase Successful!");
+            
+            // Record odds in the background (don't wait for it)
+            recordNewOdds();
+          },
+          onSettled: () => {
+            setTimeout(() => {
+              setBuyFeedback(null);
+              setSuccessMessage(null);
+            }, 10000);
           }
-          
-          // Wait for transaction confirmation and update balances
-          await waitForTransactionConfirmation(result, "Purchase Successful!");
-          
-          // Record odds in the background (don't wait for it)
-          recordNewOdds();
-      },
-      onSettled: () => {
-          setTimeout(() => {
-            setBuyFeedback(null);
-            setSuccessMessage(null);
-          }, 10000);
+        });
+      } catch (transactionError) {
+        console.error("=== TRANSACTION PREPARATION ERROR ===");
+        console.error("Error preparing transaction:", transactionError);
+        console.error("Error details:", {
+          message: transactionError instanceof Error ? transactionError.message : 'Unknown error',
+          stack: transactionError instanceof Error ? transactionError.stack : undefined,
+          name: transactionError instanceof Error ? transactionError.name : 'Unknown'
+        });
+        
+        let errorMessage = "Failed to prepare transaction. Please try again.";
+        if (transactionError instanceof Error) {
+          const msg = transactionError.message.toLowerCase();
+          if (msg.includes("gas")) {
+            errorMessage = "Gas estimation failed. Try a smaller amount.";
+          } else if (msg.includes("json")) {
+            errorMessage = "Network error. Please check your connection and try again.";
+          }
+        }
+        
+        setBuyFeedback(errorMessage);
+        setTimeout(() => setBuyFeedback(null), 5000);
       }
-    });
     } else {
       // Fallback if priceResult is not available
       console.error("Price result not available for buy calculation");
@@ -396,7 +425,7 @@ export default function MarketPage({ params }: { params: Promise<{ marketId: str
       },
         onSuccess: async (result) => {
           console.log("Buy No transaction successful:", result);
-          setBuyFeedback("Transaction submitted!");
+          setBuyFeedback("Transaction submitted...");
           setAmount("");
           
           // Submit trade to database
@@ -413,15 +442,19 @@ export default function MarketPage({ params }: { params: Promise<{ marketId: str
               status: "OPEN"
             };
             
-            await submitTrade(tradeData);
-            console.log("Trade submitted to database successfully");
+                    const tradeResult = await submitTrade(tradeData);
+        if (tradeResult) {
+          console.log("Trade submitted to database successfully");
+        } else {
+          console.log("Trade submitted to database (no response)");
+        }
           } catch (error) {
             console.error("Failed to submit trade to database:", error);
             // Don't show error to user since the blockchain transaction was successful
           }
           
           // Wait for transaction confirmation and update balances
-          await waitForTransactionConfirmation(result, "Purchase Successful");
+          await waitForTransactionConfirmation(result, "Purchase Successful!");
           
           // Record odds in the background (don't wait for it)
           recordNewOdds();
@@ -508,7 +541,7 @@ export default function MarketPage({ params }: { params: Promise<{ marketId: str
       },
       onSuccess: async (result) => {
         console.log("Sell Yes transaction successful:", result);
-        setBuyFeedback("Transaction submitted!");
+        setBuyFeedback("Transaction submitted...");
         setAmount("");
         
         // Wait for transaction confirmation and update balances
@@ -564,11 +597,11 @@ export default function MarketPage({ params }: { params: Promise<{ marketId: str
       },
       onSuccess: async (result) => {
         console.log("Sell No transaction successful:", result);
-        setBuyFeedback("Transaction submitted!");
+        setBuyFeedback("Transaction submitted...");
         setAmount("");
         
         // Wait for transaction confirmation and update balances
-        await waitForTransactionConfirmation(result, "Sale Successful");
+        await waitForTransactionConfirmation(result, "Sale Successful!");
         
         // Record odds in the background (don't wait for it)
         recordNewOdds();
@@ -649,11 +682,25 @@ export default function MarketPage({ params }: { params: Promise<{ marketId: str
 
   // Fetch odds history function (read-only, for page loads)
   const fetchOddsHistory = async () => {
-    // Only fetch existing odds history, don't record new ones
+    try {
+      // Only fetch existing odds history, don't record new ones
     const res = await fetch(`${API_BASE_URL}/api/odds-history?marketId=${market.id}`);
+      
+      if (!res.ok) {
+        console.error('Failed to fetch odds history:', res.status, res.statusText);
+        setOddsHistory([]);
+        setLoadingOdds(false);
+        return;
+      }
+      
     const data = await res.json();
     setOddsHistory(Array.isArray(data) ? data : []);
     setLoadingOdds(false);
+    } catch (error) {
+      console.error('Error fetching odds history:', error);
+      setOddsHistory([]);
+      setLoadingOdds(false);
+    }
   };
 
   // Record new odds function (for after trades)
@@ -686,7 +733,7 @@ export default function MarketPage({ params }: { params: Promise<{ marketId: str
       const noProbability = Number(currentNoOdds);
       
       // Record to database (after trade, odds should have changed)
-      await fetch(`${API_BASE_URL}/api/odds-history`, {
+      const oddsResponse = await fetch(`${API_BASE_URL}/api/odds-history`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -697,10 +744,18 @@ export default function MarketPage({ params }: { params: Promise<{ marketId: str
         }),
       });
       
-      console.log('Recorded new odds to database after trade:', { yesProbability, noProbability });
+      if (!oddsResponse.ok) {
+        console.error('Failed to record odds to database:', oddsResponse.status, oddsResponse.statusText);
+      } else {
+        console.log('Recorded new odds to database after trade:', { yesProbability, noProbability });
+      }
       
       // Refresh the odds history to show the new entry
-      await fetchOddsHistory();
+      try {
+        await fetchOddsHistory();
+      } catch (error) {
+        console.error('Failed to refresh odds history:', error);
+      }
     } catch (error) {
       console.error('Failed to record odds:', error);
     }
@@ -710,6 +765,11 @@ export default function MarketPage({ params }: { params: Promise<{ marketId: str
   useEffect(() => {
     fetchOddsHistory();
   }, [market.id]);
+
+  // Warm up APIs on mount to prevent first-transaction issues
+  useEffect(() => {
+    warmUpApis();
+  }, []);
 
   // Fetch evidence on mount
   useEffect(() => {
@@ -814,7 +874,7 @@ export default function MarketPage({ params }: { params: Promise<{ marketId: str
 
   // Track last call time to prevent excessive API calls
   const lastCallTime = React.useRef<number>(0);
-  
+
   // Fetch user balances without showing loading state (for polling)
   const fetchUserBalancesWithoutLoading = useCallback(async () => {
     if (!account?.address) return;
@@ -1108,26 +1168,26 @@ export default function MarketPage({ params }: { params: Promise<{ marketId: str
       // Use the actual price from priceResult for more accurate calculation
       const totalCost = Number(priceResult) / Math.pow(2, 64);
       const amountNum = parseFloat(amount);
-      // For buy: Input is USD amount, calculate how many shares that buys
-      const pricePerShare = totalCost / amountNum;
-      const sharesBought = amountNum / pricePerShare;
-      const totalReturn = sharesBought; // $1 per share * number of shares
-      payoutDisplay = `$${totalReturn.toFixed(2)}`;
+        // For buy: Input is USD amount, calculate how many shares that buys
+        const pricePerShare = totalCost / amountNum;
+        const sharesBought = amountNum / pricePerShare;
+        const totalReturn = sharesBought; // $1 per share * number of shares
+        payoutDisplay = `$${totalReturn.toFixed(2)}`;
       avgPriceDisplay = `¢${((totalCost / amountNum) * 100).toFixed(0)}`;
     } else {
       // Fallback to odds-based calculation if priceResult not available
       const odds = selectedOutcome === 'yes' ? oddsYes : oddsNo;
-      if (typeof odds === 'bigint' || typeof odds === 'number') {
-        const oddsNum = Number(odds) / ODDS_DIVISOR;
-        let payout = 0;
-        if (mode === 'buy') {
-          payout = Number(amount) / oddsNum;
-        } else {
-          payout = Number(amount) * oddsNum;
-        }
-        if (isFinite(payout)) {
-          payoutDisplay = `$${payout.toFixed(2)}`;
-        }
+    if (typeof odds === 'bigint' || typeof odds === 'number') {
+      const oddsNum = Number(odds) / ODDS_DIVISOR;
+      let payout = 0;
+      if (mode === 'buy') {
+        payout = Number(amount) / oddsNum;
+      } else {
+        payout = Number(amount) * oddsNum;
+      }
+      if (isFinite(payout)) {
+        payoutDisplay = `$${payout.toFixed(2)}`;
+      }
         avgPriceDisplay = `¢${(oddsNum * 100).toFixed(0)}`;
       }
     }

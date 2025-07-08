@@ -83,20 +83,20 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
             }
           });
         }
-        // Calculate new net votes for this evidence
-        const votes = await tx.vote.findMany({
-          where: { evidenceId },
-          select: { voteWeight: true }
-        });
-        
-        const netVotes = votes.reduce((sum, vote) => sum + vote.voteWeight, 0);
-        
-        // Update the evidence with new net votes
-        await tx.evidence.update({
-          where: { id: evidenceId },
-          data: { netVotes }
-        });
-        
+          // Calculate new net votes for this evidence
+          const votes = await tx.vote.findMany({
+            where: { evidenceId },
+            select: { voteWeight: true }
+          });
+          
+          const netVotes = votes.reduce((sum, vote) => sum + vote.voteWeight, 0);
+          
+          // Update the evidence with new net votes
+          await tx.evidence.update({
+            where: { id: evidenceId },
+            data: { netVotes }
+          });
+          
         return { netVotes, action: 'toggled' };
       });
       

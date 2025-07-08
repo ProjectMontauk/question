@@ -14,6 +14,18 @@ export const moonLandingConditionalTokensContractAddress = "0x27f2bff72e4669e948
 export const alienMarketContractAddress = "0x6186AB73d155CdFdcB18BC9c912469aE4c256129";
 export const alienConditionalTokensContractAddress = "0xF1fFfeB7F3135C6a80175f766813Bf2F246f5F59";
 
+// Vaccine Market Contract
+export const vaccineMarketContractAddress = "0xe36bfa5dd89d06b96a17f8b5260f431cf1510d9a";
+export const vaccineConditionalTokensContractAddress = "0x8d27cbdf4c6786453049f3e559475f92029ad8e3";
+
+// String Theory Market Contract
+export const stringTheoryMarketContractAddress = "0xBCe88Dc45cb1fcA6BAb6ca8A679fAC8C36867274";
+export const stringTheoryConditionalTokensContractAddress = "0x98e494185622e9b32A68BF1Ea3f7f876B87b9Aeb";
+
+// COVID-19 mRNA Vaccine Market Contract
+export const covidVaccineMarketContractAddress = "0x615ed9da950d81b949b6347275aed697f4407ba0";
+export const covidVaccineConditionalTokensContractAddress = "0x89249c2039f8B993BeF96ED8c31244D512396b50";
+
 
 export const tokenContract = getContract({
     client: client,
@@ -78,6 +90,51 @@ export function getContractsForMarket(marketId: string) {
         }),
         outcome1PositionId: "41454826355713373937139021826100554757622368884488368898497774336090889469140", // Yes
         outcome2PositionId: "113951986287197248873172744880628586517247093496821249052133686037677477393290", // No
-      }
+      };
+    case 'vaccine':
+      return {
+        marketContract: getContract({
+          client,
+          chain: polygonAmoy,
+          address: vaccineMarketContractAddress,
+        }),
+        conditionalTokensContract: getContract({
+          client,
+          chain: polygonAmoy,
+          address: vaccineConditionalTokensContractAddress,
+        }),
+        outcome1PositionId: "1257155754674438031181026416713588906880432630331959539463505490120135286275", // Yes
+        outcome2PositionId: "427422523279616693430978097847445172951280684467936974405376794873337405734", // No
+      };
+    case 'string-theory':
+      return {
+        marketContract: getContract({
+          client,
+          chain: polygonAmoy,
+          address: stringTheoryMarketContractAddress,
+        }),
+        conditionalTokensContract: getContract({
+          client,
+          chain: polygonAmoy,
+          address: stringTheoryConditionalTokensContractAddress,
+        }),
+        outcome1PositionId: "32250025010013753686758004958601919769200256745991269713400032984229894989942", // Yes
+        outcome2PositionId: "84975146528020239138226630472779657535836014231648771579957252081086807634274", // No
+      };
+    case 'covid-vaccine':
+      return {
+        marketContract: getContract({
+          client,
+          chain: polygonAmoy,
+          address: covidVaccineMarketContractAddress,
+        }),
+        conditionalTokensContract: getContract({
+          client,
+          chain: polygonAmoy,
+          address: covidVaccineConditionalTokensContractAddress,
+        }),
+        outcome1PositionId: "25711580668722501488911378138257500896567610032840626087583952341660751449239", // Yes
+        outcome2PositionId: "31726574915684023644994761376015344955725332476487899337146128876191317137169", // No
+      };
   }
 }

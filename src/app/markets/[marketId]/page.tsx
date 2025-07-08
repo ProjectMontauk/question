@@ -9,7 +9,7 @@ import { Tab } from "@headlessui/react";
 import { LineChart, Line, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer, ReferenceLine } from 'recharts';
 import EvidenceComments from '../../../components/EvidenceComments';
 import { formatOddsToCents } from "../../../utils/formatOdds";
-import { submitTrade, warmUpApis } from "../../../utils/tradeApi";
+import { submitTrade } from "../../../utils/tradeApi";
 import { getMarketById } from "../../../data/markets";
 import { notFound } from "next/navigation";
 
@@ -211,123 +211,91 @@ export default function MarketPage({ params }: { params: Promise<{ marketId: str
       // Convert shares to the format expected by the smart contract
       const parsedAmount = BigInt(Math.floor(sharesToBuy * Math.pow(2, 64)));
       
-      console.log('Transaction preparation:', {
-        outcome: 'Yes',
-        sharesToBuy,
-        parsedAmount: parsedAmount.toString(),
-        yesIndex
-      });
+    const transaction = prepareContractCall({
+      contract: marketContract,
+      method: "function buy(uint256 _outcome, int128 _amount) returns (int128 _price)",
+      params: [yesIndex, parsedAmount],
+    });
       
+    sendBuyYesTransaction(transaction, {
+      onError: (error) => {
+          console.error("=== BUY YES TRANSACTION ERROR ===");
+          console.error("Error object:", error);
+          console.error("Error type:", typeof error);
+          console.error("Error message:", error?.message);
+          console.error("Error name:", error?.name);
+          console.error("Error stack:", error?.stack);
+          console.error("Error properties:", Object.getOwnPropertyNames(error || {}));
+          console.error("Transaction details:", transaction);
+          console.error("USD amount:", usdAmount);
+          console.error("Shares to buy:", sharesToBuy);
+          console.error("Parsed amount:", parsedAmount.toString());
+          console.error("Price result:", priceResult?.toString());
+          console.error("Is price pending:", isPricePending);
+          console.error("Price error:", priceError);
+          console.error("==================================");
+          
+          let errorMessage = "Purchase failed. Please try again.";
+          if (error?.message) {
+            const msg = error.message.toLowerCase();
+            if (msg.includes("insufficient funds")) {
+              errorMessage = "Insufficient funds for transaction.";
+            } else if (msg.includes("user rejected") || msg.includes("user denied transaction signature")) {
+              errorMessage = "User cancelled transaction";
+            } else if (msg.includes("gas")) {
+              errorMessage = "Gas estimation failed. Try a smaller amount.";
+            } else if (msg.includes("revert")) {
+              errorMessage = "Transaction reverted. Check your input.";
+            } else if (msg.includes("execution reverted")) {
+              errorMessage = "Contract execution failed. Check your input.";
+            }
+          }
+          
+          setBuyFeedback(errorMessage);
+      },
+        onSuccess: async (result) => {
+          console.log("Buy Yes transaction successful:", result);
+          setBuyFeedback("Transaction submitted...");
+        setAmount("");
+          
+                // Submit trade to database
       try {
-        const transaction = prepareContractCall({
-          contract: marketContract,
-          method: "function buy(uint256 _outcome, int128 _amount) returns (int128 _price)",
-          params: [yesIndex, parsedAmount],
-        });
+        const tradeData = {
+          walletAddress: account?.address || '',
+          marketTitle: market.title,
+          marketId: market.id, // Use the market ID string directly
+          outcome: "Yes",
+          shares: sharesToBuy,
+          avgPrice: pricePerShare,
+          betAmount: usdAmount,
+          toWin: usdAmount * (1 / pricePerShare - 1), // Calculate potential winnings
+          status: "OPEN"
+        };
         
-        console.log('Transaction prepared successfully:', transaction);
-        
-        sendBuyYesTransaction(transaction, {
-          onError: (error) => {
-            console.error("=== BUY YES TRANSACTION ERROR ===");
-            console.error("Error object:", error);
-            console.error("Error type:", typeof error);
-            console.error("Error message:", error?.message);
-            console.error("Error name:", error?.name);
-            console.error("Error stack:", error?.stack);
-            console.error("Error properties:", Object.getOwnPropertyNames(error || {}));
-            console.error("Transaction details:", transaction);
-            console.error("USD amount:", usdAmount);
-            console.error("Shares to buy:", sharesToBuy);
-            console.error("Parsed amount:", parsedAmount.toString());
-            console.error("Price result:", priceResult?.toString());
-            console.error("Is price pending:", isPricePending);
-            console.error("Price error:", priceError);
-            console.error("==================================");
-            
-            let errorMessage = "Purchase failed. Please try again.";
-            if (error?.message) {
-              const msg = error.message.toLowerCase();
-              if (msg.includes("insufficient funds")) {
-                errorMessage = "Insufficient funds for transaction.";
-              } else if (msg.includes("user rejected") || msg.includes("user denied transaction signature")) {
-                errorMessage = "User cancelled transaction";
-              } else if (msg.includes("gas")) {
-                errorMessage = "Gas estimation failed. Try a smaller amount.";
-              } else if (msg.includes("revert")) {
-                errorMessage = "Transaction reverted. Check your input.";
-              } else if (msg.includes("execution reverted")) {
-                errorMessage = "Contract execution failed. Check your input.";
-              }
-            }
-            
-            setBuyFeedback(errorMessage);
-          },
-          onSuccess: async (result) => {
-            console.log("Buy Yes transaction successful:", result);
-            setBuyFeedback("Transaction submitted...");
-            setAmount("");
-            
-            // Submit trade to database
-            try {
-              const tradeData = {
-                walletAddress: account?.address || '',
-                marketTitle: market.title,
-                marketId: market.id, // Use the market ID string directly
-                outcome: "Yes",
-                shares: sharesToBuy,
-                avgPrice: pricePerShare,
-                betAmount: usdAmount,
-                toWin: usdAmount * (1 / pricePerShare - 1), // Calculate potential winnings
-                status: "OPEN"
-              };
-              
-              const tradeResult = await submitTrade(tradeData);
-              if (tradeResult) {
-                console.log("Trade submitted to database successfully");
-              } else {
-                console.log("Trade submitted to database (no response)");
-              }
-            } catch (error) {
-              console.error("Failed to submit trade to database:", error);
-              // Don't show error to user since the blockchain transaction was successful
-            }
-            
-            // Wait for transaction confirmation and update balances
-            await waitForTransactionConfirmation(result, "Purchase Successful!");
-            
-            // Record odds in the background (don't wait for it)
-            recordNewOdds();
-          },
-          onSettled: () => {
-            setTimeout(() => {
-              setBuyFeedback(null);
-              setSuccessMessage(null);
-            }, 10000);
-          }
-        });
-      } catch (transactionError) {
-        console.error("=== TRANSACTION PREPARATION ERROR ===");
-        console.error("Error preparing transaction:", transactionError);
-        console.error("Error details:", {
-          message: transactionError instanceof Error ? transactionError.message : 'Unknown error',
-          stack: transactionError instanceof Error ? transactionError.stack : undefined,
-          name: transactionError instanceof Error ? transactionError.name : 'Unknown'
-        });
-        
-        let errorMessage = "Failed to prepare transaction. Please try again.";
-        if (transactionError instanceof Error) {
-          const msg = transactionError.message.toLowerCase();
-          if (msg.includes("gas")) {
-            errorMessage = "Gas estimation failed. Try a smaller amount.";
-          } else if (msg.includes("json")) {
-            errorMessage = "Network error. Please check your connection and try again.";
-          }
+        const tradeResult = await submitTrade(tradeData);
+        if (tradeResult) {
+          console.log("Trade submitted to database successfully");
+        } else {
+          console.log("Trade submitted to database (no response)");
         }
-        
-        setBuyFeedback(errorMessage);
-        setTimeout(() => setBuyFeedback(null), 5000);
+      } catch (error) {
+        console.error("Failed to submit trade to database:", error);
+        // Don't show error to user since the blockchain transaction was successful
       }
+          
+          // Wait for transaction confirmation and update balances
+          await waitForTransactionConfirmation(result, "Purchase Successful!");
+          
+          // Record odds in the background (don't wait for it)
+          recordNewOdds();
+      },
+      onSettled: () => {
+          setTimeout(() => {
+            setBuyFeedback(null);
+            setSuccessMessage(null);
+          }, 10000);
+      }
+    });
     } else {
       // Fallback if priceResult is not available
       console.error("Price result not available for buy calculation");
@@ -765,11 +733,6 @@ export default function MarketPage({ params }: { params: Promise<{ marketId: str
   useEffect(() => {
     fetchOddsHistory();
   }, [market.id]);
-
-  // Warm up APIs on mount to prevent first-transaction issues
-  useEffect(() => {
-    warmUpApis();
-  }, []);
 
   // Fetch evidence on mount
   useEffect(() => {

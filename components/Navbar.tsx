@@ -6,6 +6,8 @@ import { client } from "../src/client";
 import { useRouter } from "next/navigation";
 import { tokenContract, marketContract } from "../constants/contracts";
 import { fetchTrades } from "../src/utils/tradeApi";
+import { inAppWallet } from "thirdweb/wallets";
+import { polygonAmoy } from "thirdweb/chains";
 
 // TODO: Replace this with the actual ThirdWeb inAppWallet import
 // import { InAppWalletButton } from "thirdweb-package-path";
@@ -35,6 +37,15 @@ const Navbar = () => {
     method: "function odds(uint256 _outcome) view returns (int128)",
     params: [1n],
   });
+
+  const wallets = [
+    inAppWallet({
+      smartAccount: {
+        chain: polygonAmoy,
+        sponsorGas: true,
+      },
+    }),
+  ];
 
   // Polling mechanism for cash balance updates
   useEffect(() => {
@@ -125,12 +136,14 @@ const Navbar = () => {
         <button
           className="flex flex-col items-center justify-center bg-white px-2 py-1 rounded transition-colors duration-200 cursor-pointer focus:outline-none hover:bg-gray-200 text-center"
           style={{ boxShadow: "none", minWidth: 0 }}
-          onClick={() => router.push("/deposit")}
+          onClick={() => router.push("/portfolio")}
         >
           <span className="text-[#171A22] font-medium text-sm">Cash</span>
-          <span className="text-green-600 font-semibold text-sm">${isPending ? "--" : formatBalance(balance)}</span>
+          <span className="text-green-600 font-semibold text-sm">
+            {(!account?.address || isPending) ? "$--" : `$${formatBalance(balance)}`}
+          </span>
         </button>
-        <ConnectButton client={client} />
+        <ConnectButton client={client} wallets={wallets} />
         {/* Example: <InAppWalletButton /> */}
       </div>
     </nav>

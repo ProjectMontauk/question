@@ -1,13 +1,15 @@
 "use client";
 
 import Navbar from "../../../components/Navbar";
-import { useActiveAccount, useReadContract } from "thirdweb/react";
+import { useActiveAccount, useReadContract, useSendTransaction } from "thirdweb/react";
 import { fetchTrades } from "../../utils/tradeApi";
 import { marketContract, tokenContract } from "../../../constants/contracts";
 import { useState, useEffect } from "react";
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, ReferenceLine } from 'recharts';
 import { usePortfolio } from "../../contexts/PortfolioContext";
 import React from "react";
+import { prepareContractCall } from "thirdweb";
+import { parseAmountToWei } from "../../utils/parseAmountToWei";
 
 // Define Trade interface
 interface Trade {
@@ -33,12 +35,31 @@ function formatBalance(balance: bigint | undefined): number {
 
 export default function PortfolioPage() {
   const account = useActiveAccount();
+  const { mutate: sendTransaction } = useSendTransaction();
   const [trades, setTrades] = useState<Trade[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [pnlHistory, setPnlHistory] = useState<any[]>([]);
   const [loadingPnl, setLoadingPnl] = useState(false);
   const { setPortfolioValue } = usePortfolio();
+  const [depositAmount, setDepositAmount] = useState("");
+  const [depositSuccess, setDepositSuccess] = useState(false);
+  const handleDeposit = () => {
+    if (!account || !depositAmount) return;
+    const parsedAmount = parseAmountToWei(depositAmount);
+    const transaction = prepareContractCall({
+      contract: tokenContract,
+      method: "function mint(address account, uint256 amount)",
+      params: [account.address, parsedAmount],
+    });
+    sendTransaction(transaction, {
+      onSuccess: () => {
+        setDepositSuccess(true);
+        setTimeout(() => setDepositSuccess(false), 10000);
+      }
+    });
+    setDepositAmount("");
+  };
 
   // Fetch current odds for Yes (0) and No (1) positions
   const { data: oddsYes } = useReadContract({
@@ -54,7 +75,7 @@ export default function PortfolioPage() {
   });
 
   // Fetch user's cash balance from contract (same as Navbar)
-  const { data: balance } = useReadContract({
+  const { data: balance, refetch } = useReadContract({
     contract: tokenContract,
     method: "function balanceOf(address account) view returns (uint256)",
     params: [account?.address ?? "0x0000000000000000000000000000000000000000"],
@@ -179,13 +200,29 @@ export default function PortfolioPage() {
   const totalBetAmount = trades.reduce((sum, trade) => sum + trade.betAmount, 0);
   const allTimePLPercent = totalBetAmount > 0 ? (allTimePL / totalBetAmount) * 100 : 0;
 
+  useEffect(() => {
+    if (account && balance !== undefined && Number(balance) === 0) {
+      const parsedAmount = parseAmountToWei("100000");
+      const transaction = prepareContractCall({
+        contract: tokenContract,
+        method: "function mint(address account, uint256 amount)",
+        params: [account.address, parsedAmount],
+      });
+      sendTransaction(transaction, {
+        onSuccess: () => {
+          refetch();
+        }
+      });
+    }
+  }, [account, balance]);
+
   return (
     <div>
       <Navbar />
       <div className="min-h-screen bg-[#f8f9fa] flex flex-col items-center pt-8 w-full">
         <div className="max-w-7xl w-full mx-auto px-4">
           {/* Portfolio Balance Card */}
-          <div className="bg-white rounded-2xl shadow border border-gray-200 p-8 mb-8 flex items-start justify-start w-[470px] max-w-full" style={{ height: 176 }}>
+          <div className="bg-white rounded-2xl shadow border border-gray-200 p-8 mb-8 flex items-start justify-start w-[700px] max-w-full" style={{ height: 176 }}>
             <div>
               <div className="flex items-center mb-2">
                 <span className="uppercase tracking-widest text-gray-500 font-semibold text-sm">Portfolio</span>
@@ -209,6 +246,35 @@ export default function PortfolioPage() {
               <span className="text-gray-900 font-bold text-[14px] mb-4">${cash.toFixed(2)}</span>
               <span className="text-gray-500 font-semibold text-sm uppercase tracking-widest mb-1 block" style={{ paddingTop: 12 }}>Bet Value</span>
               <span className="text-gray-900 font-bold text-[14px] mb-4">${totalPositionsValue.toFixed(2)}</span>
+            </div>
+            <div className="mt-0">
+              <div className="text-green-600 font-semibold text-sm uppercase tracking-widest mb-1 ml-25">
+                DEPOSIT +
+              </div>
+              <div className="flex flex-col items-start gap-2 ml-25">
+                <div className="relative">
+                  <span className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-500 text-sm pointer-events-none">$</span>
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={depositAmount}
+                    onChange={e => setDepositAmount(e.target.value)}
+                    placeholder="Amount"
+                    className="border border-gray-300 rounded pl-6 pr-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200 [appearance:textfield]"
+                    style={{ width: 116, MozAppearance: 'textfield' }}
+                  />
+                </div>
+                <button
+                  onClick={handleDeposit}
+                  className="mt-1 py-1 px-3 bg-white text-[#171A22] rounded-md text-xs font-semibold hover:bg-gray-100 transition border border-gray-300 shadow-sm"
+                >
+                  Submit Deposit
+                </button>
+              </div>
+              {depositSuccess && (
+                <div className="text-green-600 font-semibold text-xs mt-2 ml-25 mb-2">Deposit Successful!</div>
+              )}
             </div>
           </div>
 

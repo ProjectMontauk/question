@@ -24,7 +24,7 @@ export const markets: Market[] = [
     description: "Did humans actually land on the moon?",
     image: "/Moon.png",
     contractAddress: "0x6d6892d6ba83bd9c21707aacbf45269d1211898e", // New contract
-    outcomes: ["Yes, Moon Landing was real", "No, Moon Landing was faked"],
+    outcomes: ["Yes, Moon Landing was real", "No, Moon Landing was fake"],
     rules: "The market will resolve 'Yes' if Neil Armstrong and Buzz Aldrin actually landed on the moon during the Apollo 11 mission in 1969. This means that Anerican astronauts physically walked on the lunar surface. Otherwise, the market will resolve 'No.' This means the moon landings were faked or staged."
   },
   {

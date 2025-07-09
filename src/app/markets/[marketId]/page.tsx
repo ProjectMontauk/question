@@ -107,6 +107,7 @@ export default function MarketPage({ params }: { params: Promise<{ marketId: str
 
   const [buyFeedback, setBuyFeedback] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [showWalletError, setShowWalletError] = useState(false);
 
   // For Buy Yes
   const { mutate: sendBuyYesTransaction, status: buyYesStatus } = useSendTransaction();
@@ -161,7 +162,18 @@ export default function MarketPage({ params }: { params: Promise<{ marketId: str
   };
 
   // Wrap the buy handler to check approval first
+  const handleWalletCheck = () => {
+    if (!account?.address) {
+      setShowWalletError(true);
+      setTimeout(() => setShowWalletError(false), 10000);
+      return false;
+    }
+    return true;
+  };
+
   const handleBuyYesWithApproval = async (amount: string) => {
+    if (!handleWalletCheck()) return;
+    
     setBuyFeedback("Checking approval...");
     const approved = await handleApproveIfNeeded();
     if (approved || (allowance && Number(allowance) >= userDeposit)) {
@@ -176,7 +188,7 @@ export default function MarketPage({ params }: { params: Promise<{ marketId: str
   const handleBuyYes = (amount: string) => {
     if (!amount || !account?.address) return;
     
-    setBuyFeedback("Preparing transaction...");
+    setBuyFeedback("Preparing transaction (1/3)");
     
     // For buy functions, input is USD amount, but smart contract expects shares
     // We need to convert USD to shares using the current price
@@ -255,7 +267,7 @@ export default function MarketPage({ params }: { params: Promise<{ marketId: str
       },
         onSuccess: async (result) => {
           console.log("Buy Yes transaction successful:", result);
-          setBuyFeedback("Transaction submitted...");
+          setBuyFeedback("Transaction submitted (2/3)");
         setAmount("");
           
                 // Submit trade to database
@@ -284,7 +296,7 @@ export default function MarketPage({ params }: { params: Promise<{ marketId: str
       }
           
           // Wait for transaction confirmation and update balances
-          await waitForTransactionConfirmation(result, "Purchase Successful!");
+          await waitForTransactionConfirmation(result, "Purchase Successful! (3/3)");
           
           // Record odds in the background (don't wait for it)
           recordNewOdds();
@@ -307,7 +319,7 @@ export default function MarketPage({ params }: { params: Promise<{ marketId: str
   const handleBuyNo = (amount: string) => {
     if (!amount || !account?.address) return;
     
-    setBuyFeedback("Preparing transaction...");
+    setBuyFeedback("Preparing transaction (1/3)");
     
     // For buy functions, input is USD amount, but smart contract expects shares
     // We need to convert USD to shares using the current price
@@ -391,10 +403,10 @@ export default function MarketPage({ params }: { params: Promise<{ marketId: str
           
           setBuyFeedback(errorMessage);
       },
-        onSuccess: async (result) => {
-          console.log("Buy No transaction successful:", result);
-          setBuyFeedback("Transaction submitted...");
-          setAmount("");
+              onSuccess: async (result) => {
+        console.log("Buy No transaction successful:", result);
+        setBuyFeedback("Transaction submitted (2/3)");
+        setAmount("");
           
           // Submit trade to database
           try {
@@ -422,7 +434,7 @@ export default function MarketPage({ params }: { params: Promise<{ marketId: str
           }
           
           // Wait for transaction confirmation and update balances
-          await waitForTransactionConfirmation(result, "Purchase Successful!");
+          await waitForTransactionConfirmation(result, "Purchase Successful! (3/3)");
           
           // Record odds in the background (don't wait for it)
           recordNewOdds();
@@ -442,6 +454,19 @@ export default function MarketPage({ params }: { params: Promise<{ marketId: str
     }
   };
 
+  const handleBuyNoWithApproval = async (amount: string) => {
+    if (!handleWalletCheck()) return;
+    
+    setBuyFeedback("Checking approval...");
+    const approved = await handleApproveIfNeeded();
+    if (approved || (allowance && Number(allowance) >= userDeposit)) {
+      setBuyFeedback(null);
+      handleBuyNo(amount);
+    } else {
+      setBuyFeedback("Approval failed or not completed.");
+    }
+  };
+
   // For Sell Yes
   const { mutate: sendSellYesTransaction, status: sellYesStatus } = useSendTransaction();
   // For Sell No
@@ -452,7 +477,7 @@ export default function MarketPage({ params }: { params: Promise<{ marketId: str
   const handleSellYes = (amount: string) => {
     if (!amount || !account?.address) return;
     
-    setBuyFeedback("Preparing transaction...");
+    setBuyFeedback("Preparing transaction (1/3)");
     
     // For sell functions, input is number of shares, not USD
     const shareAmount = parseFloat(amount);
@@ -509,11 +534,11 @@ export default function MarketPage({ params }: { params: Promise<{ marketId: str
       },
       onSuccess: async (result) => {
         console.log("Sell Yes transaction successful:", result);
-        setBuyFeedback("Transaction submitted...");
+        setBuyFeedback("Transaction submitted (2/3)");
         setAmount("");
         
         // Wait for transaction confirmation and update balances
-        await waitForTransactionConfirmation(result, "Sale Successful!");
+        await waitForTransactionConfirmation(result, "Sale Successful! (3/3)");
         
         // Record odds in the background (don't wait for it)
         recordNewOdds();
@@ -530,7 +555,7 @@ export default function MarketPage({ params }: { params: Promise<{ marketId: str
   const handleSellNo = (amount: string) => {
     if (!amount || !account?.address) return;
     
-    setBuyFeedback("Preparing transaction...");
+    setBuyFeedback("Preparing transaction (1/3)");
     
     // For sell functions, input is number of shares, not USD
     const shareAmount = parseFloat(amount);
@@ -565,11 +590,11 @@ export default function MarketPage({ params }: { params: Promise<{ marketId: str
       },
       onSuccess: async (result) => {
         console.log("Sell No transaction successful:", result);
-        setBuyFeedback("Transaction submitted...");
+        setBuyFeedback("Transaction submitted (2/3)");
         setAmount("");
         
         // Wait for transaction confirmation and update balances
-        await waitForTransactionConfirmation(result, "Sale Successful!");
+        await waitForTransactionConfirmation(result, "Sale Successful! (3/3)");
         
         // Record odds in the background (don't wait for it)
         recordNewOdds();
@@ -1285,6 +1310,8 @@ export default function MarketPage({ params }: { params: Promise<{ marketId: str
 
   // Wrap the sell handlers to check approval first
   const handleSellYesWithApproval = async (amount: string) => {
+    if (!handleWalletCheck()) return;
+    
     setBuyFeedback("Checking approval for selling...");
     const approved = await handleSetApprovalForAllIfNeeded();
     if (approved) {
@@ -1295,6 +1322,8 @@ export default function MarketPage({ params }: { params: Promise<{ marketId: str
     }
   };
   const handleSellNoWithApproval = async (amount: string) => {
+    if (!handleWalletCheck()) return;
+    
     setBuyFeedback("Checking approval for selling...");
     const approved = await handleSetApprovalForAllIfNeeded();
     if (approved) {
@@ -1308,6 +1337,23 @@ export default function MarketPage({ params }: { params: Promise<{ marketId: str
   return (
     <div>
       <Navbar />
+      {/* Wallet Connection Error Popup */}
+      {showWalletError && (
+        <div className="fixed z-50" style={{ top: '50%', left: '50%', transform: 'translate(-50%, -50%)' }}>
+          <div className="bg-white rounded-lg p-6 mx-4 shadow-lg border border-gray-200" style={{ maxWidth: '375px' }}>
+            <div className="text-center">
+              <h3 className="text-lg font-bold text-gray-900 mb-2">Wallet Required</h3>
+              <p className="text-gray-600 mb-4">Please connect a wallet to begin trading. Click connect button in the top right and sign-in using any account.</p>
+              <button
+                onClick={() => setShowWalletError(false)}
+                className="bg-black text-white px-4 py-2 rounded-lg font-semibold hover:bg-gray-800 transition-colors"
+              >
+                OK
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       <div className="min-h-screen bg-[#f8f9fa] flex flex-col items-center pt-8 w-full">
         {/* Responsive flex row for chart and betting card */}
         <div className="flex flex-col lg:flex-row justify-between items-start w-full max-w-7xl mx-auto mb-10 gap-2">
@@ -1443,7 +1489,7 @@ export default function MarketPage({ params }: { params: Promise<{ marketId: str
                 if (selectedOutcome === 'yes') {
                   if (mode === 'buy') { handleBuyYesWithApproval(amount); } else { handleSellYesWithApproval(amount); }
                 } else if (selectedOutcome === 'no') {
-                  if (mode === 'buy') { handleBuyNo(amount); } else { handleSellNoWithApproval(amount); }
+                  if (mode === 'buy') { handleBuyNoWithApproval(amount); } else { handleSellNoWithApproval(amount); }
                 }
               }}
             >
@@ -1465,17 +1511,32 @@ export default function MarketPage({ params }: { params: Promise<{ marketId: str
             </div>
             {/* Transaction feedback moved below Your Purchased Shares */}
             {buyFeedback && (
-              <div className={`text-center mt-4 font-semibold ${
-                buyFeedback.includes('success') || buyFeedback.includes('submitted') || buyFeedback.includes('🎉') 
+              <div className={`text-center mt-4 font-semibold flex items-center justify-center gap-1 ${
+                buyFeedback.includes('Purchase Successful') || buyFeedback.includes('Sale Successful') || buyFeedback.includes('🎉')
                   ? 'text-green-600' 
-                  : buyFeedback.includes('Preparing transaction') 
+                  : buyFeedback.includes('Preparing transaction') || buyFeedback.includes('Checking approval') || buyFeedback.includes('Transaction submitted')
                     ? 'text-black' 
                     : 'text-red-600'
-              }`}>{buyFeedback}</div>
+              }`}>
+                {(buyFeedback.includes('Preparing transaction') || buyFeedback.includes('Checking approval') || buyFeedback.includes('Transaction submitted')) && (
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-black flex-shrink-0"></div>
+                )}
+                {(buyFeedback.includes('Purchase Successful') || buyFeedback.includes('Sale Successful') || buyFeedback.includes('🎉')) && (
+                  <svg className="w-4 h-4 text-green-600 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                  </svg>
+                )}
+                <span className="whitespace-nowrap">{buyFeedback}</span>
+              </div>
             )}
             {/* Success message after balance update */}
             {successMessage && (
-              <div className="text-center mt-4 text-green-600 font-semibold">{successMessage}</div>
+              <div className="text-center mt-4 text-green-600 font-semibold flex items-center justify-center gap-2">
+                <svg className="w-4 h-4 text-green-600" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                </svg>
+                {successMessage}
+              </div>
             )}
           </div>
         </div>

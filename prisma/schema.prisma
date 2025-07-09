@@ -156,3 +156,41 @@ model UserPnLHistory {
   @@index([walletAddress])
   @@index([timestamp])
 }
+
+// Model for market ideas submitted by users
+model MarketIdea {
+  id            Int      @id @default(autoincrement())
+  title         String
+  description   String
+  rules         String
+  netVotes      Int      @default(0)
+  walletAddress String
+  status        String   @default("pending") // 'pending', 'approved', 'rejected'
+  createdAt     DateTime @default(now())
+  
+  // Relation to individual votes
+  votes         MarketIdeaVote[]
+  
+  // Indexes for better query performance
+  @@index([walletAddress])
+  @@index([status])
+}
+
+// Model to track votes on market ideas
+model MarketIdeaVote {
+  id            Int      @id @default(autoincrement())
+  ideaId        Int
+  walletAddress String
+  voteWeight    Int      @default(1) // The weighted value of this vote
+  createdAt     DateTime @default(now())
+  
+  // Relation to market idea
+  marketIdea    MarketIdea @relation(fields: [ideaId], references: [id], onDelete: Cascade)
+  
+  // Composite unique constraint to prevent duplicate votes
+  @@unique([ideaId, walletAddress])
+  
+  // Indexes for better query performance
+  @@index([ideaId])
+  @@index([walletAddress])
+}

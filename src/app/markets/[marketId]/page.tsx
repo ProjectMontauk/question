@@ -174,7 +174,7 @@ export default function MarketPage({ params }: { params: Promise<{ marketId: str
   const handleBuyYesWithApproval = async (amount: string) => {
     if (!handleWalletCheck()) return;
     
-    setBuyFeedback("Checking approval...");
+    setBuyFeedback("Checking approval (0/3)");
     const approved = await handleApproveIfNeeded();
     if (approved || (allowance && Number(allowance) >= userDeposit)) {
       setBuyFeedback(null);
@@ -457,7 +457,7 @@ export default function MarketPage({ params }: { params: Promise<{ marketId: str
   const handleBuyNoWithApproval = async (amount: string) => {
     if (!handleWalletCheck()) return;
     
-    setBuyFeedback("Checking approval...");
+    setBuyFeedback("Checking approval (0/3)");
     const approved = await handleApproveIfNeeded();
     if (approved || (allowance && Number(allowance) >= userDeposit)) {
       setBuyFeedback(null);
@@ -631,6 +631,9 @@ export default function MarketPage({ params }: { params: Promise<{ marketId: str
   const [title, setTitle] = useState('');
   const [url, setUrl] = useState('');
   const [text, setText] = useState('');
+
+  // Add state for evidence submission success message
+  const [evidenceSuccessMessage, setEvidenceSuccessMessage] = useState<string | null>(null);
 
   // Handle automatic price calculation
   const handleAutoGetPrice = async (outcome: number, amount: number) => {
@@ -942,13 +945,13 @@ export default function MarketPage({ params }: { params: Promise<{ marketId: str
   // Handle submit document
   const handleSubmitDocument = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!title.trim() && !url.trim() && !text.trim()) return;
+    if (!title.trim() && !url.trim()) return;
     const newEvidence = {
       marketId: market.id,
       type: evidenceType,
       title: title.trim(),
       url: url.trim(),
-      description: text.trim(),
+      description: '', // No description field anymore
       walletAddress: account?.address || '',
     };
     const res = await fetch(`${API_BASE_URL}/api/evidence`, {
@@ -960,13 +963,26 @@ export default function MarketPage({ params }: { params: Promise<{ marketId: str
     setEvidence(prev => [created, ...prev]);
     setTitle('');
     setUrl('');
-    setText('');
     setEvidenceType('yes');
+    setEvidenceSuccessMessage('Evidence Successfully Submitted!');
+    setTimeout(() => setEvidenceSuccessMessage(null), 10000);
   };
 
   // Handle upvote/downvote toggle
   const handleVote = async (id: number, evidenceType: 'yes' | 'no') => {
     if (!account?.address) return;
+    
+    // Update user position before voting
+    await fetch('/api/update-user-position', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        marketId: market.id,
+        walletAddress: account.address,
+        yesShares: parseInt(outcome1Balance) || 0,
+        noShares: parseInt(outcome2Balance) || 0,
+      }),
+    });
     
     // Set loading state for this specific evidence
     setVotingEvidenceId(id);
@@ -987,6 +1003,15 @@ export default function MarketPage({ params }: { params: Promise<{ marketId: str
     } else if (evidenceType === 'no' && noShares > yesShares) {
       votingWeight = Math.max(1, noShares - yesShares);
     }
+    
+    console.log('Voting weight calculation:', {
+      evidenceType,
+      yesShares,
+      noShares,
+      votingWeight,
+      outcome1Balance,
+      outcome2Balance
+    });
     
     // Optimistic update - immediately update the UI
     const optimisticEvidence = evidence.map(ev => {
@@ -1246,6 +1271,54 @@ export default function MarketPage({ params }: { params: Promise<{ marketId: str
       // Update balances immediately after confirmation
       await fetchUserBalancesWithoutLoading();
       
+      // Fetch latest balances directly from contract
+      let latestYesShares = 0;
+      let latestNoShares = 0;
+      if (account?.address) {
+        try {
+          const balance1 = await readContract({
+            contract: conditionalTokensContract,
+            method: "function balanceOf(address account, uint256 id) view returns (uint256)",
+            params: [
+              account.address as `0x${string}`,
+              BigInt(outcome1PositionId)
+            ],
+          });
+          const balance2 = await readContract({
+            contract: conditionalTokensContract,
+            method: "function balanceOf(address account, uint256 id) view returns (uint256)",
+            params: [
+              account.address as `0x${string}`,
+              BigInt(outcome2PositionId)
+            ],
+          });
+          latestYesShares = Math.floor(Number(balance1.toString()) / 1e18);
+          latestNoShares = Math.floor(Number(balance2.toString()) / 1e18);
+        } catch (err) {
+          console.error("Error fetching latest balances after transaction:", err);
+        }
+      }
+      
+      // Update user position and evidence after buy/sell
+      if (account?.address && market.id) {
+        await fetch('/api/update-user-position', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            marketId: market.id,
+            walletAddress: account.address,
+            yesShares: latestYesShares,
+            noShares: latestNoShares,
+          }),
+        });
+        // Refetch evidence for the current market
+        const evidenceRes = await fetch(`/api/evidence?marketId=${market.id}`);
+        if (evidenceRes.ok) {
+          const updatedEvidence = await evidenceRes.json();
+          setEvidence(updatedEvidence);
+        }
+      }
+      
       // Show success message immediately after balance is updated
       setBuyFeedback(null);
       setSuccessMessage(successMessage);
@@ -1312,7 +1385,7 @@ export default function MarketPage({ params }: { params: Promise<{ marketId: str
   const handleSellYesWithApproval = async (amount: string) => {
     if (!handleWalletCheck()) return;
     
-    setBuyFeedback("Checking approval for selling...");
+    setBuyFeedback("Checking approval (0/3)");
     const approved = await handleSetApprovalForAllIfNeeded();
     if (approved) {
       setBuyFeedback(null);
@@ -1324,7 +1397,7 @@ export default function MarketPage({ params }: { params: Promise<{ marketId: str
   const handleSellNoWithApproval = async (amount: string) => {
     if (!handleWalletCheck()) return;
     
-    setBuyFeedback("Checking approval for selling...");
+    setBuyFeedback("Checking approval (0/3)");
     const approved = await handleSetApprovalForAllIfNeeded();
     if (approved) {
       setBuyFeedback(null);
@@ -1559,14 +1632,14 @@ export default function MarketPage({ params }: { params: Promise<{ marketId: str
                     `flex-1 px-6 py-2 rounded-lg font-medium text-sm transition focus:outline-none ${selected ? "bg-white text-[#171A22] shadow" : "bg-gray-50 text-gray-500"}`
                   }
                 >
-                  View &quot;Yes&quot; Documents
+                  {market.outcomes[0]}
                 </Tab>
                 <Tab
                   className={({ selected }: { selected: boolean }) =>
                     `flex-1 px-6 py-2 rounded-lg font-medium text-sm transition focus:outline-none ${selected ? "bg-white text-[#171A22] shadow" : "bg-gray-50 text-gray-500"}`
                   }
                 >
-                  View &quot;No&quot; Documents
+                  {market.outcomes[1]}
                 </Tab>
                 <Tab
                   className={({ selected }: { selected: boolean }) =>
@@ -1586,7 +1659,7 @@ export default function MarketPage({ params }: { params: Promise<{ marketId: str
                       {yesToShow.map((evidence, idx) => (
                       <div
                         key={evidence.id}
-                        className="mb-6 border rounded-lg p-6 bg-white shadow-sm border-gray-200"
+                        className="mb-6 border rounded-lg px-6 pt-6 pb-3 bg-white shadow-sm border-gray-200"
                       >
                         <div className="flex">
                           {/* Voting column */}
@@ -1618,28 +1691,29 @@ export default function MarketPage({ params }: { params: Promise<{ marketId: str
                           <div className="flex-1">
                             <div className="flex items-center mb-2">
                               <span className="text-sm font-semibold mr-2">#{idx + 1}</span>
-                              {evidence.url ? (
-                                <a
-                                  href={evidence.url}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="text-sm font-bold text-[#171A22] hover:underline text-[95%]"
-                                    onClick={e => e.stopPropagation()} // Prevent expand/collapse when clicking link
+                              <div className="flex-1">
+                                {evidence.url ? (
+                                  <a
+                                    href={evidence.url}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="text-sm font-bold text-[#171A22] hover:underline text-[95%]"
+                                      onClick={e => e.stopPropagation()} // Prevent expand/collapse when clicking link
+                                  >
+                                    {evidence.title} ({getDomain(evidence.url)})
+                                  </a>
+                                ) : (
+                                  <span className="text-sm font-bold text-[#171A22] text-[95%]">{evidence.title}</span>
+                                )}
+                                <button
+                                  className="text-xs text-gray-600 mt-2 hover:underline hover:text-blue-800 focus:outline-none block"
+                                  type="button"
+                                  onClick={() => setExpandedEvidenceId(expandedEvidenceId === evidence.id ? null : evidence.id)}
                                 >
-                                  {evidence.title} ({getDomain(evidence.url)})
-                                </a>
-                              ) : (
-                                <span className="text-sm font-bold text-[#171A22] text-[95%]">{evidence.title}</span>
-                              )}
+                                  {expandedEvidenceId === evidence.id ? 'Hide Replies' : 'View Replies'}
+                                </button>
+                              </div>
                             </div>
-                              <div className="text-gray-600 text-sm line-clamp-2">{evidence.description}</div>
-                              <button
-                                className="text-xs text-gray-600 mt-0.5 hover:underline hover:text-blue-800 focus:outline-none"
-                                type="button"
-                                onClick={() => setExpandedEvidenceId(expandedEvidenceId === evidence.id ? null : evidence.id)}
-                              >
-                                {expandedEvidenceId === evidence.id ? 'Hide Replies' : 'View Replies'}
-                              </button>
                               {/* Show comments section if expanded */}
                               {expandedEvidenceId === evidence.id && (
                                 <EvidenceComments
@@ -1673,7 +1747,7 @@ export default function MarketPage({ params }: { params: Promise<{ marketId: str
                       {sortedNoEvidence.map((evidence, idx) => (
                       <div
                         key={evidence.id}
-                        className="mb-6 border rounded-lg p-6 bg-white shadow-sm border-gray-200"
+                        className="mb-6 border rounded-lg px-6 pt-6 pb-3 bg-white shadow-sm border-gray-200"
                       >
                         <div className="flex">
                           {/* Voting column */}
@@ -1705,28 +1779,29 @@ export default function MarketPage({ params }: { params: Promise<{ marketId: str
                           <div className="flex-1">
                             <div className="flex items-center mb-2">
                               <span className="text-sm font-semibold mr-2">#{idx + 1}</span>
-                              {evidence.url ? (
-                                <a
-                                  href={evidence.url}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="text-sm font-bold text-[#171A22] hover:underline text-[95%]"
-                                    onClick={e => e.stopPropagation()} // Prevent expand/collapse when clicking link
+                              <div className="flex-1">
+                                {evidence.url ? (
+                                  <a
+                                    href={evidence.url}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="text-sm font-bold text-[#171A22] hover:underline text-[95%]"
+                                      onClick={e => e.stopPropagation()} // Prevent expand/collapse when clicking link
+                                  >
+                                    {evidence.title} ({getDomain(evidence.url)})
+                                  </a>
+                                ) : (
+                                  <span className="text-sm font-bold text-[#171A22] text-[95%]">{evidence.title}</span>
+                                )}
+                                <button
+                                  className="text-xs text-gray-600 mt-2 hover:underline hover:text-blue-800 focus:outline-none block"
+                                  type="button"
+                                  onClick={() => setExpandedEvidenceId(expandedEvidenceId === evidence.id ? null : evidence.id)}
                                 >
-                                  {evidence.title} ({getDomain(evidence.url)})
-                                </a>
-                              ) : (
-                                <span className="text-sm font-bold text-[#171A22] text-[95%]">{evidence.title}</span>
-                              )}
+                                  {expandedEvidenceId === evidence.id ? 'Hide Replies' : 'View Replies'}
+                                </button>
+                              </div>
                             </div>
-                              <div className="text-gray-600 text-sm line-clamp-2">{evidence.description}</div>
-                              <button
-                                className="text-xs text-gray-600 mt-0.5 hover:underline hover:text-blue-800 focus:outline-none"
-                                type="button"
-                                onClick={() => setExpandedEvidenceId(expandedEvidenceId === evidence.id ? null : evidence.id)}
-                              >
-                                {expandedEvidenceId === evidence.id ? 'Hide Replies' : 'View Replies'}
-                              </button>
                               {/* Show comments section if expanded */}
                               {expandedEvidenceId === evidence.id && (
                                 <EvidenceComments
@@ -1801,15 +1876,9 @@ export default function MarketPage({ params }: { params: Promise<{ marketId: str
                         className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-600 text-base"
                       />
                     </div>
-                    <div>
-                      <label className="block font-medium text-gray-700 mb-2 text-[95%]">Text</label>
-                      <textarea
-                        placeholder="Enter brief description of document (maximum two lines)"
-                        value={text}
-                        onChange={e => setText(e.target.value)}
-                        className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-600 text-base min-h-[60px] placeholder:text-[95%]"
-                      />
-                    </div>
+                    {evidenceSuccessMessage && (
+                      <div className="text-green-600 font-semibold text-center mb-2">{evidenceSuccessMessage}</div>
+                    )}
                     <button
                       type="submit"
                       className="w-full bg-[#171A22] text-white font-semibold py-3 rounded-lg text-lg hover:bg-[#232635] transition"

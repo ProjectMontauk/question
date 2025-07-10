@@ -306,7 +306,7 @@ export default function MarketIdeasPage() {
                   {sortedIdeas.map((idea, idx) => (
                     <div
                       key={idea.id}
-                      className="border rounded-lg py-3 px-6 bg-gray-50 border-gray-200"
+                      className="border rounded-lg py-3 px-6 bg-white shadow-sm border-gray-200"
                     >
                       <div className="flex">
                         {/* Voting column */}

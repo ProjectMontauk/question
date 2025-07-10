@@ -57,6 +57,17 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           }
         }
         
+        console.log('Backend voting weight calculation:', {
+          evidenceType,
+          userPosition: {
+            yesShares: userPosition.yesShares,
+            noShares: userPosition.noShares
+          },
+          baseVotingWeight,
+          walletAddress,
+          evidenceId
+        });
+        
         // Check if user has already voted on this specific evidence
         const existingVote = await tx.vote.findUnique({
           where: {

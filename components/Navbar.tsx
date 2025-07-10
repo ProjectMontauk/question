@@ -100,19 +100,21 @@ const Navbar = () => {
           <button
             className="py-1 px-3 bg-white text-[#171A22] rounded-md text-xs font-semibold hover:bg-gray-100 transition border-none shadow-none text-left"
             style={{ fontSize: 12, minWidth: 0 }}
-            onClick={() => router.push("/")}
+            onClick={() => router.push("/markets")}
           >
             All Markets
           </button>
           <button
             className="py-1 px-3 bg-white text-[#171A22] rounded-md text-xs font-semibold hover:bg-gray-100 transition border-none shadow-none text-left"
             style={{ fontSize: 12, minWidth: 0 }}
+            onClick={() => router.push("/markets?category=history")}
           >
             History
           </button>
           <button
             className="py-1 px-3 bg-white text-[#171A22] rounded-md text-xs font-semibold hover:bg-gray-100 transition border-none shadow-none text-left"
             style={{ fontSize: 12, minWidth: 0 }}
+            onClick={() => router.push("/markets?category=science")}
           >
             Science
           </button>

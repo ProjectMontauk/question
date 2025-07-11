@@ -114,29 +114,29 @@ const Navbar = () => {
         <h1 className="text-3xl font-bold text-[#171A22] mt-4">Tinfoil</h1>
         <div className="flex gap-0 mt-1 -ml-2">
           <button
-            className="py-1 px-3 bg-white text-[#171A22] rounded-md text-xs md:text-sm font-semibold hover:bg-gray-100 transition border-none shadow-none text-left"
-            style={{ fontSize: 12, minWidth: 0 }}
+            className="py-1 px-2 bg-white text-[#171A22] rounded-md text-[10px] md:text-sm font-semibold hover:bg-gray-100 transition border-none shadow-none text-left whitespace-nowrap"
+            style={{ minWidth: 0 }}
             onClick={() => router.push("/markets")}
           >
             All Markets
           </button>
           <button
-            className="py-1 px-3 bg-white text-[#171A22] rounded-md text-xs md:text-sm font-semibold hover:bg-gray-100 transition border-none shadow-none text-left"
-            style={{ fontSize: 12, minWidth: 0 }}
+            className="py-1 px-2 bg-white text-[#171A22] rounded-md text-[10px] md:text-sm font-semibold hover:bg-gray-100 transition border-none shadow-none text-left whitespace-nowrap"
+            style={{ minWidth: 0 }}
             onClick={() => router.push("/markets?category=history")}
           >
             History
           </button>
           <button
-            className="py-1 px-3 bg-white text-[#171A22] rounded-md text-xs md:text-sm font-semibold hover:bg-gray-100 transition border-none shadow-none text-left"
-            style={{ fontSize: 12, minWidth: 0 }}
+            className="py-1 px-2 bg-white text-[#171A22] rounded-md text-[10px] md:text-sm font-semibold hover:bg-gray-100 transition border-none shadow-none text-left whitespace-nowrap"
+            style={{ minWidth: 0 }}
             onClick={() => router.push("/markets?category=science")}
           >
             Science
           </button>
           <button
-            className="py-1 px-3 bg-white text-[#171A22] rounded-md text-xs md:text-sm font-semibold hover:bg-gray-100 transition border-none shadow-none text-left"
-            style={{ fontSize: 12, minWidth: 0 }}
+            className="py-1 px-2 bg-white text-[#171A22] rounded-md text-[10px] md:text-sm font-semibold hover:bg-gray-100 transition border-none shadow-none text-left whitespace-nowrap"
+            style={{ minWidth: 0 }}
             onClick={() => router.push("/market-ideas")}
           >
             New
@@ -145,7 +145,7 @@ const Navbar = () => {
       </div>
       <div className="flex items-center gap-4">
         <button
-          className="flex flex-col items-center justify-center bg-white px-2 py-1 rounded transition-colors duration-200 cursor-pointer focus:outline-none hover:bg-gray-200"
+          className="hidden md:flex flex-col items-center justify-center bg-white px-2 py-1 rounded transition-colors duration-200 cursor-pointer focus:outline-none hover:bg-gray-200"
           style={{ boxShadow: "none", minWidth: 0 }}
           onClick={() => router.push("/portfolio")}
         >
@@ -153,7 +153,7 @@ const Navbar = () => {
           <span className="text-green-600 font-semibold text-sm">{portfolioValue === "--" ? "$--" : `$${Number(portfolioValue).toLocaleString(undefined, { maximumFractionDigits: 0 })}`}</span>
         </button>
         <button
-          className="flex flex-col items-center justify-center bg-white px-2 py-1 rounded transition-colors duration-200 cursor-pointer focus:outline-none hover:bg-gray-200 text-center"
+          className="hidden md:flex flex-col items-center justify-center bg-white px-2 py-1 rounded transition-colors duration-200 cursor-pointer focus:outline-none hover:bg-gray-200 text-center"
           style={{ boxShadow: "none", minWidth: 0 }}
           onClick={() => router.push("/portfolio")}
         >
@@ -162,7 +162,9 @@ const Navbar = () => {
             {(!account?.address || isPending) ? "$--" : `$${formatBalance(balance)}`}
           </span>
         </button>
-        <ConnectButton client={client} wallets={wallets} />
+        <div className="hidden md:flex">
+          <ConnectButton client={client} wallets={wallets} />
+        </div>
         {/* Example: <InAppWalletButton /> */}
       </div>
     </nav>

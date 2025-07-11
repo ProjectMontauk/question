@@ -39,7 +39,7 @@ const MarketCard = ({ market }: { market: Market }) => {
 
   return (
     <div
-      className="bg-white rounded-xl shadow border border-gray-200 p-5 w-1/2 cursor-pointer hover:shadow-lg transition"
+      className="bg-white rounded-xl shadow border border-gray-200 p-5 w-full sm:w-1/2 cursor-pointer hover:shadow-lg transition"
       onClick={() => router.push(`/markets/${market.id}`)}
       role="button"
       tabIndex={0}
@@ -78,14 +78,15 @@ const Homepage = () => {
   const markets = getAllMarkets();
   
   return (
-    <div className="min-h-screen bg-[#f8f9fa] flex flex-col items-center w-full pt-20">
-      <h1 className="text-4xl font-bold mb-4 text-center w-full">Welcome to Tinfoil</h1>
-      <div className="text-xl text-gray-600 mb-8 text-center w-full">
-        A home for honest debate about anything on the internet. <br />
+    <div className="min-h-screen bg-[#f8f9fa] flex flex-col items-center w-full pt-5 md:pt-10">
+      <h1 className="text-2xl md:text-4xl font-bold mb-4 text-center w-full">Welcome to Tinfoil!</h1>
+      <div className="text-base md:text-xl text-gray-600 mb-2 md:mb-8 text-center w-full">
+        A home for honest debate about anything.
+        <br />
         Bet on what you believe, challenge convention, and earn for being right.
       </div>
       {/* Active Markets Section */}
-      <div className="w-full flex flex-col items-center mt-10">
+      <div className="w-full flex flex-col items-center mt-4 md:mt-10">
         <div className="flex flex-col gap-6 w-full max-w-5xl">
           {/* First row - JFK and Moon Landing */}
           <div className="flex flex-col sm:flex-row gap-6 w-full">

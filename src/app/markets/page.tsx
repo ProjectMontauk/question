@@ -40,7 +40,7 @@ const MarketCard = ({ market }: { market: Market }) => {
 
   return (
     <div
-      className="bg-white rounded-xl shadow border border-gray-200 p-5 w-1/2 cursor-pointer hover:shadow-lg transition"
+      className="bg-white rounded-xl shadow border border-gray-200 p-5 w-full sm:w-1/2 cursor-pointer hover:shadow-lg transition"
       onClick={() => router.push(`/markets/${market.id}`)}
       role="button"
       tabIndex={0}
@@ -54,10 +54,10 @@ const MarketCard = ({ market }: { market: Market }) => {
           height={200}
           className="w-full h-48 rounded-lg object-cover object-top"
         />
-      </div>
+            </div>
       <div className="mb-3">
         <h3 className="text-xl font-bold text-gray-900">{market.title}</h3>
-      </div>
+          </div>
       <div className="mb-0">
         <div className="grid grid-cols-4 gap-2 items-center">
           <div className="text-sm font-semibold text-black col-span-3">{market.outcomes[0]}:</div>
@@ -110,8 +110,8 @@ const MarketsContent = () => {
         )}
         {category === 'science' && (
           <h1 className="text-2xl font-bold mb-4 text-left ml-4">Science Markets</h1>
-        )}
-      </div>
+                            )}
+                          </div>
       {/* Active Markets Section */}
       <div className="w-full flex flex-col items-center">
         <div className="flex flex-col gap-6 w-full max-w-5xl">
@@ -129,7 +129,7 @@ const MarketsContent = () => {
                 {row.map((market: Market) => (
                   <MarketCard key={market.id} market={market} />
                 ))}
-                  </div>
+                        </div>
                 ))
           ) : (
             <div className="text-center text-gray-500 text-lg">
@@ -137,14 +137,14 @@ const MarketsContent = () => {
                       </div>
                           )}
                         </div>
-      </div>
-    </div>
+                      </div>
+                    </div>
   );
 };
 
 const MarketsPage = () => {
   return (
-    <div>
+                  <div>
       <Navbar />
       <Suspense fallback={<div className="min-h-screen bg-[#f8f9fa] flex items-center justify-center">Loading markets...</div>}>
         <MarketsContent />

@@ -1358,7 +1358,7 @@ export default function MarketPage({ params }: { params: Promise<{ marketId: str
         {/* Responsive flex row for chart and betting card */}
         <div className="flex flex-col lg:flex-row justify-between items-start w-full max-w-7xl mx-auto mb-10 gap-2">
           {/* Odds History Chart Card */}
-          <div className="bg-white rounded-xl shadow border border-gray-200 p-8 max-w-4xl w-full mb-8 lg:mb-0 ml-auto">
+          <div className="bg-white rounded-xl shadow border border-gray-200 p-2.5 sm:p-8 max-w-4xl w-full mb-8 lg:mb-0 ml-auto">
             <h2 className="text-2xl font-bold mb-6 text-[#171A22]">{market.title}</h2>
             <div className="mb-2">
               <span className="text-lg font-semibold text-[#171A22]">Market Odds</span>
@@ -1417,7 +1417,7 @@ export default function MarketPage({ params }: { params: Promise<{ marketId: str
             </div>
           </div>
           {/* Betting Card */}
-          <div className="bg-white rounded-xl shadow border border-gray-200 p-8 w-full" style={{ maxWidth: '300px' }}>
+          <div className="bg-white rounded-xl shadow border border-gray-200 p-4 w-full max-w-full sm:p-8 sm:max-w-xs">
             {/* Buy/Sell Toggle */}
             <div className="flex items-center mb-2">
               <div className="flex gap-2">
@@ -1542,7 +1542,7 @@ export default function MarketPage({ params }: { params: Promise<{ marketId: str
         </div>
         {/* Evidence Section Card */}
         <div className="max-w-7xl w-full mx-auto flex">
-          <div className="bg-white rounded-xl shadow border border-gray-200 p-8 max-w-4xl w-full ml-19">
+          <div className="bg-white rounded-xl shadow border border-gray-200 p-2.5 sm:p-8 w-full sm:max-w-4xl sm:mx-auto lg:ml-[55px]">
             <div className="flex justify-between items-center mb-6">
               <h2 className="text-2xl font-bold text-[#171A22]">Evidence</h2>
               {/* Voting Power Display */}

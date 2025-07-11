@@ -7,10 +7,10 @@ import { useReadContract } from "thirdweb/react";
 import { getContract } from "thirdweb";
 import { client } from "../src/client";
 import { polygonAmoy } from "thirdweb/chains";
-import { getAllMarkets } from "../src/data/markets";
+import { getAllMarkets, Market } from "../src/data/markets";
 
 // MarketCard component that fetches its own odds
-const MarketCard = ({ market }: { market: any }) => {
+const MarketCard = ({ market }: { market: Market }) => {
   const router = useRouter();
   
   // Create contract instance for this specific market

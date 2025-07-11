@@ -32,8 +32,6 @@ export default function MarketIdeasPage() {
   
   // Form state for new market idea
   const [title, setTitle] = useState('');
-  const [description, setDescription] = useState('');
-  const [rules, setRules] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitFeedback, setSubmitFeedback] = useState<string | null>(null);
 

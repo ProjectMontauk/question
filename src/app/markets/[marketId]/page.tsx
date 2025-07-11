@@ -123,7 +123,7 @@ export default function MarketPage({ params }: { params: Promise<{ marketId: str
     method: "function allowance(address owner, address spender) view returns (uint256)",
     params: [account?.address || "", marketContract.address || ""],
   });
-  const { mutate: sendApproveTransaction, status: approveStatus } = useSendTransaction();
+  const { mutate: sendApproveTransaction } = useSendTransaction();
 
   // Get user's ERC20 token balance (cash)
   const { data: userTokenBalance } = useReadContract({
@@ -468,9 +468,9 @@ export default function MarketPage({ params }: { params: Promise<{ marketId: str
   };
 
   // For Sell Yes
-  const { mutate: sendSellYesTransaction, status: sellYesStatus } = useSendTransaction();
+  const { mutate: sendSellYesTransaction } = useSendTransaction();
   // For Sell No
-  const { mutate: sendSellNoTransaction, status: sellNoStatus } = useSendTransaction();
+  const { mutate: sendSellNoTransaction } = useSendTransaction();
 
   // Note: Buy functions convert USD input to shares using priceResult
   // Sell functions expect share input directly (no conversion needed)
@@ -630,17 +630,15 @@ export default function MarketPage({ params }: { params: Promise<{ marketId: str
   const [evidenceType, setEvidenceType] = useState<'yes' | 'no'>('yes');
   const [title, setTitle] = useState('');
   const [url, setUrl] = useState('');
-  const [text, setText] = useState('');
 
   // Add state for evidence submission success message
   const [evidenceSuccessMessage, setEvidenceSuccessMessage] = useState<string | null>(null);
 
   // Handle automatic price calculation
-  const handleAutoGetPrice = async (outcome: number, amount: number) => {
+  const handleAutoGetPrice = useCallback(async (outcome: number, amount: number) => {
     setIsPricePending(true);
     setPriceError(null);
     setPriceResult(undefined);
-    
     try {
       const result = await readContract({
         contract: marketContract,
@@ -662,105 +660,41 @@ export default function MarketPage({ params }: { params: Promise<{ marketId: str
     } finally {
       setIsPricePending(false);
     }
-  };
+  }, [marketContract]);
 
-  // Auto-calculate price when both outcome and amount are available
   useEffect(() => {
     if (selectedOutcome && amount && parseFloat(amount) > 0) {
       const outcome = selectedOutcome === 'yes' ? 1 : 2;
       const amountValue = parseFloat(amount);
-      
       if (!isNaN(amountValue) && amountValue > 0) {
         handleAutoGetPrice(outcome, amountValue);
       }
     }
-  }, [selectedOutcome, amount]);
+  }, [selectedOutcome, amount, handleAutoGetPrice]);
 
   // Fetch odds history function (read-only, for page loads)
-  const fetchOddsHistory = async () => {
+  const fetchOddsHistory = useCallback(async () => {
     try {
-      // Only fetch existing odds history, don't record new ones
-    const res = await fetch(`${API_BASE_URL}/api/odds-history?marketId=${market.id}`);
-      
+      const res = await fetch(`${API_BASE_URL}/api/odds-history?marketId=${market.id}`);
       if (!res.ok) {
         console.error('Failed to fetch odds history:', res.status, res.statusText);
         setOddsHistory([]);
         setLoadingOdds(false);
         return;
       }
-      
-    const data = await res.json();
-    setOddsHistory(Array.isArray(data) ? data : []);
-    setLoadingOdds(false);
+      const data = await res.json();
+      setOddsHistory(Array.isArray(data) ? data : []);
+      setLoadingOdds(false);
     } catch (error) {
       console.error('Error fetching odds history:', error);
       setOddsHistory([]);
       setLoadingOdds(false);
     }
-  };
+  }, [market.id]);
 
-  // Record new odds function (for after trades)
-  const recordNewOdds = async () => {
-    try {
-      // Wait a bit for the transaction to be processed
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      
-      const currentYesOdds = await readContract({
-        contract: marketContract,
-        method: "function odds(uint256 _outcome) view returns (int128)",
-        params: [0n],
-      });
-      
-      const currentNoOdds = await readContract({
-        contract: marketContract,
-        method: "function odds(uint256 _outcome) view returns (int128)",
-        params: [1n],
-      });
-      
-      console.log('Raw odds from contract (after delay):', {
-        yesOdds: currentYesOdds.toString(),
-        noOdds: currentNoOdds.toString(),
-        yesOddsNumber: Number(currentYesOdds),
-        noOddsNumber: Number(currentNoOdds)
-      });
-      
-      // Store the raw odds values (not converted to probabilities)
-      const yesProbability = Number(currentYesOdds);
-      const noProbability = Number(currentNoOdds);
-      
-      // Record to database (after trade, odds should have changed)
-      const oddsResponse = await fetch(`${API_BASE_URL}/api/odds-history`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          marketId: market.id,
-          yesProbability,
-          noProbability,
-          timestamp: new Date().toISOString()
-        }),
-      });
-      
-      if (!oddsResponse.ok) {
-        console.error('Failed to record odds to database:', oddsResponse.status, oddsResponse.statusText);
-      } else {
-        console.log('Recorded new odds to database after trade:', { yesProbability, noProbability });
-      }
-      
-      // Refresh the odds history to show the new entry
-      try {
-        await fetchOddsHistory();
-      } catch (error) {
-        console.error('Failed to refresh odds history:', error);
-      }
-    } catch (error) {
-      console.error('Failed to record odds:', error);
-    }
-  };
-
-  // Fetch odds history on mount (read-only)
   useEffect(() => {
     fetchOddsHistory();
-  }, [market.id]);
+  }, [market.id, fetchOddsHistory]);
 
   // Fetch evidence on mount
   useEffect(() => {
@@ -861,7 +795,7 @@ export default function MarketPage({ params }: { params: Promise<{ marketId: str
     } finally {
     setIsBalanceLoading(false);
     }
-  }, [account?.address, outcome1PositionId, outcome2PositionId, conditionalTokensContract.address]);
+  }, [account?.address, outcome1PositionId, outcome2PositionId, conditionalTokensContract]);
 
   // Track last call time to prevent excessive API calls
   const lastCallTime = React.useRef<number>(0);
@@ -917,7 +851,7 @@ export default function MarketPage({ params }: { params: Promise<{ marketId: str
       }
       // Don't set error state during polling to prevent blinking
     }
-  }, [account?.address, outcome1PositionId, outcome2PositionId, conditionalTokensContract.address]);
+  }, [account?.address, outcome1PositionId, outcome2PositionId, conditionalTokensContract]);
 
   // Polling mechanism for user balances
   useEffect(() => {
@@ -1131,7 +1065,6 @@ export default function MarketPage({ params }: { params: Promise<{ marketId: str
 
   // Show limited evidence initially
   const yesToShow = showAllYes ? sortedYesEvidence : sortedYesEvidence.slice(0, 5);
-  const noToShow = showAllNo ? sortedNoEvidence : sortedNoEvidence.slice(0, 5);
 
   // Get user's voting contribution for a specific evidence
   const getUserVotingContribution = (evidenceId: number, evidenceType: 'yes' | 'no') => {
@@ -1406,6 +1339,57 @@ export default function MarketPage({ params }: { params: Promise<{ marketId: str
       setBuyFeedback("Approval for selling failed or not completed.");
     }
   };
+
+  // Wrap recordNewOdds in useCallback
+  const recordNewOdds = useCallback(async () => {
+    try {
+      // Wait a bit for the transaction to be processed
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      const currentYesOdds = await readContract({
+        contract: marketContract,
+        method: "function odds(uint256 _outcome) view returns (int128)",
+        params: [0n],
+      });
+      const currentNoOdds = await readContract({
+        contract: marketContract,
+        method: "function odds(uint256 _outcome) view returns (int128)",
+        params: [1n],
+      });
+      console.log('Raw odds from contract (after delay):', {
+        yesOdds: currentYesOdds.toString(),
+        noOdds: currentNoOdds.toString(),
+        yesOddsNumber: Number(currentYesOdds),
+        noOddsNumber: Number(currentNoOdds)
+      });
+      // Store the raw odds values (not converted to probabilities)
+      const yesProbability = Number(currentYesOdds);
+      const noProbability = Number(currentNoOdds);
+      // Record to database (after trade, odds should have changed)
+      const oddsResponse = await fetch(`${API_BASE_URL}/api/odds-history`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          marketId: market.id,
+          yesProbability,
+          noProbability,
+          timestamp: new Date().toISOString()
+        }),
+      });
+      if (!oddsResponse.ok) {
+        console.error('Failed to record odds to database:', oddsResponse.status, oddsResponse.statusText);
+      } else {
+        console.log('Recorded new odds to database after trade:', { yesProbability, noProbability });
+      }
+      // Refresh the odds history to show the new entry
+      try {
+        await fetchOddsHistory();
+      } catch (error) {
+        console.error('Failed to refresh odds history:', error);
+      }
+    } catch (error) {
+      console.error('Failed to record odds:', error);
+    }
+  }, [marketContract, market.id, fetchOddsHistory]);
 
   return (
     <div>

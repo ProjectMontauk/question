@@ -12,6 +12,22 @@ import { polygonAmoy } from "thirdweb/chains";
 // TODO: Replace this with the actual ThirdWeb inAppWallet import
 // import { InAppWalletButton } from "thirdweb-package-path";
 
+// Add Trade type based on schema.prisma
+interface Trade {
+  id: number;
+  walletAddress: string;
+  marketTitle: string;
+  marketId: string;
+  outcome: string;
+  shares: number;
+  avgPrice: number;
+  betAmount: number;
+  toWin: number;
+  status: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
 function formatBalance(balance: bigint | undefined): string {
   if (!balance) return "0";
   // Divide by 10^18 and show whole numbers only
@@ -81,7 +97,7 @@ const Navbar = () => {
           }
           return 0;
         };
-        const totalPositionsValue = trades.reduce((sum: number, trade: any) => sum + trade.shares * getCurrentPriceNumber(trade.outcome), 0);
+        const totalPositionsValue = trades.reduce((sum: number, trade: Trade) => sum + trade.shares * getCurrentPriceNumber(trade.outcome), 0);
         const totalPortfolio = cash + totalPositionsValue;
         setPortfolioValue(totalPortfolio.toFixed(2));
       } catch {

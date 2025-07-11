@@ -5,7 +5,7 @@ import React, { useState, useEffect, useCallback } from "react";
 import { useActiveAccount } from "thirdweb/react";
 
 // Backend API base URL - use Next.js API routes for both dev and production
-const API_BASE_URL = '';
+const API_BASE_URL = process.env.NODE_ENV === 'production' ? 'https://tacoshell.vercel.app' : '';
 
 // Define MarketIdea type
 interface MarketIdea {

@@ -109,33 +109,33 @@ const Navbar = () => {
   }, [account?.address, oddsYes, oddsNo, balance]);
 
   return (
-    <nav className="w-full flex items-center justify-between px-8 py-1 border-b border-gray-200 bg-white">
-      <div className="ml-32 flex flex-col items-start">
+    <nav className="w-full flex items-center justify-between px-4 md:px-8 py-1 border-b border-gray-200 bg-white">
+      <div className="ml-0 md:ml-32 flex flex-col items-start">
         <h1 className="text-3xl font-bold text-[#171A22] mt-4">Tinfoil</h1>
         <div className="flex gap-0 mt-1 -ml-2">
           <button
-            className="py-1 px-3 bg-white text-[#171A22] rounded-md text-xs font-semibold hover:bg-gray-100 transition border-none shadow-none text-left"
+            className="py-1 px-3 bg-white text-[#171A22] rounded-md text-xs md:text-sm font-semibold hover:bg-gray-100 transition border-none shadow-none text-left"
             style={{ fontSize: 12, minWidth: 0 }}
             onClick={() => router.push("/markets")}
           >
             All Markets
           </button>
           <button
-            className="py-1 px-3 bg-white text-[#171A22] rounded-md text-xs font-semibold hover:bg-gray-100 transition border-none shadow-none text-left"
+            className="py-1 px-3 bg-white text-[#171A22] rounded-md text-xs md:text-sm font-semibold hover:bg-gray-100 transition border-none shadow-none text-left"
             style={{ fontSize: 12, minWidth: 0 }}
             onClick={() => router.push("/markets?category=history")}
           >
             History
           </button>
           <button
-            className="py-1 px-3 bg-white text-[#171A22] rounded-md text-xs font-semibold hover:bg-gray-100 transition border-none shadow-none text-left"
+            className="py-1 px-3 bg-white text-[#171A22] rounded-md text-xs md:text-sm font-semibold hover:bg-gray-100 transition border-none shadow-none text-left"
             style={{ fontSize: 12, minWidth: 0 }}
             onClick={() => router.push("/markets?category=science")}
           >
             Science
           </button>
           <button
-            className="py-1 px-3 bg-white text-[#171A22] rounded-md text-xs font-semibold hover:bg-gray-100 transition border-none shadow-none text-left"
+            className="py-1 px-3 bg-white text-[#171A22] rounded-md text-xs md:text-sm font-semibold hover:bg-gray-100 transition border-none shadow-none text-left"
             style={{ fontSize: 12, minWidth: 0 }}
             onClick={() => router.push("/market-ideas")}
           >

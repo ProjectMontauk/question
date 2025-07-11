@@ -214,7 +214,8 @@ export default function PortfolioPage() {
         }
       });
     }
-  }, [account, balance]);
+  }, [account, balance, refetch, sendTransaction]);
+// }, [account, balance]);
 
   return (
     <div>

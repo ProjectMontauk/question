@@ -90,7 +90,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           evidenceId: parseInt(evidenceId),
           parentId: parentId ? parseInt(parentId) : null,
           walletAddress,
-          content
+          content,
+          marketId: evidence.marketId
         },
         include: {
           replies: true

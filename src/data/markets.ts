@@ -15,7 +15,7 @@ export const markets: Market[] = [
     description: "Did the CIA aid in the planning or execution of John F. Kennedy's Assassination?",
     image: "/JFKCar.png",
     contractAddress: "0x03d7fa2716c0ff897000e1dcafdd6257ecce943a", // Your current market contract
-    outcomes: ["Yes, CIA involved in JFK's death", "No, CIA played no role in JFK's death"],
+    outcomes: ["Yes, CIA involved in JFK's death", "No, CIA innocent in JFK's death"],
     rules: "The market will resolve 'Yes' if current or former CIA personnel aided in the planning or execution of President John F. Kennedy's Assassination. Otherwise, the market will resolve 'No.' This means that no current or former CIA personnel or a group receiving funding from the CIA participated in John F. Kennedy's assassination."
   },
   {

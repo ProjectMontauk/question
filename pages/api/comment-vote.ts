@@ -85,7 +85,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           data: {
             commentId: parseInt(commentId),
             walletAddress,
-            voteType
+            voteType,
+            marketId: comment.marketId
           }
         });
         

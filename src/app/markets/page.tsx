@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Image from "next/image";
 import { useReadContract } from "thirdweb/react";
@@ -74,7 +74,7 @@ const MarketCard = ({ market }: { market: Market }) => {
   );
 };
 
-const MarketsPage = () => {
+const MarketsContent = () => {
   const searchParams = useSearchParams();
   const category = searchParams?.get('category') || 'all';
   
@@ -99,48 +99,56 @@ const MarketsPage = () => {
   const filteredMarkets = getFilteredMarkets();
 
   return (
+    <div className="min-h-screen bg-[#f8f9fa] flex flex-col items-center w-full pt-8">
+      {/* Title for each category */}
+      <div className="w-full max-w-5xl">
+        {category === 'all' && (
+          <h1 className="text-2xl font-bold mb-4 text-left ml-4">All Markets</h1>
+        )}
+        {category === 'history' && (
+          <h1 className="text-2xl font-bold mb-4 text-left ml-4">History Markets</h1>
+        )}
+        {category === 'science' && (
+          <h1 className="text-2xl font-bold mb-4 text-left ml-4">Science Markets</h1>
+        )}
+      </div>
+      {/* Active Markets Section */}
+      <div className="w-full flex flex-col items-center">
+        <div className="flex flex-col gap-6 w-full max-w-5xl">
+          {/* Display markets in rows of 2 */}
+          {filteredMarkets.length > 0 ? (
+            filteredMarkets.reduce((rows: Market[][], market: Market, index: number) => {
+              if (index % 2 === 0) {
+                rows.push([market]);
+              } else {
+                rows[rows.length - 1].push(market);
+              }
+              return rows;
+            }, []).map((row: Market[], rowIndex: number) => (
+              <div key={rowIndex} className="flex flex-col sm:flex-row gap-6 w-full">
+                {row.map((market: Market) => (
+                  <MarketCard key={market.id} market={market} />
+                ))}
+                  </div>
+                ))
+          ) : (
+            <div className="text-center text-gray-500 text-lg">
+              No markets found for this category.
+                      </div>
+                          )}
+                        </div>
+      </div>
+    </div>
+  );
+};
+
+const MarketsPage = () => {
+  return (
     <div>
       <Navbar />
-      <div className="min-h-screen bg-[#f8f9fa] flex flex-col items-center w-full pt-8">
-        {/* Title for each category */}
-        <div className="w-full max-w-5xl">
-          {category === 'all' && (
-            <h1 className="text-2xl font-bold mb-4 text-left ml-4">All Markets</h1>
-          )}
-          {category === 'history' && (
-            <h1 className="text-2xl font-bold mb-4 text-left ml-4">History Markets</h1>
-          )}
-          {category === 'science' && (
-            <h1 className="text-2xl font-bold mb-4 text-left ml-4">Science Markets</h1>
-          )}
-        </div>
-        {/* Active Markets Section */}
-        <div className="w-full flex flex-col items-center">
-          <div className="flex flex-col gap-6 w-full max-w-5xl">
-            {/* Display markets in rows of 2 */}
-            {filteredMarkets.length > 0 ? (
-              filteredMarkets.reduce((rows: Market[][], market: Market, index: number) => {
-                if (index % 2 === 0) {
-                  rows.push([market]);
-                } else {
-                  rows[rows.length - 1].push(market);
-                }
-                return rows;
-              }, []).map((row: Market[], rowIndex: number) => (
-                <div key={rowIndex} className="flex flex-col sm:flex-row gap-6 w-full">
-                  {row.map((market: Market) => (
-                    <MarketCard key={market.id} market={market} />
-                  ))}
-                    </div>
-                  ))
-            ) : (
-              <div className="text-center text-gray-500 text-lg">
-                No markets found for this category.
-                        </div>
-                            )}
-                          </div>
-        </div>
-      </div>
+      <Suspense fallback={<div className="min-h-screen bg-[#f8f9fa] flex items-center justify-center">Loading markets...</div>}>
+        <MarketsContent />
+      </Suspense>
     </div>
   );
 };

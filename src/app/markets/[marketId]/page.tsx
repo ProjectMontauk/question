@@ -1225,7 +1225,7 @@ export default function MarketPage({ params }: { params: Promise<{ marketId: str
   const noVotingPower = noShares > yesShares ? Math.max(1, noShares - yesShares) : 1;
 
   // For conditional tokens approval (for selling)
-  const { mutate: sendSetApprovalForAll, status: setApprovalStatus } = useSendTransaction();
+  const { mutate: sendSetApprovalForAll } = useSendTransaction();
   const { data: isOperatorApproved, refetch: refetchOperatorApproval } = useReadContract({
     contract: conditionalTokensContract,
     method: "function isApprovedForAll(address owner, address operator) view returns (bool)",

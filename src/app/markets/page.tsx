@@ -1,17 +1,17 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Image from "next/image";
 import { useReadContract } from "thirdweb/react";
 import { getContract } from "thirdweb";
 import { client } from "../../../src/client";
 import { polygonAmoy } from "thirdweb/chains";
-import { getAllMarkets } from "../../../src/data/markets";
+import { getAllMarkets, Market } from "../../../src/data/markets";
 import Navbar from "../../../components/Navbar";
 
 // MarketCard component that fetches its own odds
-const MarketCard = ({ market }: { market: any }) => {
+const MarketCard = ({ market }: { market: Market }) => {
   const router = useRouter();
   
   // Create contract instance for this specific market
@@ -75,7 +75,6 @@ const MarketCard = ({ market }: { market: any }) => {
 };
 
 const MarketsPage = () => {
-  const router = useRouter();
   const searchParams = useSearchParams();
   const category = searchParams?.get('category') || 'all';
   
@@ -120,16 +119,16 @@ const MarketsPage = () => {
           <div className="flex flex-col gap-6 w-full max-w-5xl">
             {/* Display markets in rows of 2 */}
             {filteredMarkets.length > 0 ? (
-              filteredMarkets.reduce((rows: any[], market: any, index: number) => {
+              filteredMarkets.reduce((rows: Market[][], market: Market, index: number) => {
                 if (index % 2 === 0) {
                   rows.push([market]);
                 } else {
                   rows[rows.length - 1].push(market);
                 }
                 return rows;
-              }, []).map((row: any[], rowIndex: number) => (
+              }, []).map((row: Market[], rowIndex: number) => (
                 <div key={rowIndex} className="flex flex-col sm:flex-row gap-6 w-full">
-                  {row.map((market: any) => (
+                  {row.map((market: Market) => (
                     <MarketCard key={market.id} market={market} />
                   ))}
                     </div>

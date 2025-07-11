@@ -5,7 +5,7 @@ import { useActiveAccount, useReadContract, useSendTransaction } from "thirdweb/
 import { fetchTrades } from "../../utils/tradeApi";
 import { marketContract, tokenContract } from "../../../constants/contracts";
 import { useState, useEffect } from "react";
-import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, ReferenceLine } from 'recharts';
+
 import { usePortfolio } from "../../contexts/PortfolioContext";
 import React from "react";
 import { prepareContractCall } from "thirdweb";
@@ -39,8 +39,7 @@ export default function PortfolioPage() {
   const [trades, setTrades] = useState<Trade[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [pnlHistory, setPnlHistory] = useState<any[]>([]);
-  const [loadingPnl, setLoadingPnl] = useState(false);
+  const [pnlHistory, setPnlHistory] = useState<{ timestamp: number; pnl: number }[]>([]);
   const { setPortfolioValue } = usePortfolio();
   const [depositAmount, setDepositAmount] = useState("");
   const [depositSuccess, setDepositSuccess] = useState(false);
@@ -119,6 +118,7 @@ export default function PortfolioPage() {
           body: JSON.stringify({ walletAddress: account.address }),
         });
       } catch (e) {
+        console.log(e);
         // Optionally log or ignore
         // console.error('Failed to update PnL history:', e);
       }
@@ -133,7 +133,6 @@ export default function PortfolioPage() {
         setPnlHistory([]);
         return;
       }
-      setLoadingPnl(true);
       try {
         const res = await fetch(`/api/pnl-history?walletAddress=${account.address}`);
         const data = await res.json();
@@ -143,9 +142,10 @@ export default function PortfolioPage() {
           : [];
         setPnlHistory(formatted);
       } catch (e) {
+        console.log('Failed to fetch PnL history:', e);
         setPnlHistory([]);
       } finally {
-        setLoadingPnl(false);
+        //setLoadingPnl(false);
       }
     };
     fetchPnlHistory();

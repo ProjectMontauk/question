@@ -58,6 +58,58 @@ export const moonLandingConditionalTokensContract = getContract({
     address: moonLandingConditionalTokensContractAddress,
   });
 
+// Alien Market Contract Instances
+export const alienMarketContract = getContract({
+    client,
+    chain: polygonAmoy,
+    address: alienMarketContractAddress,
+  });
+
+export const alienConditionalTokensContract = getContract({
+    client,
+    chain: polygonAmoy,
+    address: alienConditionalTokensContractAddress,
+  });
+
+// Vaccine Market Contract Instances
+export const vaccineMarketContract = getContract({
+    client,
+    chain: polygonAmoy,
+    address: vaccineMarketContractAddress,
+  });
+
+export const vaccineConditionalTokensContract = getContract({
+    client,
+    chain: polygonAmoy,
+    address: vaccineConditionalTokensContractAddress,
+  });
+
+// String Theory Market Contract Instances
+export const stringTheoryMarketContract = getContract({
+    client,
+    chain: polygonAmoy,
+    address: stringTheoryMarketContractAddress,
+  });
+
+export const stringTheoryConditionalTokensContract = getContract({
+    client,
+    chain: polygonAmoy,
+    address: stringTheoryConditionalTokensContractAddress,
+  });
+
+// COVID-19 Vaccine Market Contract Instances
+export const covidVaccineMarketContract = getContract({
+    client,
+    chain: polygonAmoy,
+    address: covidVaccineMarketContractAddress,
+  });
+
+export const covidVaccineConditionalTokensContract = getContract({
+    client,
+    chain: polygonAmoy,
+    address: covidVaccineConditionalTokensContractAddress,
+  });
+
 // Helper function to get contracts based on market ID
 export function getContractsForMarket(marketId: string) {
   switch (marketId) {
@@ -78,61 +130,29 @@ export function getContractsForMarket(marketId: string) {
       };
     case 'alien':
       return {
-        marketContract: getContract({
-          client,
-          chain: polygonAmoy,
-          address: alienMarketContractAddress,
-        }),
-        conditionalTokensContract: getContract({
-          client,
-          chain: polygonAmoy,
-          address: alienConditionalTokensContractAddress,
-        }),
+        marketContract: alienMarketContract,
+        conditionalTokensContract: alienConditionalTokensContract,
         outcome1PositionId: "41454826355713373937139021826100554757622368884488368898497774336090889469140", // Yes
         outcome2PositionId: "113951986287197248873172744880628586517247093496821249052133686037677477393290", // No
       };
     case 'vaccine':
       return {
-        marketContract: getContract({
-          client,
-          chain: polygonAmoy,
-          address: vaccineMarketContractAddress,
-        }),
-        conditionalTokensContract: getContract({
-          client,
-          chain: polygonAmoy,
-          address: vaccineConditionalTokensContractAddress,
-        }),
+        marketContract: vaccineMarketContract,
+        conditionalTokensContract: vaccineConditionalTokensContract,
         outcome1PositionId: "1257155754674438031181026416713588906880432630331959539463505490120135286275", // Yes
         outcome2PositionId: "427422523279616693430978097847445172951280684467936974405376794873337405734", // No
       };
     case 'string-theory':
       return {
-        marketContract: getContract({
-          client,
-          chain: polygonAmoy,
-          address: stringTheoryMarketContractAddress,
-        }),
-        conditionalTokensContract: getContract({
-          client,
-          chain: polygonAmoy,
-          address: stringTheoryConditionalTokensContractAddress,
-        }),
+        marketContract: stringTheoryMarketContract,
+        conditionalTokensContract: stringTheoryConditionalTokensContract,
         outcome1PositionId: "32250025010013753686758004958601919769200256745991269713400032984229894989942", // Yes
         outcome2PositionId: "84975146528020239138226630472779657535836014231648771579957252081086807634274", // No
       };
     case 'covid-vaccine':
       return {
-        marketContract: getContract({
-          client,
-          chain: polygonAmoy,
-          address: covidVaccineMarketContractAddress,
-        }),
-        conditionalTokensContract: getContract({
-          client,
-          chain: polygonAmoy,
-          address: covidVaccineConditionalTokensContractAddress,
-        }),
+        marketContract: covidVaccineMarketContract,
+        conditionalTokensContract: covidVaccineConditionalTokensContract,
         outcome1PositionId: "33253703887555076110634854126059642248142965775821080603653281054560895337554", // Yes
         outcome2PositionId: "41411234717896460108678928017161839832069420312512780538617548626841056238525", // No
       };

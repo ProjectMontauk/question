@@ -1138,65 +1138,8 @@ export default function MarketPage({ params }: { params: Promise<{ marketId: str
       }
     }
   }
-
-  const updateUserPosition = useCallback(async (marketId: string, walletAddress: string, yesShares: string, noShares: string) => {
-    try {
-      await fetch("/api/update-user-position", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          marketId,
-          walletAddress,
-          yesShares: parseInt(yesShares) || 0,
-          noShares: parseInt(noShares) || 0,
-        }),
-      });
-
-      // Refetch evidence for the current market
-      const evidenceRes = await fetch(`/api/evidence?marketId=${marketId}`);
-      if (evidenceRes.ok) {
-        const updatedEvidence = await evidenceRes.json();
-        setEvidence(updatedEvidence);
-      }
-    } catch (error) {
-      console.error("Failed to update user position or fetch evidence:", error);
-    }
-  }, []);
-
-  useEffect(() => {
-    const updatePositionAndEvidence = async () => {
-      if (
-        account?.address &&
-        outcome1Balance !== "--" &&
-        outcome2Balance !== "--" &&
-        !isBalanceLoading
-      ) {
-        // Update backend position
-        await fetch("/api/update-user-position", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            marketId: market.id,
-            walletAddress: account.address,
-            yesShares: parseInt(outcome1Balance) || 0,
-            noShares: parseInt(outcome2Balance) || 0,
-          }),
-        });
-
-        // Refetch evidence for the current market
-        const evidenceRes = await fetch(`/api/evidence?marketId=${market.id}`);
-        if (evidenceRes.ok) {
-          const updatedEvidence = await evidenceRes.json();
-          setEvidence(updatedEvidence);
-        }
-      }
-    };
-
-    updatePositionAndEvidence();
-  }, [account?.address, market.id]);
-
   // Wait for transaction confirmation and update balances
-  const waitForTransactionConfirmation = async (transactionResult: any, successMessage: string) => {
+  const waitForTransactionConfirmation = async (transactionResult: unknown, successMessage: string) => {
     try {
       // Wait for the transaction to be mined
       await new Promise(resolve => setTimeout(resolve, 2000));

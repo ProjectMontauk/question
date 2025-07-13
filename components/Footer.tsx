@@ -2,7 +2,7 @@ import React from "react";
 
 const Footer = () => (
   <footer className="w-full bg-white h-25 pt-2 border-t-2 border-gray-200 shadow flex flex-col justify-center">
-    <div className="ml-38 ">
+    <div className="ml-0 md:ml-38 ">
       <div className="py-1 px-3 rounded-md text-xs font-semibold text-black bg-white transition" style={{minWidth: 0}}>
         Contact:
       </div>

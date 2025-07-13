@@ -1340,7 +1340,7 @@ export default function MarketPage({ params }: { params: Promise<{ marketId: str
       {/* Wallet Connection Error Popup */}
       {showWalletError && (
         <div className="fixed z-50" style={{ top: '50%', left: '50%', transform: 'translate(-50%, -50%)' }}>
-          <div className="bg-white rounded-lg p-6 mx-4 shadow-lg border border-gray-200" style={{ maxWidth: '375px' }}>
+          <div className="bg-white p-6 mx-4" style={{ maxWidth: '375px' }}>
             <div className="text-center">
               <h3 className="text-lg font-bold text-gray-900 mb-2">Wallet Required</h3>
               <p className="text-gray-600 mb-4">Please connect a wallet to begin trading. Click connect button in the top right and sign-in using any account.</p>
@@ -1354,11 +1354,11 @@ export default function MarketPage({ params }: { params: Promise<{ marketId: str
           </div>
         </div>
       )}
-      <div className="min-h-screen bg-[#f8f9fa] flex flex-col items-center pt-8 w-full">
-        {/* Responsive flex row for chart and betting card */}
-        <div className="flex flex-col lg:flex-row justify-between items-start w-full max-w-7xl mx-auto mb-10 gap-2">
-          {/* Odds History Chart Card */}
-          <div className="bg-white rounded-xl shadow border border-gray-200 p-2.5 sm:p-8 max-w-4xl w-full mb-8 lg:mb-0 ml-auto">
+      <div className="min-h-screen bg-white w-full">
+        <div className="w-full flex flex-col lg:flex-row gap-0.5 pt-2.5">
+          {/* Combined Market Odds + Evidence Card */}
+          <div className="bg-white p-2.5 sm:pl-8 sm:pr-2.5 w-full lg:w-[calc(100%-350px)] mb-8 lg:mb-0 flex flex-col">
+            {/* Odds History Chart Card */}
             <h2 className="text-2xl font-bold mb-6 text-[#171A22]">{market.title}</h2>
             <div className="mb-2">
               <span className="text-lg font-semibold text-[#171A22]">Market Odds</span>
@@ -1367,7 +1367,7 @@ export default function MarketPage({ params }: { params: Promise<{ marketId: str
               <div className="text-gray-500">Loading chart...</div>
             ) : (
               <ResponsiveContainer width="100%" height={300}>
-                <LineChart data={chartData} margin={{ top: 20, right: 30, left: 5, bottom: 0 }}>
+                <LineChart data={chartData} margin={{ top: 20, right: 0, left: 5, bottom: 0 }}>
                   <XAxis
                     dataKey="timestamp"
                     tick={{ fontSize: 12, dy: 8 }}
@@ -1415,9 +1415,411 @@ export default function MarketPage({ params }: { params: Promise<{ marketId: str
                 <span className={showRules ? "rotate-180" : ""}>▼</span>
               </button>
             </div>
+            {/* On mobile, show Buy/Sell card here, after Rules and before Evidence */}
+            <div className="block lg:hidden w-full mt-4">
+              {/* Betting Card (mobile) */}
+              <div className="bg-white p-0 w-full max-w-[410px]">
+                {/* Buy/Sell Toggle */}
+                <div className="flex items-center mb-2">
+                  <div className="flex gap-2">
+                    <button
+                      className={`py-1 px-3 text-base rounded-full border ${mode === 'buy' ? 'bg-gray-100 text-green-600 border-gray-300 font-bold' : 'bg-white text-black border-gray-300 font-normal'}`}
+                      onClick={() => setMode('buy')}
+                      type="button"
+                    >
+                      Buy
+                    </button>
+                    <button
+                      className={`py-1 px-3 text-base rounded-full border ${mode === 'sell' ? 'bg-gray-100 text-green-600 border-gray-300 font-bold' : 'bg-white text-black border-gray-300 font-normal'}`}
+                      onClick={() => setMode('sell')}
+                      type="button"
+                    >
+                      Sell
+                    </button>
+                  </div>
+                </div>
+                {/* Bet Amount sub-title */}
+                <div className="text-[1.15rem] font-medium text-black mb-4">{mode === 'buy' ? 'Bet Amount ($)' : 'Sell Shares'}</div>
+                {/* Amount input */}
+                <input
+                  type="text"
+                  placeholder={`Enter ${mode === 'buy' ? 'Buy' : 'Sell'} Amount`}
+                  value={amount ? (mode === 'buy' ? `$${amount}` : amount) : ''}
+                  onChange={e => {
+                    const value = e.target.value.replace(/[^0-9.]/g, '');
+                    setAmount(value);
+                  }}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-black text-base mb-4"
+                />
+                {/* Yes/No Cent Price buttons */}
+                <div className="flex flex-row w-full mb-4 gap-2">
+                  <button
+                    type="button"
+                    className={`font-semibold px-6 py-2 rounded-lg shadow transition disabled:opacity-50 bg-green-600 hover:bg-green-700 text-white w-1/2 ${selectedOutcome === 'yes' ? 'ring-2 ring-black' : ''}`}
+                    onClick={() => setSelectedOutcome('yes')}
+                  >
+                    {mode === 'buy'
+                      ? (buyYesStatus === 'pending' ? 'Buying...' : `Yes ${formatOddsToCents(oddsYes)}`)
+                      : (buyYesStatus === 'pending' ? 'Selling...' : `Yes ${formatOddsToCents(oddsYes)}`)}
+                  </button>
+                  <button
+                    type="button"
+                    className={`font-semibold px-6 py-2 rounded-lg shadow transition disabled:opacity-50 bg-red-600 hover:bg-red-700 text-white w-1/2 ${selectedOutcome === 'no' ? 'ring-2 ring-black' : ''}`}
+                    onClick={() => setSelectedOutcome('no')}
+                  >
+                    {mode === 'buy'
+                      ? (buyNoStatus === 'pending' ? 'Buying...' : `No ${formatOddsToCents(oddsNo)}`)
+                      : (buyNoStatus === 'pending' ? 'Selling...' : `No ${formatOddsToCents(oddsNo)}`)}
+                  </button>
+                </div>
+                {/* Max. Win/Receive sub-title */}
+                <div className="text-[1.15rem] font-medium text-black">{mode === 'buy' ? 'Max. Win:' : 'Receive:'} <span className="text-green-600 font-bold">{payoutDisplay}</span></div>
+                {/* Avg. Price display */}
+                <div className="text-left text-sm text-gray-600 mb-4">
+                  Avg. Price
+                  {avgPriceDisplay !== '--' && (
+                    <span className="ml-2 text-sm text-gray-600">{avgPriceDisplay}</span>
+                  )}
+                </div>
+                {/* Trade button */}
+                <button
+                  className="w-full font-semibold px-6 py-2 rounded-lg shadow transition disabled:opacity-50 bg-black text-white mb-4"
+                  disabled={!selectedOutcome || !amount || (selectedOutcome === 'yes' && (mode === 'buy' ? buyYesStatus === 'pending' : buyYesStatus === 'pending')) || (selectedOutcome === 'no' && (mode === 'buy' ? buyNoStatus === 'pending' : buyNoStatus === 'pending'))}
+                  onClick={() => {
+                    if (!selectedOutcome || !amount) return;
+                    if (selectedOutcome === 'yes') {
+                      if (mode === 'buy') { handleBuyYesWithApproval(amount); } else { handleSellYesWithApproval(amount); }
+                    } else if (selectedOutcome === 'no') {
+                      if (mode === 'buy') { handleBuyNoWithApproval(amount); } else { handleSellNoWithApproval(amount); }
+                    }
+                  }}
+                >
+                  Submit Trade
+                </button>
+                {/* Your Balance Section */}
+                <div className="border-t border-gray-200 pt-4 mt-4">
+                  <h3 className="text-lg font-bold text-gray-900 mb-4">Your Purchased Shares</h3>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="text-center">
+                      <div className="text-sm font-semibold text-green-600 mb-1">Yes Shares</div>
+                      <div className="text-lg font-bold text-gray-800">{isBalanceLoading ? "..." : outcome1Balance}</div>
+                    </div>
+                    <div className="text-center">
+                      <div className="text-sm font-semibold text-red-600 mb-1">No Shares</div>
+                      <div className="text-lg font-bold text-gray-800">{isBalanceLoading ? "..." : outcome2Balance}</div>
+                    </div>
+                  </div>
+                </div>
+                {/* Transaction feedback moved below Your Purchased Shares */}
+                {buyFeedback && (
+                  <div className={`text-center mt-4 font-semibold flex items-center justify-center gap-1 ${
+                    buyFeedback.includes('Purchase Successful') || buyFeedback.includes('Sale Successful') || buyFeedback.includes('🎉')
+                      ? 'text-green-600' 
+                      : buyFeedback.includes('Preparing transaction') || buyFeedback.includes('Checking approval') || buyFeedback.includes('Transaction submitted')
+                        ? 'text-black' 
+                        : 'text-red-600'
+                  }`}>
+                    {(buyFeedback.includes('Preparing transaction') || buyFeedback.includes('Checking approval') || buyFeedback.includes('Transaction submitted')) && (
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-black flex-shrink-0"></div>
+                    )}
+                    {(buyFeedback.includes('Purchase Successful') || buyFeedback.includes('Sale Successful') || buyFeedback.includes('🎉')) && (
+                      <svg className="w-4 h-4 text-green-600 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                      </svg>
+                    )}
+                    <span className="whitespace-nowrap">{buyFeedback}</span>
+                  </div>
+                )}
+                {/* Success message after balance update */}
+                {successMessage && (
+                  <div className="text-center mt-4 text-green-600 font-semibold flex items-center justify-center gap-2">
+                    <svg className="w-4 h-4 text-green-600" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                    </svg>
+                    {successMessage}
+                  </div>
+                )}
+              </div>
+            </div>
+            {/* Evidence Section (always at the bottom of the combined card) */}
+            <div className="w-full mt-8">
+              <div className="flex justify-between items-center mb-6">
+                <h2 className="text-[18px] font-bold text-[#171A22]">Evidence</h2>
+                {/* Voting Power Display */}
+                <div className="flex items-center space-x-2 text-xs font-medium">
+                  <span className="text-green-600 font-semibold">Yes Power: {yesVotingPower}x</span>
+                  <span className="text-gray-400">|</span>
+                  <span className="text-red-600 font-semibold">No Power: {noVotingPower}x</span>
+                </div>
+              </div>
+              <Tab.Group>
+                <Tab.List className="flex w-full mb-6 bg-gray-50 rounded-lg">
+                  <Tab
+                    className={({ selected }: { selected: boolean }) =>
+                      `flex-1 px-6 py-2 rounded-lg font-medium text-sm transition focus:outline-none ${selected ? "bg-white text-[#171A22] shadow" : "bg-gray-50 text-gray-500"}`
+                    }
+                  >
+                    {market.outcomes[0]}
+                  </Tab>
+                  <Tab
+                    className={({ selected }: { selected: boolean }) =>
+                      `flex-1 px-6 py-2 rounded-lg font-medium text-sm transition focus:outline-none ${selected ? "bg-white text-[#171A22] shadow" : "bg-gray-50 text-gray-500"}`
+                    }
+                  >
+                    {market.outcomes[1]}
+                  </Tab>
+                  <Tab
+                    className={({ selected }: { selected: boolean }) =>
+                      `flex-1 px-6 py-2 rounded-lg font-medium text-sm transition focus:outline-none ${selected ? "bg-white text-[#171A22] shadow" : "bg-gray-50 text-gray-500"}`
+                    }
+                  >
+                    Submit Document
+                  </Tab>
+                </Tab.List>
+                <Tab.Panels>
+                  {/* Yes Documents Tab */}
+                  <Tab.Panel>
+                    {sortedYesEvidence.length === 0 ? (
+                      <div className="text-gray-500">No evidence submitted yet.</div>
+                    ) : (
+                      <>
+                        {yesToShow.map((evidence, idx) => (
+                        <div
+                          key={evidence.id}
+                          className="mb-6 border rounded-lg px-6 pt-6 pb-3 bg-white shadow-sm border-gray-200"
+                        >
+                          <div className="flex">
+                            {/* Voting column */}
+                            <div className="flex flex-col items-center mr-4 select-none">
+                              <button
+                                  className={`text-lg p-0 mb-1 transition-all duration-200 ${
+                                    votingEvidenceId === evidence.id ? 'opacity-50 cursor-not-allowed' : ''
+                                  } ${userVotes.has(evidence.id) ? 'bg-green-600 rounded-lg p-1' : ''}`}
+                                  onClick={() => handleVote(evidence.id, 'yes')}
+                                  aria-label={userVotes.has(evidence.id) ? "Remove vote" : "Upvote"}
+                                type="button"
+                                  disabled={votingEvidenceId === evidence.id}
+                              >
+                                  <svg width="20" height="20" viewBox="0 0 20 20" className={userVotes.has(evidence.id) ? "text-white" : "text-green-600"} fill={userVotes.has(evidence.id) ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2" aria-hidden="true">
+                                    <path d="M10 2v16" strokeLinecap="round"/>
+                                    <path d="M5 7l5-5 5 5" strokeLinecap="round"/>
+                                  </svg>
+                              </button>
+                                <div className="flex flex-col items-center">
+                                  <div className={`bg-black text-white rounded-full px-1.5 py-0.5 text-xs font-semibold mb-1`} style={{minWidth: '1.48rem', textAlign: 'center'}}>
+                                {evidence.netVotes}
+                              </div>
+                                  <div className="text-green-600 text-xs font-semibold min-h-[1.25rem]" style={{minHeight: '1.25rem'}}>
+                                    {userVotes.has(evidence.id) ? `+${getUserVotingContribution(evidence.id, 'yes')}` : <span className="opacity-0">+0</span>}
+                                  </div>
+                                </div>
+                            </div>
+                            {/* Evidence content */}
+                            <div className="flex-1">
+                              <div className="flex items-center mb-2">
+                                <span className="text-sm font-semibold mr-2">#{idx + 1}</span>
+                                <div className="flex-1">
+                                  {evidence.url ? (
+                                    <a
+                                      href={evidence.url}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="text-sm font-bold text-[#171A22] hover:underline text-[95%]"
+                                        onClick={e => e.stopPropagation()} // Prevent expand/collapse when clicking link
+                                    >
+                                      {evidence.title} ({getDomain(evidence.url)})
+                                    </a>
+                                  ) : (
+                                    <span className="text-sm font-bold text-[#171A22] text-[95%]">{evidence.title}</span>
+                                  )}
+                                  <button
+                                    className="text-xs text-gray-600 mt-2 hover:underline hover:text-blue-800 focus:outline-none block"
+                                    type="button"
+                                    onClick={() => setExpandedEvidenceId(expandedEvidenceId === evidence.id ? null : evidence.id)}
+                                  >
+                                    {expandedEvidenceId === evidence.id ? 'Hide Replies' : 'View Replies'}
+                                  </button>
+                                </div>
+                              </div>
+                                {/* Show comments section if expanded */}
+                                {expandedEvidenceId === evidence.id && (
+                                  <EvidenceComments
+                                    evidence={{ ...evidence, commentCount: evidence.commentCount ?? 0 }}
+                                    currentUserAddress={account?.address}
+                                  />
+                                )}
+                            </div>
+                          </div>
+                        </div>
+                        ))}
+                        {sortedYesEvidence.length > 5 && (
+                          <div className="flex justify-center mt-4">
+                            <button
+                              className="px-4 py-2 rounded bg-gray-100 text-black font-medium hover:bg-gray-200"
+                              onClick={() => setShowAllYes(v => !v)}
+                            >
+                              {showAllYes ? 'View Less' : 'View More'}
+                            </button>
+                          </div>
+                        )}
+                      </>
+                    )}
+                  </Tab.Panel>
+                  {/* No Documents Tab */}
+                  <Tab.Panel>
+                    {sortedNoEvidence.length === 0 ? (
+                      <div className="text-gray-500">No evidence submitted yet.</div>
+                    ) : (
+                      <>
+                        {sortedNoEvidence.map((evidence, idx) => (
+                        <div
+                          key={evidence.id}
+                          className="mb-6 border rounded-lg px-6 pt-6 pb-3 bg-white shadow-sm border-gray-200"
+                        >
+                          <div className="flex">
+                            {/* Voting column */}
+                            <div className="flex flex-col items-center mr-4 select-none">
+                              <button
+                                  className={`text-lg p-0 mb-1 transition-all duration-200 ${
+                                    votingEvidenceId === evidence.id ? 'opacity-50 cursor-not-allowed' : ''
+                                  } ${userVotes.has(evidence.id) ? 'bg-green-600 rounded-lg p-1' : ''}`}
+                                  onClick={() => handleVote(evidence.id, 'no')}
+                                  aria-label={userVotes.has(evidence.id) ? "Remove vote" : "Upvote"}
+                                type="button"
+                                  disabled={votingEvidenceId === evidence.id}
+                              >
+                                  <svg width="20" height="20" viewBox="0 0 20 20" className={userVotes.has(evidence.id) ? "text-white" : "text-green-600"} fill={userVotes.has(evidence.id) ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2" aria-hidden="true">
+                                    <path d="M10 2v16" strokeLinecap="round"/>
+                                    <path d="M5 7l5-5 5 5" strokeLinecap="round"/>
+                                  </svg>
+                              </button>
+                                <div className="flex flex-col items-center">
+                                  <div className={`bg-black text-white rounded-full px-1.5 py-0.5 text-xs font-semibold mb-1`} style={{minWidth: '1.48rem', textAlign: 'center'}}>
+                                {evidence.netVotes}
+                              </div>
+                                  <div className="text-green-600 text-xs font-semibold min-h-[1.25rem]" style={{minHeight: '1.25rem'}}>
+                                    {userVotes.has(evidence.id) ? `+${getUserVotingContribution(evidence.id, 'no')}` : <span className="opacity-0">+0</span>}
+                                  </div>
+                                </div>
+                            </div>
+                            {/* Evidence content */}
+                            <div className="flex-1">
+                              <div className="flex items-center mb-2">
+                                <span className="text-sm font-semibold mr-2">#{idx + 1}</span>
+                                <div className="flex-1">
+                                  {evidence.url ? (
+                                    <a
+                                      href={evidence.url}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="text-sm font-bold text-[#171A22] hover:underline text-[95%]"
+                                        onClick={e => e.stopPropagation()} // Prevent expand/collapse when clicking link
+                                    >
+                                      {evidence.title} ({getDomain(evidence.url)})
+                                    </a>
+                                  ) : (
+                                    <span className="text-sm font-bold text-[#171A22] text-[95%]">{evidence.title}</span>
+                                  )}
+                                  <button
+                                    className="text-xs text-gray-600 mt-2 hover:underline hover:text-blue-800 focus:outline-none block"
+                                    type="button"
+                                    onClick={() => setExpandedEvidenceId(expandedEvidenceId === evidence.id ? null : evidence.id)}
+                                  >
+                                    {expandedEvidenceId === evidence.id ? 'Hide Replies' : 'View Replies'}
+                                  </button>
+                                </div>
+                              </div>
+                                {/* Show comments section if expanded */}
+                                {expandedEvidenceId === evidence.id && (
+                                  <EvidenceComments
+                                    evidence={{ ...evidence, commentCount: evidence.commentCount ?? 0 }}
+                                    currentUserAddress={account?.address}
+                                  />
+                                )}
+                            </div>
+                          </div>
+                        </div>
+                        ))}
+                        {sortedNoEvidence.length > 5 && (
+                          <div className="flex justify-center mt-4">
+                            <button
+                              className="px-4 py-2 rounded bg-gray-100 text-black font-medium hover:bg-gray-200"
+                              onClick={() => setShowAllNo(v => !v)}
+                            >
+                              {showAllNo ? 'View Less' : 'View More'}
+                            </button>
+                          </div>
+                        )}
+                      </>
+                    )}
+                  </Tab.Panel>
+                  {/* Submit Document Tab */}
+                  <Tab.Panel>
+                    <form className="space-y-6 max-w-4xl" onSubmit={handleSubmitDocument}>
+                      <div>
+                        <label className="block font-medium text-gray-700 mb-2 text-[95%]">Evidence Type</label>
+                        <div className="flex items-center gap-6">
+                          <label className="flex items-center gap-2">
+                            <input
+                              type="radio"
+                              name="evidenceType"
+                              value="yes"
+                              checked={evidenceType === 'yes'}
+                              onChange={() => setEvidenceType('yes')}
+                              className="accent-blue-600"
+                            />
+                            <span>Yes Evidence</span>
+                          </label>
+                          <label className="flex items-center gap-2">
+                            <input
+                              type="radio"
+                              name="evidenceType"
+                              value="no"
+                              checked={evidenceType === 'no'}
+                              onChange={() => setEvidenceType('no')}
+                              className="accent-blue-600"
+                            />
+                            <span>No Evidence</span>
+                          </label>
+                        </div>
+                      </div>
+                      <div>
+                        <label className="block font-medium text-gray-700 mb-2 text-[95%]">Title</label>
+                        <input
+                          type="text"
+                          placeholder="e.g., CIA Memo dated Sept 1963"
+                          value={title}
+                          onChange={e => setTitle(e.target.value)}
+                          className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-600 text-base"
+                        />
+                      </div>
+                      <div>
+                        <label className="block font-medium text-gray-700 mb-2 text-[95%]">URL</label>
+                        <input
+                          type="text"
+                          placeholder="Enter the URL of the document..."
+                          value={url}
+                          onChange={e => setUrl(e.target.value)}
+                          className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-600 text-base"
+                        />
+                      </div>
+                      {evidenceSuccessMessage && (
+                        <div className="text-green-600 font-semibold text-center mb-2">{evidenceSuccessMessage}</div>
+                      )}
+                      <button
+                        type="submit"
+                        className="w-full bg-[#171A22] text-white font-semibold py-3 rounded-lg text-lg hover:bg-[#232635] transition"
+                      >
+                        Submit Document
+                      </button>
+                    </form>
+                  </Tab.Panel>
+                </Tab.Panels>
+              </Tab.Group>
+            </div>
           </div>
-          {/* Betting Card */}
-          <div className="bg-white rounded-xl shadow border border-gray-200 p-4 w-full max-w-full sm:p-8 sm:max-w-xs">
+          {/* Betting Card (desktop) */}
+          <div className="hidden lg:block bg-white shadow p-4 sm:max-w-4xl sm:mx-auto sm:p-8 lg:w-[315px] lg:self-start">
             {/* Buy/Sell Toggle */}
             <div className="flex items-center mb-2">
               <div className="flex gap-2">
@@ -1538,284 +1940,6 @@ export default function MarketPage({ params }: { params: Promise<{ marketId: str
                 {successMessage}
               </div>
             )}
-          </div>
-        </div>
-        {/* Evidence Section Card */}
-        <div className="max-w-7xl w-full mx-auto flex">
-          <div className="bg-white rounded-xl shadow border border-gray-200 p-2.5 sm:p-8 w-full sm:max-w-4xl sm:mx-auto lg:ml-[55px]">
-            <div className="flex justify-between items-center mb-6">
-              <h2 className="text-2xl font-bold text-[#171A22]">Evidence</h2>
-              {/* Voting Power Display */}
-              <div className="flex items-center space-x-2 text-xs font-medium">
-                <span className="text-green-600 font-semibold">Yes Power: {yesVotingPower}x</span>
-                <span className="text-gray-400">|</span>
-                <span className="text-red-600 font-semibold">No Power: {noVotingPower}x</span>
-              </div>
-            </div>
-            <Tab.Group>
-              <Tab.List className="flex w-full mb-6 bg-gray-50 rounded-lg">
-                <Tab
-                  className={({ selected }: { selected: boolean }) =>
-                    `flex-1 px-6 py-2 rounded-lg font-medium text-sm transition focus:outline-none ${selected ? "bg-white text-[#171A22] shadow" : "bg-gray-50 text-gray-500"}`
-                  }
-                >
-                  {market.outcomes[0]}
-                </Tab>
-                <Tab
-                  className={({ selected }: { selected: boolean }) =>
-                    `flex-1 px-6 py-2 rounded-lg font-medium text-sm transition focus:outline-none ${selected ? "bg-white text-[#171A22] shadow" : "bg-gray-50 text-gray-500"}`
-                  }
-                >
-                  {market.outcomes[1]}
-                </Tab>
-                <Tab
-                  className={({ selected }: { selected: boolean }) =>
-                    `flex-1 px-6 py-2 rounded-lg font-medium text-sm transition focus:outline-none ${selected ? "bg-white text-[#171A22] shadow" : "bg-gray-50 text-gray-500"}`
-                  }
-                >
-                  Submit Document
-                </Tab>
-              </Tab.List>
-              <Tab.Panels>
-                {/* Yes Documents Tab */}
-                <Tab.Panel>
-                  {sortedYesEvidence.length === 0 ? (
-                    <div className="text-gray-500">No evidence submitted yet.</div>
-                  ) : (
-                    <>
-                      {yesToShow.map((evidence, idx) => (
-                      <div
-                        key={evidence.id}
-                        className="mb-6 border rounded-lg px-6 pt-6 pb-3 bg-white shadow-sm border-gray-200"
-                      >
-                        <div className="flex">
-                          {/* Voting column */}
-                          <div className="flex flex-col items-center mr-4 select-none">
-                            <button
-                                className={`text-lg p-0 mb-1 transition-all duration-200 ${
-                                  votingEvidenceId === evidence.id ? 'opacity-50 cursor-not-allowed' : ''
-                                } ${userVotes.has(evidence.id) ? 'bg-green-600 rounded-lg p-1' : ''}`}
-                                onClick={() => handleVote(evidence.id, 'yes')}
-                                aria-label={userVotes.has(evidence.id) ? "Remove vote" : "Upvote"}
-                              type="button"
-                                disabled={votingEvidenceId === evidence.id}
-                            >
-                                <svg width="20" height="20" viewBox="0 0 20 20" className={userVotes.has(evidence.id) ? "text-white" : "text-green-600"} fill={userVotes.has(evidence.id) ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2" aria-hidden="true">
-                                  <path d="M10 2v16" strokeLinecap="round"/>
-                                  <path d="M5 7l5-5 5 5" strokeLinecap="round"/>
-                                </svg>
-                            </button>
-                              <div className="flex flex-col items-center">
-                                <div className={`bg-black text-white rounded-full px-1.5 py-0.5 text-xs font-semibold mb-1`} style={{minWidth: '1.48rem', textAlign: 'center'}}>
-                              {evidence.netVotes}
-                            </div>
-                                <div className="text-green-600 text-xs font-semibold min-h-[1.25rem]" style={{minHeight: '1.25rem'}}>
-                                  {userVotes.has(evidence.id) ? `+${getUserVotingContribution(evidence.id, 'yes')}` : <span className="opacity-0">+0</span>}
-                                </div>
-                              </div>
-                          </div>
-                          {/* Evidence content */}
-                          <div className="flex-1">
-                            <div className="flex items-center mb-2">
-                              <span className="text-sm font-semibold mr-2">#{idx + 1}</span>
-                              <div className="flex-1">
-                                {evidence.url ? (
-                                  <a
-                                    href={evidence.url}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="text-sm font-bold text-[#171A22] hover:underline text-[95%]"
-                                      onClick={e => e.stopPropagation()} // Prevent expand/collapse when clicking link
-                                  >
-                                    {evidence.title} ({getDomain(evidence.url)})
-                                  </a>
-                                ) : (
-                                  <span className="text-sm font-bold text-[#171A22] text-[95%]">{evidence.title}</span>
-                                )}
-                                <button
-                                  className="text-xs text-gray-600 mt-2 hover:underline hover:text-blue-800 focus:outline-none block"
-                                  type="button"
-                                  onClick={() => setExpandedEvidenceId(expandedEvidenceId === evidence.id ? null : evidence.id)}
-                                >
-                                  {expandedEvidenceId === evidence.id ? 'Hide Replies' : 'View Replies'}
-                                </button>
-                              </div>
-                            </div>
-                              {/* Show comments section if expanded */}
-                              {expandedEvidenceId === evidence.id && (
-                                <EvidenceComments
-                                  evidence={{ ...evidence, commentCount: evidence.commentCount ?? 0 }}
-                                  currentUserAddress={account?.address}
-                                />
-                              )}
-                          </div>
-                        </div>
-                      </div>
-                      ))}
-                      {sortedYesEvidence.length > 5 && (
-                        <div className="flex justify-center mt-4">
-                          <button
-                            className="px-4 py-2 rounded bg-gray-100 text-black font-medium hover:bg-gray-200"
-                            onClick={() => setShowAllYes(v => !v)}
-                          >
-                            {showAllYes ? 'View Less' : 'View More'}
-                          </button>
-                        </div>
-                      )}
-                    </>
-                  )}
-                </Tab.Panel>
-                {/* No Documents Tab */}
-                <Tab.Panel>
-                  {sortedNoEvidence.length === 0 ? (
-                    <div className="text-gray-500">No evidence submitted yet.</div>
-                  ) : (
-                    <>
-                      {sortedNoEvidence.map((evidence, idx) => (
-                      <div
-                        key={evidence.id}
-                        className="mb-6 border rounded-lg px-6 pt-6 pb-3 bg-white shadow-sm border-gray-200"
-                      >
-                        <div className="flex">
-                          {/* Voting column */}
-                          <div className="flex flex-col items-center mr-4 select-none">
-                            <button
-                                className={`text-lg p-0 mb-1 transition-all duration-200 ${
-                                  votingEvidenceId === evidence.id ? 'opacity-50 cursor-not-allowed' : ''
-                                } ${userVotes.has(evidence.id) ? 'bg-green-600 rounded-lg p-1' : ''}`}
-                                onClick={() => handleVote(evidence.id, 'no')}
-                                aria-label={userVotes.has(evidence.id) ? "Remove vote" : "Upvote"}
-                              type="button"
-                                disabled={votingEvidenceId === evidence.id}
-                            >
-                                <svg width="20" height="20" viewBox="0 0 20 20" className={userVotes.has(evidence.id) ? "text-white" : "text-green-600"} fill={userVotes.has(evidence.id) ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2" aria-hidden="true">
-                                  <path d="M10 2v16" strokeLinecap="round"/>
-                                  <path d="M5 7l5-5 5 5" strokeLinecap="round"/>
-                                </svg>
-                            </button>
-                              <div className="flex flex-col items-center">
-                                <div className={`bg-black text-white rounded-full px-1.5 py-0.5 text-xs font-semibold mb-1`} style={{minWidth: '1.48rem', textAlign: 'center'}}>
-                              {evidence.netVotes}
-                            </div>
-                                <div className="text-green-600 text-xs font-semibold min-h-[1.25rem]" style={{minHeight: '1.25rem'}}>
-                                  {userVotes.has(evidence.id) ? `+${getUserVotingContribution(evidence.id, 'no')}` : <span className="opacity-0">+0</span>}
-                                </div>
-                              </div>
-                          </div>
-                          {/* Evidence content */}
-                          <div className="flex-1">
-                            <div className="flex items-center mb-2">
-                              <span className="text-sm font-semibold mr-2">#{idx + 1}</span>
-                              <div className="flex-1">
-                                {evidence.url ? (
-                                  <a
-                                    href={evidence.url}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="text-sm font-bold text-[#171A22] hover:underline text-[95%]"
-                                      onClick={e => e.stopPropagation()} // Prevent expand/collapse when clicking link
-                                  >
-                                    {evidence.title} ({getDomain(evidence.url)})
-                                  </a>
-                                ) : (
-                                  <span className="text-sm font-bold text-[#171A22] text-[95%]">{evidence.title}</span>
-                                )}
-                                <button
-                                  className="text-xs text-gray-600 mt-2 hover:underline hover:text-blue-800 focus:outline-none block"
-                                  type="button"
-                                  onClick={() => setExpandedEvidenceId(expandedEvidenceId === evidence.id ? null : evidence.id)}
-                                >
-                                  {expandedEvidenceId === evidence.id ? 'Hide Replies' : 'View Replies'}
-                                </button>
-                              </div>
-                            </div>
-                              {/* Show comments section if expanded */}
-                              {expandedEvidenceId === evidence.id && (
-                                <EvidenceComments
-                                  evidence={{ ...evidence, commentCount: evidence.commentCount ?? 0 }}
-                                  currentUserAddress={account?.address}
-                                />
-                              )}
-                          </div>
-                        </div>
-                      </div>
-                      ))}
-                      {sortedNoEvidence.length > 5 && (
-                        <div className="flex justify-center mt-4">
-                          <button
-                            className="px-4 py-2 rounded bg-gray-100 text-black font-medium hover:bg-gray-200"
-                            onClick={() => setShowAllNo(v => !v)}
-                          >
-                            {showAllNo ? 'View Less' : 'View More'}
-                          </button>
-                        </div>
-                      )}
-                    </>
-                  )}
-                </Tab.Panel>
-                {/* Submit Document Tab */}
-                <Tab.Panel>
-                  <form className="space-y-6 max-w-4xl" onSubmit={handleSubmitDocument}>
-                    <div>
-                      <label className="block font-medium text-gray-700 mb-2 text-[95%]">Evidence Type</label>
-                      <div className="flex items-center gap-6">
-                        <label className="flex items-center gap-2">
-                          <input
-                            type="radio"
-                            name="evidenceType"
-                            value="yes"
-                            checked={evidenceType === 'yes'}
-                            onChange={() => setEvidenceType('yes')}
-                            className="accent-blue-600"
-                          />
-                          <span>Yes Evidence</span>
-                        </label>
-                        <label className="flex items-center gap-2">
-                          <input
-                            type="radio"
-                            name="evidenceType"
-                            value="no"
-                            checked={evidenceType === 'no'}
-                            onChange={() => setEvidenceType('no')}
-                            className="accent-blue-600"
-                          />
-                          <span>No Evidence</span>
-                        </label>
-                      </div>
-                    </div>
-                    <div>
-                      <label className="block font-medium text-gray-700 mb-2 text-[95%]">Title</label>
-                      <input
-                        type="text"
-                        placeholder="e.g., CIA Memo dated Sept 1963"
-                        value={title}
-                        onChange={e => setTitle(e.target.value)}
-                        className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-600 text-base"
-                      />
-                    </div>
-                    <div>
-                      <label className="block font-medium text-gray-700 mb-2 text-[95%]">URL</label>
-                      <input
-                        type="text"
-                        placeholder="Enter the URL of the document..."
-                        value={url}
-                        onChange={e => setUrl(e.target.value)}
-                        className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-600 text-base"
-                      />
-                    </div>
-                    {evidenceSuccessMessage && (
-                      <div className="text-green-600 font-semibold text-center mb-2">{evidenceSuccessMessage}</div>
-                    )}
-                    <button
-                      type="submit"
-                      className="w-full bg-[#171A22] text-white font-semibold py-3 rounded-lg text-lg hover:bg-[#232635] transition"
-                    >
-                      Submit Document
-                    </button>
-                  </form>
-                </Tab.Panel>
-              </Tab.Panels>
-            </Tab.Group>
           </div>
         </div>
       </div>

@@ -110,7 +110,7 @@ const Navbar = () => {
 
   return (
     <nav className="w-full flex items-center justify-between px-4 md:px-8 py-1 border-b border-gray-200 bg-white">
-      <div className="ml-0 md:ml-32 flex flex-col items-start">
+      <div className="ml-0 flex flex-col items-start">
         <h1 className="text-3xl font-bold text-[#171A22] mt-4">Tinfoil</h1>
         <div className="flex gap-0 mt-1 -ml-2">
           <button

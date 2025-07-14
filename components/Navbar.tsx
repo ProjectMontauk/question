@@ -144,7 +144,7 @@ const Navbar = () => {
             </button>
           </div>
         </div>
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-0">
           <button
             className="hidden md:flex flex-col items-center justify-center bg-white px-2 py-1 rounded transition-colors duration-200 cursor-pointer focus:outline-none hover:bg-gray-200"
             style={{ boxShadow: "none", minWidth: 0 }}
@@ -154,8 +154,8 @@ const Navbar = () => {
             <span className="text-green-600 font-semibold text-sm">{portfolioValue === "--" ? "$--" : `$${Number(portfolioValue).toLocaleString(undefined, { maximumFractionDigits: 0 })}`}</span>
           </button>
           <button
-            className="hidden md:flex flex-col items-center justify-center bg-white px-2 py-1 rounded transition-colors duration-200 cursor-pointer focus:outline-none hover:bg-gray-200 text-center"
-            style={{ boxShadow: "none", minWidth: 0 }}
+            className="hidden md:flex flex-col items-center justify-center bg-white px-2 py-1 pr-4 m-0 p-0 rounded transition-colors duration-200 cursor-pointer focus:outline-none hover:bg-gray-200 text-center"
+            style={{ boxShadow: "none", minWidth: 0, margin: 0 }}
             onClick={() => router.push("/portfolio")}
           >
             <span className="text-[#171A22] font-medium text-sm">Cash</span>
@@ -163,8 +163,15 @@ const Navbar = () => {
               {(!account?.address || isPending) ? "$--" : `$${formatBalance(balance)}`}
             </span>
           </button>
-          <div className="hidden md:flex">
-            <ConnectButton client={client} wallets={wallets} />
+          <div className="flex scale-75 origin-left">
+            <ConnectButton 
+              client={client} 
+              wallets={wallets} 
+              connectButton={{
+                label: "Sign In",
+                className: "bg-black text-white px-4 py-2 rounded transition-colors duration-200 focus:outline-none hover:bg-gray-800 text-xs font-semibold m-0"
+              }}
+            />
           </div>
           {/* Example: <InAppWalletButton /> */}
         </div>

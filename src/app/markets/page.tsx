@@ -40,7 +40,7 @@ const MarketCard = ({ market }: { market: Market }) => {
 
   return (
     <div
-      className="bg-white rounded-xl shadow border border-gray-200 p-5 w-1/2 cursor-pointer hover:shadow-lg transition"
+      className="bg-white rounded-xl shadow border border-gray-200 p-5 w-full sm:w-1/2 cursor-pointer hover:shadow-lg transition"
       onClick={() => router.push(`/markets/${market.id}`)}
       role="button"
       tabIndex={0}
@@ -101,18 +101,18 @@ const MarketsContent = () => {
   return (
     <div className="min-h-screen bg-[#f8f9fa] flex flex-col items-center w-full pt-8">
       {/* Title for each category */}
-      <div className="w-full max-w-5xl">
+      <div className="w-full max-w-5xl mx-auto px-5">
         {category === 'all' && (
           <>
-            <h1 className="text-3xl font-bold text-[#171A22] mb-1">All Markets</h1>
+            <h1 className="text-[24px] font-bold text-[#171A22] mb-1">All Markets</h1>
             <div className="text-base text-gray-700 mb-4">
               Explore markets and find the truth by publishing new findings and up-voting the best documents in the evidence section!
-            </div>
+          </div>
           </>
         )}
         {category === 'history' && (
           <>
-            <h1 className="text-3xl font-bold text-[#171A22] mb-1">History Markets</h1>
+            <h1 className="text-[24px] font-bold text-[#171A22] mb-1">History Markets</h1>
             <div className="text-base text-gray-700 mb-4">
              Explore markets and find the truth by publishing new findings and up-voting the best documents in the evidence section!
             </div>
@@ -120,13 +120,13 @@ const MarketsContent = () => {
         )}
         {category === 'science' && (
           <>
-            <h1 className="text-3xl font-bold text-[#171A22] mb-1">Science Markets</h1>
+            <h1 className="text-[24px] font-bold text-[#171A22] mb-1">Science Markets</h1>
             <div className="text-base text-gray-700 mb-4">
              Explore markets and find the truth by publishing new findings and up-voting the best documents in the evidence section!
             </div>
           </>
         )}
-      </div>
+          </div>
       {/* Active Markets Section */}
       <div className="w-full flex flex-col items-center">
         <div className="flex flex-col gap-6 w-full max-w-5xl">
@@ -144,7 +144,7 @@ const MarketsContent = () => {
                 {row.map((market: Market) => (
                   <MarketCard key={market.id} market={market} />
                 ))}
-                  </div>
+                          </div>
                 ))
           ) : (
             <div className="text-center text-gray-500 text-lg">
@@ -152,15 +152,15 @@ const MarketsContent = () => {
                       </div>
                           )}
                         </div>
-      </div>
+                      </div>
       <div className="w-full h-8 bg-[#f8f9fa]"></div>
-    </div>
+                    </div>
   );
 };
 
 const MarketsPage = () => {
   return (
-    <div>
+                  <div>
       <Navbar />
       <Suspense fallback={<div className="min-h-screen bg-[#f8f9fa] flex items-center justify-center">Loading markets...</div>}>
         <MarketsContent />

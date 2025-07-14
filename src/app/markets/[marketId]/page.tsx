@@ -6,7 +6,7 @@ import { useActiveAccount, useReadContract, useSendTransaction } from "thirdweb/
 import { prepareContractCall, readContract } from "thirdweb";
 import { getContractsForMarket, tokenContract } from "../../../../constants/contracts";
 import { Tab } from "@headlessui/react";
-import { LineChart, Line, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer, ReferenceLine } from 'recharts';
+import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, ReferenceLine } from 'recharts';
 import EvidenceComments from '../../../components/EvidenceComments';
 import { formatOddsToCents } from "../../../utils/formatOdds";
 import { submitTrade } from "../../../utils/tradeApi";

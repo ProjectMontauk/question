@@ -361,6 +361,7 @@ export default function MarketIdeasPage() {
           )}
         </div>
       </div>
+      <div className="w-full h-8 bg-[#f8f9fa]"></div>
     </div>
   );
 } 

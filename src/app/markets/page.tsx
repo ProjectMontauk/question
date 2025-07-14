@@ -103,13 +103,28 @@ const MarketsContent = () => {
       {/* Title for each category */}
       <div className="w-full max-w-5xl">
         {category === 'all' && (
-          <h1 className="text-2xl font-bold mb-4 text-left ml-4">All Markets</h1>
+          <>
+            <h1 className="text-3xl font-bold text-[#171A22] mb-1">All Markets</h1>
+            <div className="text-base text-gray-700 mb-4">
+              Explore markets and find the truth by publishing new findings and up-voting the best documents in the evidence section!
+            </div>
+          </>
         )}
         {category === 'history' && (
-          <h1 className="text-2xl font-bold mb-4 text-left ml-4">History Markets</h1>
+          <>
+            <h1 className="text-3xl font-bold text-[#171A22] mb-1">History Markets</h1>
+            <div className="text-base text-gray-700 mb-4">
+             Explore markets and find the truth by publishing new findings and up-voting the best documents in the evidence section!
+            </div>
+          </>
         )}
         {category === 'science' && (
-          <h1 className="text-2xl font-bold mb-4 text-left ml-4">Science Markets</h1>
+          <>
+            <h1 className="text-3xl font-bold text-[#171A22] mb-1">Science Markets</h1>
+            <div className="text-base text-gray-700 mb-4">
+             Explore markets and find the truth by publishing new findings and up-voting the best documents in the evidence section!
+            </div>
+          </>
         )}
       </div>
       {/* Active Markets Section */}
@@ -138,6 +153,7 @@ const MarketsContent = () => {
                           )}
                         </div>
       </div>
+      <div className="w-full h-8 bg-[#f8f9fa]"></div>
     </div>
   );
 };

@@ -397,6 +397,7 @@ export default function DepositPage() {
           </button>
         </div>
       </div>
+      <div className="w-full h-8 bg-[#f8f9fa]"></div>
     </div>
   );
 }

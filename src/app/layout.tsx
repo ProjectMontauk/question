@@ -32,7 +32,7 @@ export default function RootLayout({
       >
         <PortfolioProvider>
           <Providers>
-            <main className="min-h-screen pb-16 bg-[#f8f9fa]">
+            <main className="min-h-screen bg-[#f8f9fa]">
               {children}
             </main>
             {/* Footer */}

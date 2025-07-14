@@ -109,63 +109,65 @@ const Navbar = () => {
   }, [account?.address, oddsYes, oddsNo, balance]);
 
   return (
-    <nav className="w-full flex items-center justify-between px-4 md:px-8 py-1 border-b border-gray-200 bg-white">
-      <div className="ml-0 flex flex-col items-start">
-        <h1 className="text-3xl font-bold text-[#171A22] mt-4">Tinfoil</h1>
-        <div className="flex gap-0 mt-1 -ml-2">
-          <button
-            className="py-1 px-2 bg-white text-[#171A22] rounded-md text-[10px] md:text-sm font-semibold hover:bg-gray-100 transition border-none shadow-none text-left whitespace-nowrap"
-            style={{ minWidth: 0 }}
-            onClick={() => router.push("/markets")}
-          >
-            All Markets
-          </button>
-          <button
-            className="py-1 px-2 bg-white text-[#171A22] rounded-md text-[10px] md:text-sm font-semibold hover:bg-gray-100 transition border-none shadow-none text-left whitespace-nowrap"
-            style={{ minWidth: 0 }}
-            onClick={() => router.push("/markets?category=history")}
-          >
-            History
-          </button>
-          <button
-            className="py-1 px-2 bg-white text-[#171A22] rounded-md text-[10px] md:text-sm font-semibold hover:bg-gray-100 transition border-none shadow-none text-left whitespace-nowrap"
-            style={{ minWidth: 0 }}
-            onClick={() => router.push("/markets?category=science")}
-          >
-            Science
-          </button>
-          <button
-            className="py-1 px-2 bg-white text-[#171A22] rounded-md text-[10px] md:text-sm font-semibold hover:bg-gray-100 transition border-none shadow-none text-left whitespace-nowrap"
-            style={{ minWidth: 0 }}
-            onClick={() => router.push("/market-ideas")}
-          >
-            New
-          </button>
+    <nav className="w-full border-b border-gray-200 bg-white">
+      <div className="max-w-[1600px] mx-auto w-full flex items-center justify-between px-4 md:px-8 py-1">
+        <div className="ml-0 flex flex-col items-start">
+          <h1 className="text-3xl font-bold text-[#171A22] mt-4">Tinfoil</h1>
+          <div className="flex gap-0 mt-1 -ml-2">
+            <button
+              className="py-1 px-2 bg-white text-[#171A22] rounded-md text-[10px] md:text-sm font-semibold hover:bg-gray-100 transition border-none shadow-none text-left whitespace-nowrap"
+              style={{ minWidth: 0 }}
+              onClick={() => router.push("/markets")}
+            >
+              All Markets
+            </button>
+            <button
+              className="py-1 px-2 bg-white text-[#171A22] rounded-md text-[10px] md:text-sm font-semibold hover:bg-gray-100 transition border-none shadow-none text-left whitespace-nowrap"
+              style={{ minWidth: 0 }}
+              onClick={() => router.push("/markets?category=history")}
+            >
+              History
+            </button>
+            <button
+              className="py-1 px-2 bg-white text-[#171A22] rounded-md text-[10px] md:text-sm font-semibold hover:bg-gray-100 transition border-none shadow-none text-left whitespace-nowrap"
+              style={{ minWidth: 0 }}
+              onClick={() => router.push("/markets?category=science")}
+            >
+              Science
+            </button>
+            <button
+              className="py-1 px-2 bg-white text-[#171A22] rounded-md text-[10px] md:text-sm font-semibold hover:bg-gray-100 transition border-none shadow-none text-left whitespace-nowrap"
+              style={{ minWidth: 0 }}
+              onClick={() => router.push("/market-ideas")}
+            >
+              New
+            </button>
+          </div>
         </div>
-      </div>
-      <div className="flex items-center gap-4">
-        <button
-          className="hidden md:flex flex-col items-center justify-center bg-white px-2 py-1 rounded transition-colors duration-200 cursor-pointer focus:outline-none hover:bg-gray-200"
-          style={{ boxShadow: "none", minWidth: 0 }}
-          onClick={() => router.push("/portfolio")}
-        >
-          <span className="text-[#171A22] font-medium text-sm">Portfolio</span>
-          <span className="text-green-600 font-semibold text-sm">{portfolioValue === "--" ? "$--" : `$${Number(portfolioValue).toLocaleString(undefined, { maximumFractionDigits: 0 })}`}</span>
-        </button>
-        <button
-          className="hidden md:flex flex-col items-center justify-center bg-white px-2 py-1 rounded transition-colors duration-200 cursor-pointer focus:outline-none hover:bg-gray-200 text-center"
-          style={{ boxShadow: "none", minWidth: 0 }}
-          onClick={() => router.push("/portfolio")}
-        >
-          <span className="text-[#171A22] font-medium text-sm">Cash</span>
-          <span className="text-green-600 font-semibold text-sm">
-            {(!account?.address || isPending) ? "$--" : `$${formatBalance(balance)}`}
-          </span>
-        </button>
-        <div className="hidden md:flex">
-          <ConnectButton client={client} wallets={wallets} />
+        <div className="flex items-center gap-4">
+          <button
+            className="hidden md:flex flex-col items-center justify-center bg-white px-2 py-1 rounded transition-colors duration-200 cursor-pointer focus:outline-none hover:bg-gray-200"
+            style={{ boxShadow: "none", minWidth: 0 }}
+            onClick={() => router.push("/portfolio")}
+          >
+            <span className="text-[#171A22] font-medium text-sm">Portfolio</span>
+            <span className="text-green-600 font-semibold text-sm">{portfolioValue === "--" ? "$--" : `$${Number(portfolioValue).toLocaleString(undefined, { maximumFractionDigits: 0 })}`}</span>
+          </button>
+          <button
+            className="hidden md:flex flex-col items-center justify-center bg-white px-2 py-1 rounded transition-colors duration-200 cursor-pointer focus:outline-none hover:bg-gray-200 text-center"
+            style={{ boxShadow: "none", minWidth: 0 }}
+            onClick={() => router.push("/portfolio")}
+          >
+            <span className="text-[#171A22] font-medium text-sm">Cash</span>
+            <span className="text-green-600 font-semibold text-sm">
+              {(!account?.address || isPending) ? "$--" : `$${formatBalance(balance)}`}
+            </span>
+          </button>
+          <div className="hidden md:flex">
+            <ConnectButton client={client} wallets={wallets} />
+          </div>
+          {/* Example: <InAppWalletButton /> */}
         </div>
-        {/* Example: <InAppWalletButton /> */}
       </div>
     </nav>
   );

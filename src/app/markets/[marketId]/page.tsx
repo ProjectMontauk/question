@@ -3,8 +3,8 @@
 import Navbar from "../../../../components/Navbar";
 import React, { useState, useEffect, useCallback, use } from "react";
 import { useActiveAccount, useReadContract, useSendTransaction } from "thirdweb/react";
-import { prepareContractCall, readContract } from "thirdweb";
-import { getContractsForMarket, tokenContract } from "../../../../constants/contracts";
+import { prepareContractCall, readContract, getContract } from "thirdweb";
+import { getContractsForMarket, tokenContract} from "../../../../constants/contracts";
 import { Tab } from "@headlessui/react";
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, ReferenceLine } from 'recharts';
 import EvidenceComments from '../../../components/EvidenceComments';
@@ -58,7 +58,7 @@ async function findSharesForAmount({
 }: {
   outcomeIndex: number;
   maxAmount: number;
-  marketContract: { address: `0x${string}`; client: any; chain: any };
+  marketContract: ReturnType<typeof getContract>;
   priceFnName?: string;
   maxIterations?: number;
   tolerance?: number;

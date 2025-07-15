@@ -58,7 +58,7 @@ async function findSharesForAmount({
 }: {
   outcomeIndex: number;
   maxAmount: number;
-  marketContract: any;
+  marketContract: unknown;
   priceFnName?: string;
   maxIterations?: number;
   tolerance?: number;
@@ -73,7 +73,7 @@ async function findSharesForAmount({
 
   // Debug: Check cost for 1 share
   const priceOneShare = await readContract({
-    contract: marketContract,
+    contract: marketContract as any,
     method: `function ${priceFnName}(uint256 _outcome, int128 _amount) view returns (int128)`,
     params: [BigInt(outcomeIndex), BigInt(Math.floor(1 * FIXED_POINT))]
   });
@@ -86,7 +86,7 @@ async function findSharesForAmount({
   // Dynamically find a high bound
   while (high < maxCap) {
     const priceHigh = await readContract({
-      contract: marketContract,
+      contract: marketContract as any,
       method: `function ${priceFnName}(uint256 _outcome, int128 _amount) view returns (int128)`,
       params: [BigInt(outcomeIndex), BigInt(Math.floor(high * FIXED_POINT))]
     });
@@ -99,7 +99,7 @@ async function findSharesForAmount({
   for (let i = 0; i < maxIterations; i++) {
     const mid = (low + high) / 2;
     const priceResult = await readContract({
-      contract: marketContract,
+      contract: marketContract as any,
       method: `function ${priceFnName}(uint256 _outcome, int128 _amount) view returns (int128)`,
       params: [BigInt(outcomeIndex), BigInt(Math.floor(mid * FIXED_POINT))]
     });

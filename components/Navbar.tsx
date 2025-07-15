@@ -30,8 +30,11 @@ interface Trade {
 
 function formatBalance(balance: bigint | undefined): string {
   if (!balance) return "0";
-  // Divide by 10^18 and show whole numbers only
-  return (Number(balance) / 1e18).toLocaleString(undefined, { maximumFractionDigits: 0 });
+  // Divide by 10^18 and show decimal places only when needed
+  const amount = Number(balance) / 1e18;
+  return amount % 1 === 0 
+    ? amount.toLocaleString(undefined, { maximumFractionDigits: 0 })
+    : amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
 const Navbar = () => {
@@ -154,7 +157,7 @@ const Navbar = () => {
             onClick={() => router.push("/portfolio")}
           >
             <span className="text-[#171A22] font-medium text-sm">Portfolio</span>
-            <span className="text-green-600 font-semibold text-sm">{portfolioValue === "--" ? "$--" : `$${Number(portfolioValue).toLocaleString(undefined, { maximumFractionDigits: 0 })}`}</span>
+            <span className="text-green-600 font-semibold text-sm">{portfolioValue === "--" ? "$--" : `$${Number(portfolioValue).toLocaleString(undefined, { maximumFractionDigits: 2 })}`}</span>
           </button>
           <button
             className="hidden md:flex flex-col items-center justify-center bg-white px-2 py-1 pr-4 m-0 p-0 rounded transition-colors duration-200 cursor-pointer focus:outline-none hover:bg-gray-200 text-center"
@@ -166,7 +169,7 @@ const Navbar = () => {
               {(!account?.address || isPending) ? "$--" : `$${formatBalance(balance)}`}
             </span>
           </button>
-          <div className="flex scale-75 origin-left">
+          <div className="flex scale-75 origin-center md:origin-left">
             <ConnectButton 
               client={client} 
               wallets={wallets} 

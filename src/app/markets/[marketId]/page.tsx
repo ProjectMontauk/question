@@ -199,7 +199,7 @@ export default function MarketPage({ params }: { params: Promise<{ marketId: str
   const { mutate: sendApproveTransaction } = useSendTransaction();
 
   // Get user's ERC20 token balance (cash)
-  const { data: userTokenBalance } = useReadContract({
+  const { data: userTokenBalance, refetch: refetchUserTokenBalance } = useReadContract({
     contract: tokenContract,
     method: "function balanceOf(address owner) view returns (uint256)",
     params: [account?.address || ""],
@@ -1177,6 +1177,9 @@ export default function MarketPage({ params }: { params: Promise<{ marketId: str
       // Update balances immediately after confirmation
       await fetchUserBalancesWithoutLoading();
       
+      // Refetch user's token balance to update cash display
+      await refetchUserTokenBalance();
+      
       // Fetch latest balances directly from contract
       let latestYesShares = 0;
       let latestNoShares = 0;
@@ -1468,7 +1471,7 @@ export default function MarketPage({ params }: { params: Promise<{ marketId: str
                 {/* Betting Card (mobile) */}
                 <div className="bg-white p-0 w-full max-w-[600px]">
                   {/* Buy/Sell Toggle */}
-                  <div className="flex items-center mb-2">
+                  <div className="flex items-center justify-between mb-2">
                     <div className="flex gap-2">
                       <button
                         className={`py-1 px-3 text-base rounded-full border ${mode === 'buy' ? 'bg-gray-100 text-green-600 border-gray-300 font-bold' : 'bg-white text-black border-gray-300 font-normal'}`}
@@ -1484,6 +1487,19 @@ export default function MarketPage({ params }: { params: Promise<{ marketId: str
                       >
                         Sell
                       </button>
+                    </div>
+                    {/* Cash Display for Mobile */}
+                    <div className="text-right mr-2">
+                      <div className="text-sm font-semibold text-green-600">
+                        Cash: {(!account?.address) ? "$--" : (() => {
+                          if (!userTokenBalance) return "$0";
+                          const amount = Number(userTokenBalance) / 1e18;
+                          return `$${amount % 1 === 0 
+                            ? amount.toLocaleString(undefined, { maximumFractionDigits: 0 })
+                            : amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+                          }`;
+                        })()}
+                      </div>
                     </div>
                   </div>
                   {/* Bet Amount sub-title */}

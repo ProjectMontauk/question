@@ -57,7 +57,16 @@ export default function PortfolioPage() {
 
   const handleDeposit = () => {
     if (!account) return;
-    const parsedAmount = parseAmountToWei("250");
+    
+    // Calculate the amount needed to reach $250
+    const targetBalance = 250;
+    const currentBalance = cash;
+    const amountNeeded = Math.max(0, targetBalance - currentBalance);
+    
+    // If no amount is needed, don't proceed
+    if (amountNeeded <= 0) return;
+    
+    const parsedAmount = parseAmountToWei(amountNeeded.toString());
     const transaction = prepareContractCall({
       contract: tokenContract,
       method: "function mint(address account, uint256 amount)",
@@ -262,7 +271,7 @@ export default function PortfolioPage() {
 
   useEffect(() => {
     if (account && balance !== undefined && Number(balance) === 0) {
-      const parsedAmount = parseAmountToWei("100000");
+      const parsedAmount = parseAmountToWei("250");
       const transaction = prepareContractCall({
         contract: tokenContract,
         method: "function mint(address account, uint256 amount)",
@@ -316,10 +325,10 @@ export default function PortfolioPage() {
               <div className="flex flex-col items-start gap-2 ml-25">
                 <button
                   onClick={handleDeposit}
-                  disabled={depositPending}
+                  disabled={depositPending || cash >= 250}
                   className="py-2 px-4 bg-green-600 text-white rounded-md text-sm font-semibold hover:bg-green-700 transition disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
                 >
-                  Deposit $250
+                  Refill to $250
                 </button>
               </div>
               {depositPending && (
@@ -343,10 +352,10 @@ export default function PortfolioPage() {
               <div className="flex flex-col items-start gap-2">
                 <button
                   onClick={handleDeposit}
-                  disabled={depositPending}
+                  disabled={depositPending || cash >= 250}
                   className="py-3 px-6 bg-green-600 text-white rounded-md text-sm font-semibold hover:bg-green-700 transition disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
                 >
-                  Deposit $250
+                  Refill to $250
                 </button>
               </div>
               {depositPending && (

@@ -60,11 +60,11 @@ const MarketCard = ({ market }: { market: Market }) => {
       <div className="mb-0">
         <div className="grid grid-cols-4 gap-2 items-center">
           <div className="text-sm font-semibold text-black col-span-3">{market.outcomes[0]}:</div>
-          <div className="text-lg font-bold text-green-600 text-right bg-green-100 rounded pr-7 px-1">
+          <div className="text-lg font-bold text-green-600 text-center bg-green-100 rounded px-2 py-1">
             {yesProbability > 0 ? `${Math.round(yesProbability * 100)}%` : '--'}
           </div>
           <div className="text-sm font-semibold text-black col-span-3">{market.outcomes[1]}:</div>
-          <div className="text-lg font-bold text-red-600 text-right bg-red-100 rounded pr-7 px-1">
+          <div className="text-lg font-bold text-red-600 text-center bg-red-100 rounded px-2 py-1">
             {noProbability > 0 ? `${Math.round(noProbability * 100)}%` : '--'}
           </div>
         </div>

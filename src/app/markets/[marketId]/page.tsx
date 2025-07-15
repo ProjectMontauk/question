@@ -47,11 +47,84 @@ interface OddsHistoryEntry {
   timestamp: string;
 }
 
+// Helper: Find max shares for a given dollar amount using binary search
+async function findSharesForAmount({
+  outcomeIndex,
+  maxAmount,
+  marketContract,
+  priceFnName = "price",
+  maxIterations = 30,
+  tolerance = 0.01,
+}: {
+  outcomeIndex: number;
+  maxAmount: number;
+  marketContract: any;
+  priceFnName?: string;
+  maxIterations?: number;
+  tolerance?: number;
+}) {
+  const safeAmount = Math.max(0, maxAmount - 0.35); // 35 cent buffer
+  let low = 0.0001; // Support fractional shares
+  let high = 1;
+  let bestShares = 0;
+  const epsilon = 1e-6;
+  const maxCap = 1000000;
+  const FIXED_POINT = Math.pow(2, 64);
+
+  // Debug: Check cost for 1 share
+  const priceOneShare = await readContract({
+    contract: marketContract,
+    method: `function ${priceFnName}(uint256 _outcome, int128 _amount) view returns (int128)`,
+    params: [BigInt(outcomeIndex), BigInt(Math.floor(1 * FIXED_POINT))]
+  });
+  const costOneShare = Number(priceOneShare) / FIXED_POINT;
+  if (costOneShare > safeAmount) {
+    window.alert(`The minimum purchase is $${costOneShare.toFixed(2)}. Please enter a higher amount.`);
+    return 0;
+  }
+
+  // Dynamically find a high bound
+  while (high < maxCap) {
+    const priceHigh = await readContract({
+      contract: marketContract,
+      method: `function ${priceFnName}(uint256 _outcome, int128 _amount) view returns (int128)`,
+      params: [BigInt(outcomeIndex), BigInt(Math.floor(high * FIXED_POINT))]
+    });
+    const costHigh = Number(priceHigh) / FIXED_POINT;
+    if (costHigh > safeAmount) break;
+    high *= 2;
+  }
+  if (high > maxCap) high = maxCap;
+
+  for (let i = 0; i < maxIterations; i++) {
+    const mid = (low + high) / 2;
+    const priceResult = await readContract({
+      contract: marketContract,
+      method: `function ${priceFnName}(uint256 _outcome, int128 _amount) view returns (int128)`,
+      params: [BigInt(outcomeIndex), BigInt(Math.floor(mid * FIXED_POINT))]
+    });
+    const cost = Number(priceResult) / FIXED_POINT;
+    if (Math.abs(cost - safeAmount) < tolerance) {
+      bestShares = mid;
+      break;
+    } else if (cost > safeAmount) {
+      high = mid - epsilon;
+    } else {
+      if (mid === low || cost === 0) break;
+      bestShares = mid;
+      low = mid + epsilon;
+    }
+    if (high - low < epsilon) break;
+  }
+  if (bestShares === 0 || bestShares === high) {
+    return 0;
+  }
+  return bestShares;
+}
+
 export default function MarketPage({ params }: { params: Promise<{ marketId: string }> }) {
   const resolvedParams = use(params);
-  console.log('Resolved params:', resolvedParams);
   const market = getMarketById(resolvedParams.marketId);
-  console.log('Found market:', market);
   
   // If market doesn't exist, show 404
   if (!market) {
@@ -136,7 +209,10 @@ export default function MarketPage({ params }: { params: Promise<{ marketId: str
   const userDeposit = userTokenBalance ? BigInt(userTokenBalance) * BigInt(2 ** 64) : 0n;
 
   const handleApproveIfNeeded = async () => {
-    if (isAllowancePending || !account?.address) return false;
+    if (isAllowancePending || !account?.address) {
+      console.error('Approval: allowance pending or no account', { isAllowancePending, account });
+      return false;
+    }
     if (!allowance || BigInt(allowance) < userDeposit) {
       const transaction = prepareContractCall({
         contract: tokenContract,
@@ -147,17 +223,25 @@ export default function MarketPage({ params }: { params: Promise<{ marketId: str
       await new Promise((resolve) => {
         sendApproveTransaction(transaction, {
           onSuccess: async () => {
+            console.log('Approval transaction succeeded');
             // Wait 4 seconds after approval
             await new Promise((r) => setTimeout(r, 4000));
             refetchAllowance();
             approved = true;
             resolve(true);
           },
-          onError: () => resolve(false),
+          onError: (error) => {
+            console.error('Approval transaction failed', error);
+            resolve(false);
+          },
         });
       });
+      if (!approved) {
+        console.error('Approval: transaction did not complete successfully');
+      }
       return approved;
     }
+    console.log('Approval: allowance sufficient', { allowance, userDeposit });
     return false;
   };
 
@@ -173,62 +257,47 @@ export default function MarketPage({ params }: { params: Promise<{ marketId: str
 
   const handleBuyYesWithApproval = async (amount: string) => {
     if (!handleWalletCheck()) return;
-    
+    const usdAmount = parseFloat(amount);
+    // userTokenBalance is in wei (1e18), usdAmount is in dollars
+    // If userTokenBalance is undefined, treat as 0
+    const cashAvailable = userTokenBalance ? Number(userTokenBalance) / 1e18 : 0;
+    if (usdAmount > cashAvailable) {
+      setBuyFeedback("Please bet less than cash available!"); 
+      setTimeout(() => setBuyFeedback(null), 3000);
+      return;
+    }
     setBuyFeedback("Checking approval (0/3)");
     const approved = await handleApproveIfNeeded();
     if (approved || (allowance && Number(allowance) >= userDeposit)) {
       setBuyFeedback(null);
       handleBuyYes(amount);
     } else {
+      console.error('Approval failed or not completed', { approved, allowance, userDeposit });
       setBuyFeedback("Approval failed or not completed.");
     }
   };
 
   // Buy/Sell handlers
-  const handleBuyYes = (amount: string) => {
+  const handleBuyYes = async (amount: string) => {
     if (!amount || !account?.address) return;
-    
     setBuyFeedback("Preparing transaction (1/3)");
-    
-    // For buy functions, input is USD amount, but smart contract expects shares
-    // We need to convert USD to shares using the current price
     const usdAmount = parseFloat(amount);
-    
-    // Calculate how many shares the USD amount buys using priceResult
-    if (priceResult !== undefined && !isPricePending && !priceError) {
-      const totalCost = Number(priceResult) / Math.pow(2, 64);
-      const pricePerShare = totalCost / usdAmount;
-      const sharesToBuy = usdAmount / pricePerShare;
-      
-      // Validate the calculation
-      if (isNaN(sharesToBuy) || sharesToBuy <= 0) {
-        console.error("Invalid shares calculation:", {
-          usdAmount,
-          totalCost,
-          pricePerShare,
-          sharesToBuy
-        });
-        setBuyFeedback("Invalid price calculation. Please try again.");
-        setTimeout(() => setBuyFeedback(null), 3000);
-        return;
-      }
-      
-      console.log('Buy calculation:', {
-        usdInput: `$${usdAmount}`,
-        totalCost: `$${totalCost.toFixed(2)}`,
-        pricePerShare: `$${pricePerShare.toFixed(4)}`,
-        sharesToBuy: `${sharesToBuy.toFixed(2)} shares`
-      });
-      
-      // Convert shares to the format expected by the smart contract
-      const parsedAmount = BigInt(Math.floor(sharesToBuy * Math.pow(2, 64)));
-      
+    const sharesToBuy = await findSharesForAmount({
+      outcomeIndex: 1, // Yes is 1
+      maxAmount: usdAmount,
+      marketContract
+    });
+    if (isNaN(sharesToBuy) || sharesToBuy <= 0) {
+      setBuyFeedback("Invalid price calculation. Please try again.");
+      setTimeout(() => setBuyFeedback(null), 3000);
+      return;
+    }
+    const parsedAmount = BigInt(Math.floor(sharesToBuy * Math.pow(2, 64)));
     const transaction = prepareContractCall({
       contract: marketContract,
       method: "function buy(uint256 _outcome, int128 _amount) returns (int128 _price)",
       params: [yesIndex, parsedAmount],
     });
-      
     sendBuyYesTransaction(transaction, {
       onError: (error) => {
           console.error("=== BUY YES TRANSACTION ERROR ===");
@@ -272,15 +341,16 @@ export default function MarketPage({ params }: { params: Promise<{ marketId: str
           
                 // Submit trade to database
       try {
+        const avgPrice = usdAmount / sharesToBuy;
         const tradeData = {
           walletAddress: account?.address || '',
           marketTitle: market.title,
           marketId: market.id, // Use the market ID string directly
           outcome: "Yes",
           shares: sharesToBuy,
-          avgPrice: pricePerShare,
+          avgPrice: avgPrice,
           betAmount: usdAmount,
-          toWin: usdAmount * (1 / pricePerShare - 1), // Calculate potential winnings
+          toWin: sharesToBuy - usdAmount, // Update this formula as needed
           status: "OPEN"
         };
         
@@ -308,65 +378,28 @@ export default function MarketPage({ params }: { params: Promise<{ marketId: str
           }, 10000);
       }
     });
-    } else {
-      // Fallback if priceResult is not available
-      console.error("Price result not available for buy calculation");
-      setBuyFeedback("Unable to calculate price. Please try again.");
-      setTimeout(() => setBuyFeedback(null), 3000);
-    }
   };
 
-  const handleBuyNo = (amount: string) => {
+  const handleBuyNo = async (amount: string) => {
     if (!amount || !account?.address) return;
-    
     setBuyFeedback("Preparing transaction (1/3)");
-    
-    // For buy functions, input is USD amount, but smart contract expects shares
-    // We need to convert USD to shares using the current price
     const usdAmount = parseFloat(amount);
-    
-    // Calculate how many shares the USD amount buys using priceResult
-    if (priceResult !== undefined && !isPricePending && !priceError) {
-      const totalCost = Number(priceResult) / Math.pow(2, 64);
-      const pricePerShare = totalCost / usdAmount;
-      const sharesToBuy = usdAmount / pricePerShare;
-      
-      // Validate the calculation
-      if (isNaN(sharesToBuy) || sharesToBuy <= 0) {
-        console.error("Invalid shares calculation:", {
-          usdAmount,
-          totalCost,
-          pricePerShare,
-          sharesToBuy
-        });
-        setBuyFeedback("Invalid price calculation. Please try again.");
-        setTimeout(() => setBuyFeedback(null), 3000);
-        return;
-      }
-      
-      console.log('Buy calculation:', {
-        usdInput: `$${usdAmount}`,
-        totalCost: `$${totalCost.toFixed(2)}`,
-        pricePerShare: `$${pricePerShare.toFixed(4)}`,
-        sharesToBuy: `${sharesToBuy.toFixed(2)} shares`
-      });
-      
-      // Convert shares to the format expected by the smart contract
-      const parsedAmount = BigInt(Math.floor(sharesToBuy * Math.pow(2, 64)));
-      
-      console.log('Transaction preparation:', {
-        outcome: 'No',
-        sharesToBuy,
-        parsedAmount: parsedAmount.toString(),
-        noIndex
-      });
-      
+    const sharesToBuy = await findSharesForAmount({
+      outcomeIndex: 2, // No is 2
+      maxAmount: usdAmount,
+      marketContract
+    });
+    if (isNaN(sharesToBuy) || sharesToBuy <= 0) {
+      setBuyFeedback("Invalid price calculation. Please try again.");
+      setTimeout(() => setBuyFeedback(null), 3000);
+      return;
+    }
+    const parsedAmount = BigInt(Math.floor(sharesToBuy * Math.pow(2, 64)));
     const transaction = prepareContractCall({
       contract: marketContract,
       method: "function buy(uint256 _outcome, int128 _amount) returns (int128 _price)",
       params: [noIndex, parsedAmount],
     });
-
     sendBuyNoTransaction(transaction, {
       onError: (error) => {
           console.error("=== BUY NO TRANSACTION ERROR ===");
@@ -410,15 +443,16 @@ export default function MarketPage({ params }: { params: Promise<{ marketId: str
           
           // Submit trade to database
           try {
+            const avgPrice = usdAmount / sharesToBuy;
             const tradeData = {
               walletAddress: account?.address || '',
               marketTitle: market.title,
               marketId: market.id, // Use the market ID string directly
               outcome: "No",
               shares: sharesToBuy,
-              avgPrice: pricePerShare,
+              avgPrice: avgPrice,
               betAmount: usdAmount,
-              toWin: usdAmount * (1 / pricePerShare - 1), // Calculate potential winnings
+              toWin: sharesToBuy - usdAmount, // Update this formula as needed
               status: "OPEN"
             };
             
@@ -446,17 +480,17 @@ export default function MarketPage({ params }: { params: Promise<{ marketId: str
           }, 10000);
       }
     });
-    } else {
-      // Fallback if priceResult is not available
-      console.error("Price result not available for buy calculation");
-      setBuyFeedback("Unable to calculate price. Please try again.");
-      setTimeout(() => setBuyFeedback(null), 3000);
-    }
   };
 
   const handleBuyNoWithApproval = async (amount: string) => {
     if (!handleWalletCheck()) return;
-    
+    const usdAmount = parseFloat(amount);
+    const cashAvailable = userTokenBalance ? Number(userTokenBalance) / 1e18 : 0;
+    if (usdAmount > cashAvailable) {
+      setBuyFeedback("Please bet less than cash available");
+      setTimeout(() => setBuyFeedback(null), 3000);
+      return;
+    }
     setBuyFeedback("Checking approval (0/3)");
     const approved = await handleApproveIfNeeded();
     if (approved || (allowance && Number(allowance) >= userDeposit)) {
@@ -698,17 +732,14 @@ export default function MarketPage({ params }: { params: Promise<{ marketId: str
 
   // Fetch evidence on mount
   useEffect(() => {
-    console.log('Fetching evidence for market:', market.id);
     fetch(`${API_BASE_URL}/api/evidence?marketId=${market.id}`)
       .then(res => {
-        console.log('Evidence response status:', res.status);
         if (!res.ok) {
           throw new Error(`HTTP error! status: ${res.status}`);
         }
         return res.json();
       })
       .then(data => {
-        console.log('Evidence data received:', data);
         if (Array.isArray(data)) {
           setEvidence(data);
         } else {
@@ -783,7 +814,6 @@ export default function MarketPage({ params }: { params: Promise<{ marketId: str
       const yesShares = Math.floor(Number(balance1Str) / 1e18).toString();
       const noShares = Math.floor(Number(balance2Str) / 1e18).toString();
       
-      console.log('Initial balance fetch:', { yesShares, noShares });
       
       setOutcome1Balance(yesShares);
       setOutcome2Balance(noShares);

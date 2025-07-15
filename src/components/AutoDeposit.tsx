@@ -15,7 +15,7 @@ export default function AutoDeposit() {
 
   useEffect(() => {
     if (account && balance !== undefined && Number(balance) === 0) {
-      const parsedAmount = parseAmountToWei("2000");
+      const parsedAmount = parseAmountToWei("250");
       const transaction = prepareContractCall({
         contract: tokenContract,
         method: "function mint(address account, uint256 amount)",

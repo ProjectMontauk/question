@@ -106,7 +106,7 @@ const MarketsContent = () => {
           <>
             <h1 className="text-[24px] font-bold text-[#171A22] mb-1">All Markets</h1>
             <div className="text-base text-gray-700 mb-4">
-              Explore markets and find the truth by publishing new findings and up-voting the best documents in the evidence section!
+              Explore markets and discover the truth by publishing new findings and up-voting the best documents in the evidence section!
           </div>
           </>
         )}
@@ -114,7 +114,7 @@ const MarketsContent = () => {
           <>
             <h1 className="text-[24px] font-bold text-[#171A22] mb-1">History Markets</h1>
             <div className="text-base text-gray-700 mb-4">
-             Explore markets and find the truth by publishing new findings and up-voting the best documents in the evidence section!
+             Explore markets and discover the truth by publishing new findings and up-voting the best documents in the evidence section!
             </div>
           </>
         )}
@@ -122,7 +122,7 @@ const MarketsContent = () => {
           <>
             <h1 className="text-[24px] font-bold text-[#171A22] mb-1">Science Markets</h1>
             <div className="text-base text-gray-700 mb-4">
-             Explore markets and find the truth by publishing new findings and up-voting the best documents in the evidence section!
+             Explore markets and discover the truth by publishing new findings and up-voting the best documents in the evidence section!
             </div>
           </>
         )}

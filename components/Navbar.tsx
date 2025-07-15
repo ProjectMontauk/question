@@ -6,7 +6,7 @@ import { client } from "../src/client";
 import { useRouter } from "next/navigation";
 import { tokenContract, marketContract } from "../constants/contracts";
 import { fetchTrades } from "../src/utils/tradeApi";
-import { inAppWallet } from "thirdweb/wallets";
+import { inAppWallet, createWallet } from "thirdweb/wallets";
 import { polygonAmoy } from "thirdweb/chains";
 
 // TODO: Replace this with the actual ThirdWeb inAppWallet import
@@ -56,6 +56,9 @@ const Navbar = () => {
 
   const wallets = [
     inAppWallet({
+      auth: {
+        options: ["google", "email","facebook", "phone", "apple", "passkey"],
+      },
       smartAccount: {
         chain: polygonAmoy,
         sponsorGas: true,

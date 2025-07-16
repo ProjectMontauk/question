@@ -1467,7 +1467,7 @@ export default function MarketPage({ params }: { params: Promise<{ marketId: str
               {/* On mobile, show Buy/Sell card here, after Rules and before Evidence */}
               <div className="block lg:hidden w-full mt-4">
                 {/* Top solid grey border */}
-                <div className="w-full h-px bg-gray-400 mb-7"></div>
+                <div className="w-full h-px bg-gray-200 mb-7"></div>
                 {/* Betting Card (mobile) */}
                 <div className="bg-white p-0 w-full max-w-[600px]">
                   {/* Buy/Sell Toggle */}
@@ -1488,18 +1488,25 @@ export default function MarketPage({ params }: { params: Promise<{ marketId: str
                         Sell
                       </button>
                     </div>
-                    {/* Cash Display for Mobile */}
+                    {/* Cash/Share Display for Mobile */}
                     <div className="text-right mr-2">
-                      <div className="text-sm font-semibold text-green-600">
-                        Cash: {(!account?.address) ? "$--" : (() => {
-                          if (!userTokenBalance) return "$0";
-                          const amount = Number(userTokenBalance) / 1e18;
-                          return `$${amount % 1 === 0 
-                            ? amount.toLocaleString(undefined, { maximumFractionDigits: 0 })
-                            : amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-                          }`;
-                        })()}
-                      </div>
+                      {mode === 'buy' ? (
+                        <div className="text-sm font-semibold text-green-600">
+                          Cash: {(!account?.address) ? "$--" : (() => {
+                            if (!userTokenBalance) return "$0";
+                            const amount = Number(userTokenBalance) / 1e18;
+                            return `$${amount % 1 === 0 
+                              ? amount.toLocaleString(undefined, { maximumFractionDigits: 0 })
+                              : amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+                            }`;
+                          })()}
+                        </div>
+                      ) : (
+                        <div className="text-sm font-semibold text-green-600 flex flex-col items-end">
+                          <span className="text-green-600">Yes Shares: {isBalanceLoading ? '...' : outcome1Balance}</span>
+                          <span className="text-red-600">No Shares: {isBalanceLoading ? '...' : outcome2Balance}</span>
+                        </div>
+                      )}
                     </div>
                   </div>
                   {/* Bet Amount sub-title */}
@@ -1536,30 +1543,35 @@ export default function MarketPage({ params }: { params: Promise<{ marketId: str
                         : (buyNoStatus === 'pending' ? 'Selling...' : `No ${formatOddsToCents(oddsNo)}`)}
                     </button>
                   </div>
-                  {/* Max. Win/Receive sub-title */}
-                  <div className="text-[1.15rem] font-medium text-black">{mode === 'buy' ? 'Max. Win:' : 'Receive:'} <span className="text-green-600 font-bold">{payoutDisplay}</span></div>
-                  {/* Avg. Price display */}
-                  <div className="text-left text-sm text-gray-600 mb-4">
-                    Avg. Price
-                    {avgPriceDisplay !== '--' && (
-                      <span className="ml-2 text-sm text-gray-600">{avgPriceDisplay}</span>
-                    )}
-                  </div>
-                  {/* Trade button */}
-                  <button
-                    className="w-full font-semibold px-6 py-2 rounded-lg shadow transition disabled:opacity-50 bg-black text-white mb-4"
-                    disabled={!selectedOutcome || !amount || (selectedOutcome === 'yes' && (mode === 'buy' ? buyYesStatus === 'pending' : buyYesStatus === 'pending')) || (selectedOutcome === 'no' && (mode === 'buy' ? buyNoStatus === 'pending' : buyNoStatus === 'pending'))}
-                    onClick={() => {
-                      if (!selectedOutcome || !amount) return;
-                      if (selectedOutcome === 'yes') {
-                        if (mode === 'buy') { handleBuyYesWithApproval(amount); } else { handleSellYesWithApproval(amount); }
-                      } else if (selectedOutcome === 'no') {
-                        if (mode === 'buy') { handleBuyNoWithApproval(amount); } else { handleSellNoWithApproval(amount); }
-                      }
-                    }}
-                  >
-                    Submit Trade
-                  </button>
+                  {/* Only show Max. Win, Avg Price, and Submit Trade if amount and selectedOutcome are set */}
+                  {amount && !isNaN(Number(amount)) && selectedOutcome && (
+                    <>
+                      {/* Max. Win/Receive sub-title */}
+                      <div className="text-[1.15rem] font-medium text-black">{mode === 'buy' ? 'Max. Win:' : 'Receive:'} <span className="text-green-600 font-bold">{payoutDisplay}</span></div>
+                      {/* Avg. Price display */}
+                      <div className="text-left text-sm text-gray-600 mb-4">
+                        Avg. Price
+                        {avgPriceDisplay !== '--' && (
+                          <span className="ml-2 text-sm text-gray-600">{avgPriceDisplay}</span>
+                        )}
+                      </div>
+                      {/* Trade button */}
+                      <button
+                        className="w-full font-semibold px-6 py-2 rounded-lg shadow transition disabled:opacity-50 bg-black text-white mb-4"
+                        disabled={!selectedOutcome || !amount || (selectedOutcome === 'yes' && (mode === 'buy' ? buyYesStatus === 'pending' : buyYesStatus === 'pending')) || (selectedOutcome === 'no' && (mode === 'buy' ? buyNoStatus === 'pending' : buyNoStatus === 'pending'))}
+                        onClick={() => {
+                          if (!selectedOutcome || !amount) return;
+                          if (selectedOutcome === 'yes') {
+                            if (mode === 'buy') { handleBuyYesWithApproval(amount); } else { handleSellYesWithApproval(amount); }
+                          } else if (selectedOutcome === 'no') {
+                            if (mode === 'buy') { handleBuyNoWithApproval(amount); } else { handleSellNoWithApproval(amount); }
+                          }
+                        }}
+                      >
+                        Submit Trade
+                      </button>
+                    </>
+                  )}
                   {/* Your Balance Section */}
                   <div className="border-t border-gray-200 pt-4 mt-4 hidden lg:block">
                     <h3 className="text-lg font-bold text-gray-900 mb-4">Purchased Shares</h3>
@@ -1605,14 +1617,14 @@ export default function MarketPage({ params }: { params: Promise<{ marketId: str
                   )}
                 </div>
                 {/* Bottom solid grey border */}
-                <div className="w-full h-px bg-gray-400 mt-6"></div>
+                <div className="w-full h-px bg-gray-200 mt-6"></div>
               </div>
               {/* Evidence Section (always at the bottom of the combined card) */}
               <div className="w-full mt-8 mb-8">
                 <div className="flex justify-between items-center mb-6">
                   <h2 className="text-[18px] font-bold text-[#171A22]">Evidence</h2>
                   {/* Voting Power Display */}
-                  <div className="flex items-center space-x-2 text-xs font-medium">
+                  <div className="flex items-center space-x-2 text-xs font-medium text-sm">
                     <span className="text-green-600 font-semibold">Yes Power: {yesVotingPower}x</span>
                     <span className="text-gray-400">|</span>
                     <span className="text-red-600 font-semibold">No Power: {noVotingPower}x</span>
@@ -1646,13 +1658,13 @@ export default function MarketPage({ params }: { params: Promise<{ marketId: str
                     {/* Yes Documents Tab */}
                     <Tab.Panel>
                       {sortedYesEvidence.length === 0 ? (
-                        <div className="text-gray-500">No evidence submitted yet.</div>
+                        <div className="text-gray-500 text-sm">No evidence submitted yet.</div>
                       ) : (
                         <>
                           {yesToShow.map((evidence, idx) => (
                           <div
                             key={evidence.id}
-                            className="mb-6 border rounded-lg px-6 pt-6 pb-3 bg-white shadow-sm border-gray-200"
+                            className="mb-6 border rounded-lg px-6 pt-6 pb-3 bg-white shadow-sm border-gray-200 text-sm"
                           >
                             <div className="flex">
                               {/* Voting column */}
@@ -1683,20 +1695,20 @@ export default function MarketPage({ params }: { params: Promise<{ marketId: str
                               {/* Evidence content */}
                               <div className="flex-1">
                                 <div className="flex items-center mb-2">
-                                  <span className="text-sm font-semibold mr-2">#{idx + 1}</span>
+                                  <span className="font-semibold mr-2">#{idx + 1}</span>
                                   <div className="flex-1">
                                     {evidence.url ? (
                                       <a
                                         href={evidence.url}
                                         target="_blank"
                                         rel="noopener noreferrer"
-                                        className="text-sm font-bold text-[#171A22] hover:underline text-[95%]"
-                                          onClick={e => e.stopPropagation()} // Prevent expand/collapse when clicking link
+                                        className="font-bold text-[#171A22] hover:underline text-[95%]"
+                                        onClick={e => e.stopPropagation()} // Prevent expand/collapse when clicking link
                                       >
                                         {evidence.title} ({getDomain(evidence.url)})
                                       </a>
                                     ) : (
-                                      <span className="text-sm font-bold text-[#171A22] text-[95%]">{evidence.title}</span>
+                                      <span className="font-bold text-[#171A22] text-[95%]">{evidence.title}</span>
                                     )}
                                     <button
                                       className="text-xs text-gray-600 mt-2 hover:underline hover:text-blue-800 focus:outline-none block"
@@ -1721,7 +1733,7 @@ export default function MarketPage({ params }: { params: Promise<{ marketId: str
                           {sortedYesEvidence.length > 5 && (
                             <div className="flex justify-center mt-4">
                               <button
-                                className="px-4 py-2 rounded bg-gray-100 text-black font-medium hover:bg-gray-200"
+                                className="px-4 py-2 rounded bg-gray-100 text-black font-medium hover:bg-gray-200 text-sm"
                                 onClick={() => setShowAllYes(v => !v)}
                               >
                                 {showAllYes ? 'View Less' : 'View More'}
@@ -1734,13 +1746,13 @@ export default function MarketPage({ params }: { params: Promise<{ marketId: str
                     {/* No Documents Tab */}
                     <Tab.Panel>
                       {sortedNoEvidence.length === 0 ? (
-                        <div className="text-gray-500">No evidence submitted yet.</div>
+                        <div className="text-gray-500 text-sm">No evidence submitted yet.</div>
                       ) : (
                         <>
                           {sortedNoEvidence.map((evidence, idx) => (
                           <div
                             key={evidence.id}
-                            className="mb-6 border rounded-lg px-6 pt-6 pb-3 bg-white shadow-sm border-gray-200"
+                            className="mb-6 border rounded-lg px-6 pt-6 pb-3 bg-white shadow-sm border-gray-200 text-sm"
                           >
                             <div className="flex">
                               {/* Voting column */}
@@ -1771,20 +1783,20 @@ export default function MarketPage({ params }: { params: Promise<{ marketId: str
                               {/* Evidence content */}
                               <div className="flex-1">
                                 <div className="flex items-center mb-2">
-                                  <span className="text-sm font-semibold mr-2">#{idx + 1}</span>
+                                  <span className="font-semibold mr-2">#{idx + 1}</span>
                                   <div className="flex-1">
                                     {evidence.url ? (
                                       <a
                                         href={evidence.url}
                                         target="_blank"
                                         rel="noopener noreferrer"
-                                        className="text-sm font-bold text-[#171A22] hover:underline text-[95%]"
-                                          onClick={e => e.stopPropagation()} // Prevent expand/collapse when clicking link
+                                        className="font-bold text-[#171A22] hover:underline text-[95%]"
+                                        onClick={e => e.stopPropagation()} // Prevent expand/collapse when clicking link
                                       >
                                         {evidence.title} ({getDomain(evidence.url)})
                                       </a>
                                     ) : (
-                                      <span className="text-sm font-bold text-[#171A22] text-[95%]">{evidence.title}</span>
+                                      <span className="font-bold text-[#171A22] text-[95%]">{evidence.title}</span>
                                     )}
                                     <button
                                       className="text-xs text-gray-600 mt-2 hover:underline hover:text-blue-800 focus:outline-none block"
@@ -1809,7 +1821,7 @@ export default function MarketPage({ params }: { params: Promise<{ marketId: str
                           {sortedNoEvidence.length > 5 && (
                             <div className="flex justify-center mt-4">
                               <button
-                                className="px-4 py-2 rounded bg-gray-100 text-black font-medium hover:bg-gray-200"
+                                className="px-4 py-2 rounded bg-gray-100 text-black font-medium hover:bg-gray-200 text-sm"
                                 onClick={() => setShowAllNo(v => !v)}
                               >
                                 {showAllNo ? 'View Less' : 'View More'}
@@ -1939,30 +1951,35 @@ export default function MarketPage({ params }: { params: Promise<{ marketId: str
                     : (buyNoStatus === 'pending' ? 'Selling...' : `No ${formatOddsToCents(oddsNo)}`)}
                 </button>
               </div>
-              {/* Max. Win/Receive sub-title */}
-              <div className="text-[1.15rem] font-medium text-black">{mode === 'buy' ? 'Max. Win:' : 'Receive:'} <span className="text-green-600 font-bold">{payoutDisplay}</span></div>
-              {/* Avg. Price display */}
-              <div className="text-left text-sm text-gray-600 mb-4">
-                Avg. Price
-                {avgPriceDisplay !== '--' && (
-                  <span className="ml-2 text-sm text-gray-600">{avgPriceDisplay}</span>
-                )}
-              </div>
-              {/* Trade button */}
-              <button
-                className="w-full font-semibold px-6 py-2 rounded-lg shadow transition disabled:opacity-50 bg-black text-white mb-4"
-                disabled={!selectedOutcome || !amount || (selectedOutcome === 'yes' && (mode === 'buy' ? buyYesStatus === 'pending' : buyYesStatus === 'pending')) || (selectedOutcome === 'no' && (mode === 'buy' ? buyNoStatus === 'pending' : buyNoStatus === 'pending'))}
-                onClick={() => {
-                  if (!selectedOutcome || !amount) return;
-                  if (selectedOutcome === 'yes') {
-                    if (mode === 'buy') { handleBuyYesWithApproval(amount); } else { handleSellYesWithApproval(amount); }
-                  } else if (selectedOutcome === 'no') {
-                    if (mode === 'buy') { handleBuyNoWithApproval(amount); } else { handleSellNoWithApproval(amount); }
-                  }
-                }}
-              >
-                Submit Trade
-              </button>
+              {/* Only show Max. Win, Avg Price, and Submit Trade if amount and selectedOutcome are set */}
+              {amount && !isNaN(Number(amount)) && selectedOutcome && (
+                <>
+                  {/* Max. Win/Receive sub-title */}
+                  <div className="text-[1.15rem] font-medium text-black">{mode === 'buy' ? 'Max. Win:' : 'Receive:'} <span className="text-green-600 font-bold">{payoutDisplay}</span></div>
+                  {/* Avg. Price display */}
+                  <div className="text-left text-sm text-gray-600 mb-4">
+                    Avg. Price
+                    {avgPriceDisplay !== '--' && (
+                      <span className="ml-2 text-sm text-gray-600">{avgPriceDisplay}</span>
+                    )}
+                  </div>
+                  {/* Trade button */}
+                  <button
+                    className="w-full font-semibold px-6 py-2 rounded-lg shadow transition disabled:opacity-50 bg-black text-white mb-4"
+                    disabled={!selectedOutcome || !amount || (selectedOutcome === 'yes' && (mode === 'buy' ? buyYesStatus === 'pending' : buyYesStatus === 'pending')) || (selectedOutcome === 'no' && (mode === 'buy' ? buyNoStatus === 'pending' : buyNoStatus === 'pending'))}
+                    onClick={() => {
+                      if (!selectedOutcome || !amount) return;
+                      if (selectedOutcome === 'yes') {
+                        if (mode === 'buy') { handleBuyYesWithApproval(amount); } else { handleSellYesWithApproval(amount); }
+                      } else if (selectedOutcome === 'no') {
+                        if (mode === 'buy') { handleBuyNoWithApproval(amount); } else { handleSellNoWithApproval(amount); }
+                      }
+                    }}
+                  >
+                    Submit Trade
+                  </button>
+                </>
+              )}
               {/* Your Balance Section */}
               <div className="border-t border-gray-200 pt-4 mt-4 hidden lg:block">
                 <h3 className="text-lg font-bold text-gray-900 mb-4">Purchased Shares</h3>

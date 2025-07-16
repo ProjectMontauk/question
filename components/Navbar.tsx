@@ -119,37 +119,37 @@ const Navbar = () => {
       <div className="max-w-[1600px] mx-auto w-full flex items-center justify-between px-4 md:px-8 py-1">
         <div className="ml-0 flex flex-col items-start">
           <h1 className="text-3xl font-bold text-[#171A22] mt-4">Tinfoil</h1>
-          <div className="flex gap-0 mt-1 -ml-2">
+          <div className="flex gap-0 md:gap-0 mt-1 -ml-2">
             <button
-              className="py-1 px-2 bg-white text-[#171A22] rounded-md text-[10px] md:text-sm font-semibold hover:bg-gray-100 transition border-none shadow-none text-left whitespace-nowrap"
+              className="py-1 px-1 md:px-2 bg-white text-[#171A22] rounded-md text-[10px] md:text-sm font-semibold hover:bg-gray-100 transition border-none shadow-none text-left whitespace-nowrap"
               style={{ minWidth: 0 }}
               onClick={() => router.push("/markets")}
             >
               All Markets
             </button>
             <button
-              className="py-1 px-2 bg-white text-[#171A22] rounded-md text-[10px] md:text-sm font-semibold hover:bg-gray-100 transition border-none shadow-none text-left whitespace-nowrap"
+              className="py-1 px-1 md:px-2 bg-white text-[#171A22] rounded-md text-[10px] md:text-sm font-semibold hover:bg-gray-100 transition border-none shadow-none text-left whitespace-nowrap"
               style={{ minWidth: 0 }}
               onClick={() => router.push("/markets?category=history")}
             >
               History
             </button>
             <button
-              className="py-1 px-2 bg-white text-[#171A22] rounded-md text-[10px] md:text-sm font-semibold hover:bg-gray-100 transition border-none shadow-none text-left whitespace-nowrap"
+              className="py-1 px-1 md:px-2 bg-white text-[#171A22] rounded-md text-[10px] md:text-sm font-semibold hover:bg-gray-100 transition border-none shadow-none text-left whitespace-nowrap"
               style={{ minWidth: 0 }}
               onClick={() => router.push("/markets?category=science")}
             >
               Science
             </button>
             <button
-              className="py-1 px-2 bg-white text-[#171A22] rounded-md text-[10px] md:text-sm font-semibold hover:bg-gray-100 transition border-none shadow-none text-left whitespace-nowrap"
+              className="py-1 px-1 md:px-2 bg-white text-[#171A22] rounded-md text-[10px] md:text-sm font-semibold hover:bg-gray-100 transition border-none shadow-none text-left whitespace-nowrap"
               style={{ minWidth: 0 }}
               onClick={() => router.push("/market-ideas")}
             >
               New
             </button>
             <button
-              className="py-1 px-2 bg-white text-[#171A22] rounded-md text-[10px] md:text-sm font-semibold hover:bg-gray-100 transition border-none shadow-none text-left whitespace-nowrap"
+              className="py-1 px-1 md:px-2 bg-white text-[#171A22] rounded-md text-[10px] md:text-sm font-semibold hover:bg-gray-100 transition border-none shadow-none text-left whitespace-nowrap"
               style={{ minWidth: 0 }}
               onClick={() => router.push("/portfolio")}
             >
@@ -176,7 +176,7 @@ const Navbar = () => {
               {(!account?.address || isPending) ? "$--" : `$${formatBalance(balance)}`}
             </span>
           </button>
-          <div className="flex scale-75 origin-center md:origin-left">
+          <div className="flex scale-75 origin-left">
             <ConnectButton 
               client={client} 
               wallets={wallets} 

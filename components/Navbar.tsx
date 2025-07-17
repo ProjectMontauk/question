@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import { ConnectButton, useActiveAccount, useReadContract } from "thirdweb/react";
 import { client } from "../src/client";
 import { useRouter } from "next/navigation";
@@ -89,7 +89,7 @@ const Navbar = () => {
   }, [account?.address, refetch]);
 
   // Fetch current positions across all markets (same method as portfolio page)
-  const fetchCurrentPositions = async () => {
+  const fetchCurrentPositions = useCallback(async () => {
     if (!account?.address) {
       return [];
     }
@@ -176,7 +176,7 @@ const Navbar = () => {
       console.error('Failed to fetch current positions:', error);
       return [];
     }
-  };
+  }, [account?.address]);
 
   // Fetch and calculate portfolio value using current positions (same as portfolio page)
   useEffect(() => {
@@ -206,7 +206,7 @@ const Navbar = () => {
     };
     loadPortfolioValue();
     // Only update when account or balance changes
-  }, [account?.address, balance]);
+  }, [account?.address, balance, fetchCurrentPositions]);
 
   return (
     <nav className="w-full border-b border-gray-200 bg-white">

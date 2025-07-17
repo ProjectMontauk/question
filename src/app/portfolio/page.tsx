@@ -4,9 +4,8 @@ import Navbar from "../../../components/Navbar";
 import { useActiveAccount, useReadContract, useSendTransaction } from "thirdweb/react";
 import { fetchTrades } from "../../utils/tradeApi";
 import { getContractsForMarket, tokenContract } from "../../../constants/contracts";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { readContract } from "thirdweb";
-
 import { usePortfolio } from "../../contexts/PortfolioContext";
 import React from "react";
 import { prepareContractCall } from "thirdweb";
@@ -64,8 +63,6 @@ export default function PortfolioPage() {
   const [error, setError] = useState<string | null>(null);
   const [pnlHistory, setPnlHistory] = useState<{ timestamp: number; pnl: number }[]>([]);
   const { setPortfolioValue } = usePortfolio();
-  const [depositPending, setDepositPending] = useState(false);
-  const [balanceBeforeDeposit, setBalanceBeforeDeposit] = useState<number>(0);
   const [marketOdds, setMarketOdds] = useState<MarketOdds>({});
   const [activeTab, setActiveTab] = useState<'history' | 'current'>('history');
   const [currentPositions, setCurrentPositions] = useState<CurrentPosition[]>([]);
@@ -109,7 +106,7 @@ export default function PortfolioPage() {
   };
 
   // Fetch current positions across all markets
-  const fetchCurrentPositions = async () => {
+  const fetchCurrentPositions = useCallback(async () => {
     if (!account?.address) {
       setCurrentPositions([]);
       return;
@@ -199,7 +196,7 @@ export default function PortfolioPage() {
     } finally {
       setCurrentPositionsLoading(false);
     }
-  };
+  }, [account?.address]);
 
   // Fetch user's cash balance from contract (same as Navbar)
   const { data: balance, refetch } = useReadContract({
@@ -209,17 +206,6 @@ export default function PortfolioPage() {
   });
 
   const cash = formatBalance(balance);
-
-  // Monitor balance changes for deposit success
-  useEffect(() => {
-    if (depositPending && balance !== undefined) {
-      // Check if the balance has increased (indicating successful deposit)
-      const currentBalance = Number(balance) / 1e18;
-      if (currentBalance > balanceBeforeDeposit) {
-        setDepositPending(false);
-      }
-    }
-  }, [balance, depositPending, balanceBeforeDeposit]);
 
   // Fetch trades when account changes
   useEffect(() => {
@@ -250,17 +236,40 @@ export default function PortfolioPage() {
     loadTrades();
   }, [account?.address]);
 
+  // Fetch total deposits for P/L calculation
+  const fetchTotalDeposits = useCallback(async () => {
+    if (!account?.address) {
+      setTotalDeposits(0);
+      return;
+    }
+
+    try {
+      const response = await fetch(`/api/user-deposits?walletAddress=${account.address}`);
+      if (response.ok) {
+        const data = await response.json();
+        setTotalDeposits(data.totalDeposits || 0);
+      } else {
+        console.error('Failed to fetch deposits');
+        setTotalDeposits(0);
+      }
+    } catch (error) {
+      console.error('Error fetching deposits:', error);
+      setTotalDeposits(0);
+    } finally {
+    }
+  }, [account?.address]);
+
   // Fetch current positions when account changes or when Current tab is selected
   useEffect(() => {
     if (activeTab === 'current') {
       fetchCurrentPositions();
     }
-  }, [account?.address, activeTab]);
+  }, [account?.address, activeTab, fetchCurrentPositions]);
 
   // Fetch total deposits when account changes
   useEffect(() => {
     fetchTotalDeposits();
-  }, [account?.address]);
+  }, [account?.address, fetchTotalDeposits]);
 
   // Add PnL history update on page visit
   useEffect(() => {
@@ -355,29 +364,6 @@ export default function PortfolioPage() {
   React.useEffect(() => {
     setPortfolioValue(totalPortfolio.toFixed(2));
   }, [totalPortfolio, setPortfolioValue]);
-
-  // Fetch total deposits for P/L calculation
-  const fetchTotalDeposits = async () => {
-    if (!account?.address) {
-      setTotalDeposits(0);
-      return;
-    }
-
-    try {
-      const response = await fetch(`/api/user-deposits?walletAddress=${account.address}`);
-      if (response.ok) {
-        const data = await response.json();
-        setTotalDeposits(data.totalDeposits || 0);
-      } else {
-        console.error('Failed to fetch deposits');
-        setTotalDeposits(0);
-      }
-    } catch (error) {
-      console.error('Error fetching deposits:', error);
-      setTotalDeposits(0);
-    } finally {
-    }
-  };
 
   // Calculate all-time P/L using deposits vs current portfolio value
   const allTimePL = totalPortfolio - totalDeposits;

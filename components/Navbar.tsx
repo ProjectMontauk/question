@@ -5,7 +5,6 @@ import { ConnectButton, useActiveAccount, useReadContract } from "thirdweb/react
 import { client } from "../src/client";
 import { useRouter } from "next/navigation";
 import { tokenContract, marketContract, getContractsForMarket } from "../constants/contracts";
-import { fetchTrades } from "../src/utils/tradeApi";
 import { inAppWallet} from "thirdweb/wallets";
 import { polygonAmoy } from "thirdweb/chains";
 import { readContract } from "thirdweb";
@@ -14,6 +13,7 @@ import { readContract } from "thirdweb";
 // import { InAppWalletButton } from "thirdweb-package-path";
 
 // Add Trade type based on schema.prisma
+/*
 interface Trade {
   id: number;
   walletAddress: string;
@@ -28,6 +28,7 @@ interface Trade {
   createdAt: string;
   updatedAt: string;
 }
+*/
 
 // Interface for current positions
 interface CurrentPosition {

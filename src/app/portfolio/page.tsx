@@ -64,7 +64,6 @@ export default function PortfolioPage() {
   const [error, setError] = useState<string | null>(null);
   const [pnlHistory, setPnlHistory] = useState<{ timestamp: number; pnl: number }[]>([]);
   const { setPortfolioValue } = usePortfolio();
-  const [depositSuccess, setDepositSuccess] = useState(false);
   const [depositPending, setDepositPending] = useState(false);
   const [balanceBeforeDeposit, setBalanceBeforeDeposit] = useState<number>(0);
   const [marketOdds, setMarketOdds] = useState<MarketOdds>({});
@@ -72,50 +71,6 @@ export default function PortfolioPage() {
   const [currentPositions, setCurrentPositions] = useState<CurrentPosition[]>([]);
   const [currentPositionsLoading, setCurrentPositionsLoading] = useState(false);
   const [totalDeposits, setTotalDeposits] = useState<number>(0);
-  const [depositsLoading, setDepositsLoading] = useState(false);
-
-  const handleDeposit = () => {
-    if (!account) return;
-    
-    // Calculate the amount needed to reach $250
-    const targetBalance = 250;
-    const currentBalance = cash;
-    const amountNeeded = Math.max(0, targetBalance - currentBalance);
-    
-    // If no amount is needed, don't proceed
-    if (amountNeeded <= 0) return;
-    
-    const parsedAmount = parseAmountToWei(amountNeeded.toString());
-    const transaction = prepareContractCall({
-      contract: tokenContract,
-      method: "function mint(address account, uint256 amount)",
-      params: [account.address, parsedAmount],
-    });
-    // Store current balance before deposit
-    setBalanceBeforeDeposit(cash);
-    // Show loading immediately when button is clicked
-    setDepositPending(true);
-    sendTransaction(transaction, {
-      onSuccess: async (result) => {
-        // Track the deposit in the database
-        try {
-          await fetch('/api/track-deposit', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              walletAddress: account.address,
-              amount: amountNeeded,
-              transactionHash: result?.transactionHash || null,
-            }),
-          });
-          // Refresh deposits after successful tracking
-          await fetchTotalDeposits();
-        } catch (error) {
-          console.error('Failed to track deposit:', error);
-        }
-      }
-    });
-  };
 
   // Fetch current odds for each market that the user has positions in
   const fetchMarketOdds = async (marketIds: string[]) => {
@@ -262,8 +217,6 @@ export default function PortfolioPage() {
       const currentBalance = Number(balance) / 1e18;
       if (currentBalance > balanceBeforeDeposit) {
         setDepositPending(false);
-        setDepositSuccess(true);
-        setTimeout(() => setDepositSuccess(false), 10000);
       }
     }
   }, [balance, depositPending, balanceBeforeDeposit]);
@@ -410,7 +363,6 @@ export default function PortfolioPage() {
       return;
     }
 
-    setDepositsLoading(true);
     try {
       const response = await fetch(`/api/user-deposits?walletAddress=${account.address}`);
       if (response.ok) {
@@ -424,7 +376,6 @@ export default function PortfolioPage() {
       console.error('Error fetching deposits:', error);
       setTotalDeposits(0);
     } finally {
-      setDepositsLoading(false);
     }
   };
 
@@ -434,7 +385,7 @@ export default function PortfolioPage() {
 
   useEffect(() => {
     if (account && balance !== undefined && Number(balance) === 0) {
-      const parsedAmount = parseAmountToWei("250");
+      const parsedAmount = parseAmountToWei("100");
       const transaction = prepareContractCall({
         contract: tokenContract,
         method: "function mint(address account, uint256 amount)",
@@ -480,61 +431,6 @@ export default function PortfolioPage() {
               <span className="text-gray-500 font-semibold text-xs md:text-sm uppercase tracking-widest mb-1 block" style={{ paddingTop: 12 }}>Bet Value</span>
               <span className="text-gray-900 font-bold text-xs md:text-[14px] mb-4">${totalPositionsValue.toFixed(2)}</span>
             </div>
-            {/* Desktop Deposit Section */}
-            {/*
-            <div className="mt-0 hidden md:block">
-              <div className="text-green-600 font-semibold text-sm uppercase tracking-widest mb-1 ml-25">
-                DEPOSIT +
-              </div>
-
-              <div className="flex flex-col items-start gap-2 ml-25">
-                <button
-                  onClick={handleDeposit}
-                  disabled={depositPending || cash >= 250}
-                  className="py-2 px-4 bg-green-600 text-white rounded-md text-sm font-semibold hover:bg-green-700 transition disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
-                >
-                  Refill to $250
-                </button>
-              </div>
-              {depositPending && (
-                <div className="flex items-center gap-2 mt-2 ml-25 mb-2">
-                  <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-black"></div>
-                  <span className="text-black font-semibold text-xs">Deposit Pending</span>
-                </div>
-              )}
-              {depositSuccess && (
-                <div className="text-green-600 font-semibold text-xs mt-2 ml-25 mb-2">Deposit Successful!</div>
-              )}
-            </div>
-          </div>
-          */}
-          {/* Mobile Deposit Section */}
-          {/*
-          <div className="md:hidden mb-8">
-            <div className="bg-white rounded-xl shadow border border-gray-200 p-6">
-              <div className="text-green-600 font-semibold text-sm uppercase tracking-widest mb-3">
-                DEPOSIT +
-              </div>
-              <div className="flex flex-col items-start gap-2">
-                <button
-                  onClick={handleDeposit}
-                  disabled={depositPending || cash >= 250}
-                  className="py-3 px-6 bg-green-600 text-white rounded-md text-sm font-semibold hover:bg-green-700 transition disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
-                >
-                  Refill to $250
-                </button>
-              </div>
-              {depositPending && (
-                <div className="flex items-center gap-2 mt-3">
-                  <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-black"></div>
-                  <span className="text-black font-semibold text-xs">Deposit Pending</span>
-                </div>
-              )}
-              {depositSuccess && (
-                <div className="text-green-600 font-semibold text-xs mt-3">Deposit Successful!</div>
-              )}
-            </div>
-          */}
             </div>
 
           <div className="bg-white rounded-xl shadow border border-gray-200 overflow-hidden">

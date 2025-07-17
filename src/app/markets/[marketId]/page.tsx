@@ -395,6 +395,8 @@ export default function MarketPage({ params }: { params: Promise<{ marketId: str
       return;
     }
     const parsedAmount = BigInt(Math.floor(sharesToBuy * Math.pow(2, 64)));
+    // Log outcome and amount for debugging
+    console.log(noIndex.toString(), parsedAmount.toString());
     const transaction = prepareContractCall({
       contract: marketContract,
       method: "function buy(uint256 _outcome, int128 _amount) returns (int128 _price)",

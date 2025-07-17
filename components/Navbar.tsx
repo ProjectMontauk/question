@@ -4,10 +4,11 @@ import React, { useEffect, useState } from "react";
 import { ConnectButton, useActiveAccount, useReadContract } from "thirdweb/react";
 import { client } from "../src/client";
 import { useRouter } from "next/navigation";
-import { tokenContract, marketContract } from "../constants/contracts";
+import { tokenContract, marketContract, getContractsForMarket } from "../constants/contracts";
 import { fetchTrades } from "../src/utils/tradeApi";
 import { inAppWallet} from "thirdweb/wallets";
 import { polygonAmoy } from "thirdweb/chains";
+import { readContract } from "thirdweb";
 
 // TODO: Replace this with the actual ThirdWeb inAppWallet import
 // import { InAppWalletButton } from "thirdweb-package-path";
@@ -28,6 +29,16 @@ interface Trade {
   updatedAt: string;
 }
 
+// Interface for current positions
+interface CurrentPosition {
+  marketId: string;
+  marketTitle: string;
+  outcome: string;
+  shares: number;
+  currentPrice: number;
+  positionValue: number;
+}
+
 function formatBalance(balance: bigint | undefined): string {
   if (!balance) return "0";
   // Divide by 10^18 and show decimal places only when needed
@@ -41,6 +52,7 @@ const Navbar = () => {
   const router = useRouter();
   const account = useActiveAccount();
   const [portfolioValue, setPortfolioValue] = useState<string>("--");
+  const [portfolioLoading, setPortfolioLoading] = useState(false);
   const { data: balance, isPending, refetch } = useReadContract({
     contract: tokenContract,
     method: "function balanceOf(address account) view returns (uint256)",
@@ -85,34 +97,125 @@ const Navbar = () => {
     return () => clearInterval(interval);
   }, [account?.address, refetch]);
 
-  // Fetch and calculate portfolio value
+  // Fetch current positions across all markets (same method as portfolio page)
+  const fetchCurrentPositions = async () => {
+    if (!account?.address) {
+      return [];
+    }
+
+    try {
+      const positions: CurrentPosition[] = [];
+      const { getAllMarkets } = await import('../src/data/markets');
+      const markets = getAllMarkets();
+
+      for (const market of markets) {
+        try {
+          const { conditionalTokensContract, outcome1PositionId, outcome2PositionId } = getContractsForMarket(market.id);
+          
+          // Fetch Yes shares balance
+          const yesBalance = await readContract({
+            contract: conditionalTokensContract,
+            method: "function balanceOf(address account, uint256 id) view returns (uint256)",
+            params: [
+              account.address as `0x${string}`,
+              BigInt(outcome1PositionId)
+            ],
+          });
+
+          // Fetch No shares balance
+          const noBalance = await readContract({
+            contract: conditionalTokensContract,
+            method: "function balanceOf(address account, uint256 id) view returns (uint256)",
+            params: [
+              account.address as `0x${string}`,
+              BigInt(outcome2PositionId)
+            ],
+          });
+
+          // Convert to real numbers (divide by 10^18)
+          const yesShares = Number(yesBalance) / 1e18;
+          const noShares = Number(noBalance) / 1e18;
+
+          // Get current odds for this market
+          const { marketContract } = getContractsForMarket(market.id);
+          const oddsYes = await readContract({
+            contract: marketContract,
+            method: "function odds(uint256 _outcome) view returns (int128)",
+            params: [0n],
+          });
+          const oddsNo = await readContract({
+            contract: marketContract,
+            method: "function odds(uint256 _outcome) view returns (int128)",
+            params: [1n],
+          });
+
+          const currentPriceYes = Number(oddsYes) / Math.pow(2, 64);
+          const currentPriceNo = Number(oddsNo) / Math.pow(2, 64);
+
+          // Add Yes position if user has shares
+          if (yesShares > 0) {
+            positions.push({
+              marketId: market.id,
+              marketTitle: market.title,
+              outcome: market.outcomes[0], // Yes outcome
+              shares: yesShares,
+              currentPrice: currentPriceYes,
+              positionValue: yesShares * currentPriceYes,
+            });
+          }
+
+          // Add No position if user has shares
+          if (noShares > 0) {
+            positions.push({
+              marketId: market.id,
+              marketTitle: market.title,
+              outcome: market.outcomes[1], // No outcome
+              shares: noShares,
+              currentPrice: currentPriceNo,
+              positionValue: noShares * currentPriceNo,
+            });
+          }
+        } catch (error) {
+          console.error(`Failed to fetch positions for market ${market.id}:`, error);
+        }
+      }
+
+      return positions;
+    } catch (error) {
+      console.error('Failed to fetch current positions:', error);
+      return [];
+    }
+  };
+
+  // Fetch and calculate portfolio value using current positions (same as portfolio page)
   useEffect(() => {
     const loadPortfolioValue = async () => {
       if (!account?.address) {
         setPortfolioValue("--");
+        setPortfolioLoading(false);
         return;
       }
       try {
-        const trades = await fetchTrades(account.address);
+        setPortfolioLoading(true);
         const cash = balance ? Number(balance) / 1e18 : 0;
-        const getCurrentPriceNumber = (outcome: string) => {
-          if (outcome.toLowerCase().includes('yes') && oddsYes !== undefined) {
-            return Number(oddsYes) / Math.pow(2, 64);
-          } else if (outcome.toLowerCase().includes('no') && oddsNo !== undefined) {
-            return Number(oddsNo) / Math.pow(2, 64);
-          }
-          return 0;
-        };
-        const totalPositionsValue = trades.reduce((sum: number, trade: Trade) => sum + trade.shares * getCurrentPriceNumber(trade.outcome), 0);
+        
+        // Fetch current positions using the same method as portfolio page
+        const currentPositions = await fetchCurrentPositions();
+        
+        // Calculate total positions value using current positions
+        const totalPositionsValue = currentPositions.reduce((sum, position) => sum + position.positionValue, 0);
         const totalPortfolio = cash + totalPositionsValue;
+        
         setPortfolioValue(totalPortfolio.toFixed(2));
+        setPortfolioLoading(false);
       } catch {
         setPortfolioValue("--");
+        setPortfolioLoading(false);
       }
     };
     loadPortfolioValue();
-    // Only update when account, odds, or balance changes
-  }, [account?.address, oddsYes, oddsNo, balance]);
+    // Only update when account or balance changes
+  }, [account?.address, balance]);
 
   return (
     <nav className="w-full border-b border-gray-200 bg-white">
@@ -164,7 +267,9 @@ const Navbar = () => {
             onClick={() => router.push("/portfolio")}
           >
             <span className="text-[#171A22] font-medium text-sm">Portfolio</span>
-            <span className="text-green-600 font-semibold text-sm">{portfolioValue === "--" ? "$--" : `$${Number(portfolioValue).toLocaleString(undefined, { maximumFractionDigits: 2 })}`}</span>
+            <span className="text-green-600 font-semibold text-sm">
+              {portfolioLoading || portfolioValue === "--" ? "$--" : `$${Number(portfolioValue).toLocaleString(undefined, { maximumFractionDigits: 2 })}`}
+            </span>
           </button>
           <button
             className="hidden md:flex flex-col items-center justify-center bg-white px-2 py-1 pr-4 m-0 p-0 rounded transition-colors duration-200 cursor-pointer focus:outline-none hover:bg-gray-200 text-center"

@@ -36,6 +36,20 @@ interface MarketOdds {
   };
 }
 
+// Interface for current positions
+interface CurrentPosition {
+  marketId: string;
+  marketTitle: string;
+  outcome: string;
+  shares: number;
+  currentPrice: number;
+  positionValue: number;
+  avgPrice?: number; // We'll need to calculate this from trade history
+  betAmount?: number; // We'll need to calculate this from trade history
+  toWin?: number; // We'll need to calculate this from trade history
+  pnl?: number; // We'll need to calculate this
+}
+
 function formatBalance(balance: bigint | undefined): number {
   if (!balance) return 0;
   // Divide by 10^18 and show as a number
@@ -54,6 +68,11 @@ export default function PortfolioPage() {
   const [depositPending, setDepositPending] = useState(false);
   const [balanceBeforeDeposit, setBalanceBeforeDeposit] = useState<number>(0);
   const [marketOdds, setMarketOdds] = useState<MarketOdds>({});
+  const [activeTab, setActiveTab] = useState<'history' | 'current'>('history');
+  const [currentPositions, setCurrentPositions] = useState<CurrentPosition[]>([]);
+  const [currentPositionsLoading, setCurrentPositionsLoading] = useState(false);
+  const [totalDeposits, setTotalDeposits] = useState<number>(0);
+  const [depositsLoading, setDepositsLoading] = useState(false);
 
   const handleDeposit = () => {
     if (!account) return;
@@ -77,8 +96,23 @@ export default function PortfolioPage() {
     // Show loading immediately when button is clicked
     setDepositPending(true);
     sendTransaction(transaction, {
-      onSuccess: () => {
-        // Transaction succeeded, keep pending state until balance updates
+      onSuccess: async (result) => {
+        // Track the deposit in the database
+        try {
+          await fetch('/api/track-deposit', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              walletAddress: account.address,
+              amount: amountNeeded,
+              transactionHash: result?.transactionHash || null,
+            }),
+          });
+          // Refresh deposits after successful tracking
+          await fetchTotalDeposits();
+        } catch (error) {
+          console.error('Failed to track deposit:', error);
+        }
       }
     });
   };
@@ -117,6 +151,99 @@ export default function PortfolioPage() {
     }
     
     setMarketOdds(newMarketOdds);
+  };
+
+  // Fetch current positions across all markets
+  const fetchCurrentPositions = async () => {
+    if (!account?.address) {
+      setCurrentPositions([]);
+      return;
+    }
+
+    setCurrentPositionsLoading(true);
+    try {
+      const positions: CurrentPosition[] = [];
+      const { getAllMarkets } = await import('../../data/markets');
+      const markets = getAllMarkets();
+
+      for (const market of markets) {
+        try {
+          const { conditionalTokensContract, outcome1PositionId, outcome2PositionId } = getContractsForMarket(market.id);
+          
+          // Fetch Yes shares balance
+          const yesBalance = await readContract({
+            contract: conditionalTokensContract,
+            method: "function balanceOf(address account, uint256 id) view returns (uint256)",
+            params: [
+              account.address as `0x${string}`,
+              BigInt(outcome1PositionId)
+            ],
+          });
+
+          // Fetch No shares balance
+          const noBalance = await readContract({
+            contract: conditionalTokensContract,
+            method: "function balanceOf(address account, uint256 id) view returns (uint256)",
+            params: [
+              account.address as `0x${string}`,
+              BigInt(outcome2PositionId)
+            ],
+          });
+
+          // Convert to real numbers (divide by 10^18)
+          const yesShares = Number(yesBalance) / 1e18;
+          const noShares = Number(noBalance) / 1e18;
+
+          // Get current odds for this market
+          const { marketContract } = getContractsForMarket(market.id);
+          const oddsYes = await readContract({
+            contract: marketContract,
+            method: "function odds(uint256 _outcome) view returns (int128)",
+            params: [0n],
+          });
+          const oddsNo = await readContract({
+            contract: marketContract,
+            method: "function odds(uint256 _outcome) view returns (int128)",
+            params: [1n],
+          });
+
+          const currentPriceYes = Number(oddsYes) / Math.pow(2, 64);
+          const currentPriceNo = Number(oddsNo) / Math.pow(2, 64);
+
+          // Add Yes position if user has shares
+          if (yesShares > 0) {
+            positions.push({
+              marketId: market.id,
+              marketTitle: market.title,
+              outcome: market.outcomes[0], // Yes outcome
+              shares: yesShares,
+              currentPrice: currentPriceYes,
+              positionValue: yesShares * currentPriceYes,
+            });
+          }
+
+          // Add No position if user has shares
+          if (noShares > 0) {
+            positions.push({
+              marketId: market.id,
+              marketTitle: market.title,
+              outcome: market.outcomes[1], // No outcome
+              shares: noShares,
+              currentPrice: currentPriceNo,
+              positionValue: noShares * currentPriceNo,
+            });
+          }
+        } catch (error) {
+          console.error(`Failed to fetch positions for market ${market.id}:`, error);
+        }
+      }
+
+      setCurrentPositions(positions);
+    } catch (error) {
+      console.error('Failed to fetch current positions:', error);
+    } finally {
+      setCurrentPositionsLoading(false);
+    }
   };
 
   // Fetch user's cash balance from contract (same as Navbar)
@@ -168,6 +295,18 @@ export default function PortfolioPage() {
     };
 
     loadTrades();
+  }, [account?.address]);
+
+  // Fetch current positions when account changes or when Current tab is selected
+  useEffect(() => {
+    if (activeTab === 'current') {
+      fetchCurrentPositions();
+    }
+  }, [account?.address, activeTab]);
+
+  // Fetch total deposits when account changes
+  useEffect(() => {
+    fetchTotalDeposits();
   }, [account?.address]);
 
   // Add PnL history update on page visit
@@ -257,17 +396,41 @@ export default function PortfolioPage() {
     return '--';
   };
 
-  // Calculate total portfolio value
-  const totalPositionsValue = trades.reduce((sum, trade) => sum + trade.shares * getCurrentPriceNumber(trade), 0);
+  // Calculate total portfolio value using current positions
+  const totalPositionsValue = currentPositions.reduce((sum, position) => sum + position.positionValue, 0);
   const totalPortfolio = cash + totalPositionsValue;
   React.useEffect(() => {
     setPortfolioValue(totalPortfolio.toFixed(2));
   }, [totalPortfolio, setPortfolioValue]);
 
-  // Calculate all-time P/L
-  const allTimePL = trades.reduce((sum, trade) => sum + (trade.shares * getCurrentPriceNumber(trade) - trade.betAmount), 0);
-  const totalBetAmount = trades.reduce((sum, trade) => sum + trade.betAmount, 0);
-  const allTimePLPercent = totalBetAmount > 0 ? (allTimePL / totalBetAmount) * 100 : 0;
+  // Fetch total deposits for P/L calculation
+  const fetchTotalDeposits = async () => {
+    if (!account?.address) {
+      setTotalDeposits(0);
+      return;
+    }
+
+    setDepositsLoading(true);
+    try {
+      const response = await fetch(`/api/user-deposits?walletAddress=${account.address}`);
+      if (response.ok) {
+        const data = await response.json();
+        setTotalDeposits(data.totalDeposits || 0);
+      } else {
+        console.error('Failed to fetch deposits');
+        setTotalDeposits(0);
+      }
+    } catch (error) {
+      console.error('Error fetching deposits:', error);
+      setTotalDeposits(0);
+    } finally {
+      setDepositsLoading(false);
+    }
+  };
+
+  // Calculate all-time P/L using deposits vs current portfolio value
+  const allTimePL = totalPortfolio - totalDeposits;
+  const allTimePLPercent = totalDeposits > 0 ? (allTimePL / totalDeposits) * 100 : 0;
 
   useEffect(() => {
     if (account && balance !== undefined && Number(balance) === 0) {
@@ -318,10 +481,12 @@ export default function PortfolioPage() {
               <span className="text-gray-900 font-bold text-xs md:text-[14px] mb-4">${totalPositionsValue.toFixed(2)}</span>
             </div>
             {/* Desktop Deposit Section */}
+            {/*
             <div className="mt-0 hidden md:block">
               <div className="text-green-600 font-semibold text-sm uppercase tracking-widest mb-1 ml-25">
                 DEPOSIT +
               </div>
+
               <div className="flex flex-col items-start gap-2 ml-25">
                 <button
                   onClick={handleDeposit}
@@ -342,8 +507,9 @@ export default function PortfolioPage() {
               )}
             </div>
           </div>
-
+          */}
           {/* Mobile Deposit Section */}
+          {/*
           <div className="md:hidden mb-8">
             <div className="bg-white rounded-xl shadow border border-gray-200 p-6">
               <div className="text-green-600 font-semibold text-sm uppercase tracking-widest mb-3">
@@ -368,83 +534,179 @@ export default function PortfolioPage() {
                 <div className="text-green-600 font-semibold text-xs mt-3">Deposit Successful!</div>
               )}
             </div>
-          </div>
+          */}
+            </div>
 
-          <div className="bg-white rounded-xl shadow border border-gray-200 p-0 overflow-x-auto">
-            {loading ? (
-              <div className="text-center text-gray-500 py-12">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 mx-auto mb-4"></div>
-                Loading portfolio...
-              </div>
-            ) : error ? (
-              <div className="text-center text-red-500 py-12">
-                {error}
-              </div>
-            ) : (
-              <>
-                <table className="min-w-full divide-y divide-gray-200">
-                  <thead className="bg-gray-50">
-                    <tr>
-                      <th className="px-3 md:px-6 py-2 md:py-3 text-left text-[10px] md:text-xs font-semibold text-gray-600 tracking-wider">MARKET</th>
-                      <th className="px-3 md:px-6 py-2 md:py-3 text-[10px] md:text-xs font-semibold text-gray-600 text-left" colSpan={2}>
-                        AVG <span className="mx-1">→</span> NOW <span title="Average price paid vs. current price" className="ml-1">&#9432;</span>
-                      </th>
-                      <th className="px-3 md:px-6 py-2 md:py-3 text-[10px] md:text-xs font-semibold text-gray-600 text-center">BET</th>
-                      <th className="px-3 md:px-6 py-2 md:py-3 text-[10px] md:text-xs font-semibold text-gray-600 text-center">TO WIN</th>
-                      <th className="px-3 md:px-6 py-2 md:py-3 text-[10px] md:text-xs font-semibold text-gray-600 text-center">VALUE</th>
-                      <th className="px-3 md:px-6 py-2 md:py-3 text-[10px] md:text-xs font-semibold text-gray-600 text-center">P/L</th>
-                    </tr>
-                  </thead>
-                  <tbody className="bg-white divide-y divide-gray-200">
-                    {trades.map((trade) => (
-                      <tr key={trade.id} className="hover:bg-gray-50 transition">
-                        {/* Market cell */}
-                        <td className="px-3 md:px-6 py-3 md:py-4 whitespace-nowrap">
-                          <div>
-                            <div className={`font-semibold text-xs md:text-sm ${getOutcomeColor(trade.outcome)}`}>
-                              {trade.outcome} {formatPrice(trade.avgPrice)}¢ <span className="text-gray-500 font-normal ml-1 text-[10px] md:text-xs">{trade.shares.toFixed(2)} shares</span>
+          <div className="bg-white rounded-xl shadow border border-gray-200 overflow-hidden">
+            {/* Tab Buttons */}
+            <div className="flex border-b border-gray-200">
+              <button
+                onClick={() => setActiveTab('current')}
+                className={`flex-1 py-3 px-4 text-sm font-semibold transition-colors ${
+                  activeTab === 'current'
+                    ? 'text-green-600 border-b-2 border-green-600 bg-green-50'
+                    : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'
+                }`}
+              >
+                Current
+              </button>
+              <button
+                onClick={() => setActiveTab('history')}
+                className={`flex-1 py-3 px-4 text-sm font-semibold transition-colors ${
+                  activeTab === 'history'
+                    ? 'text-green-600 border-b-2 border-green-600 bg-green-50'
+                    : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'
+                }`}
+              >
+                Trade History
+              </button>
+            </div>
+
+            {/* Tab Content */}
+            <div className="overflow-x-auto">
+              {loading ? (
+                <div className="text-center text-gray-500 py-12">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 mx-auto mb-4"></div>
+                  Loading portfolio...
+                </div>
+              ) : error ? (
+                <div className="text-center text-red-500 py-12">
+                  {error}
+                </div>
+              ) : (
+                <>
+                  {activeTab === 'history' && (
+                    <>
+                      <table className="min-w-full divide-y divide-gray-200">
+                        <thead className="bg-gray-50">
+                          <tr>
+                            <th className="px-3 md:px-6 py-2 md:py-3 text-left text-[10px] md:text-xs font-semibold text-gray-600 tracking-wider">MARKET</th>
+                            <th className="px-3 md:px-6 py-2 md:py-3 text-[10px] md:text-xs font-semibold text-gray-600 text-left" colSpan={2}>
+                              AVG <span className="mx-1">→</span> NOW <span title="Average price paid vs. current price" className="ml-1">&#9432;</span>
+                            </th>
+                            <th className="px-3 md:px-6 py-2 md:py-3 text-[10px] md:text-xs font-semibold text-gray-600 text-center">BET</th>
+                            <th className="px-3 md:px-6 py-2 md:py-3 text-[10px] md:text-xs font-semibold text-gray-600 text-center">TO WIN</th>
+                            <th className="px-3 md:px-6 py-2 md:py-3 text-[10px] md:text-xs font-semibold text-gray-600 text-center">VALUE</th>
+                            <th className="px-3 md:px-6 py-2 md:py-3 text-[10px] md:text-xs font-semibold text-gray-600 text-center">P/L</th>
+                          </tr>
+                        </thead>
+                        <tbody className="bg-white divide-y divide-gray-200">
+                          {trades.map((trade) => (
+                            <tr key={trade.id} className="hover:bg-gray-50 transition">
+                              {/* Market cell */}
+                              <td className="px-3 md:px-6 py-3 md:py-4 whitespace-nowrap">
+                                <div>
+                                  <div className={`font-semibold text-xs md:text-sm ${getOutcomeColor(trade.outcome)}`}>
+                                    {trade.outcome} {formatPrice(trade.avgPrice)}¢ <span className="text-gray-500 font-normal ml-1 text-[10px] md:text-xs">{trade.shares.toFixed(2)} shares</span>
+                                  </div>
+                                  <div className="text-gray-900 font-medium text-xs md:text-sm leading-tight">{trade.marketTitle}</div>
+                                </div>
+                              </td>
+                              {/* Avg → Now */}
+                              <td className="px-3 md:px-6 pr-3 py-3 md:py-4 text-left text-gray-900 text-xs md:text-base" colSpan={2}>
+                                {formatPrice(trade.avgPrice)}¢ <span className="mx-1">→</span> {getCurrentPrice(trade)}¢
+                              </td>
+                              {/* Bet */}
+                              <td className="px-3 md:px-6 py-3 md:py-4 text-center text-gray-900 text-xs md:text-base">
+                                ${trade.betAmount.toFixed(2)}
+                              </td>
+                              {/* To Win */}
+                              <td className="px-3 md:px-6 py-3 md:py-4 text-center text-gray-900 text-xs md:text-base">
+                                ${trade.toWin.toFixed(2)}
+                              </td>
+                              {/* Value */}
+                              <td className="px-3 md:px-6 py-3 md:py-4 text-center text-xs md:text-base font-bold" style={{color: (trade.shares * getCurrentPriceNumber(trade)) > trade.betAmount ? '#16a34a' : '#dc2626'}}>
+                                ${ (trade.shares * getCurrentPriceNumber(trade)).toFixed(2) }
+                              </td>
+                              {/* P/L */}
+                              <td className="px-3 md:px-6 py-3 md:py-4 text-center text-xs md:text-base font-bold" style={{
+                                color: (trade.shares * getCurrentPriceNumber(trade) - trade.betAmount) > 0 ? '#16a34a' :
+                                      (trade.shares * getCurrentPriceNumber(trade) - trade.betAmount) < 0 ? '#dc2626' : '#6b7280'
+                              }}>
+                                {(() => {
+                                  const pl = trade.shares * getCurrentPriceNumber(trade) - trade.betAmount;
+                                  return `${pl > 0 ? '+$' : pl < 0 ? '-$' : '$'}${Math.abs(pl).toFixed(2)}`;
+                                })()}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                      {/* If no positions, show a message */}
+                      {trades.length === 0 && (
+                        <div className="text-center text-gray-500 py-12">
+                          No trades yet. Your portfolio will appear here after you make your first trade.
+                        </div>
+                      )}
+                    </>
+                  )}
+
+                  {activeTab === 'current' && (
+                    <>
+                      {currentPositionsLoading ? (
+                        <div className="text-center text-gray-500 py-12">
+                          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 mx-auto mb-4"></div>
+                          Loading current positions...
+                        </div>
+                      ) : (
+                        <>
+                          <table className="min-w-full divide-y divide-gray-200">
+                            <thead className="bg-gray-50">
+                              <tr>
+                                <th className="px-3 md:px-6 py-2 md:py-3 text-left text-[10px] md:text-xs font-semibold text-gray-600 tracking-wider">MARKET</th>
+                                <th className="px-3 md:px-6 py-2 md:py-3 text-[10px] md:text-xs font-semibold text-gray-600 text-left" colSpan={2}>
+                                  NOW <span title="Current price" className="ml-1">&#9432;</span>
+                                </th>
+                                <th className="px-3 md:px-6 py-2 md:py-3 text-[10px] md:text-xs font-semibold text-gray-600 text-center">SHARES</th>
+                                <th className="px-3 md:px-6 py-2 md:py-3 text-[10px] md:text-xs font-semibold text-gray-600 text-center">VALUE</th>
+                                <th className="px-3 md:px-6 py-2 md:py-3 text-[10px] md:text-xs font-semibold text-gray-600 text-center">POTENTIAL</th>
+                              </tr>
+                            </thead>
+                            <tbody className="bg-white divide-y divide-gray-200">
+                              {currentPositions.map((position, index) => (
+                                <tr key={index} className="hover:bg-gray-50 transition">
+                                  {/* Market cell */}
+                                  <td className="px-3 md:px-6 py-3 md:py-4 whitespace-nowrap">
+                                    <div>
+                                      <div className={`font-semibold text-xs md:text-sm ${getOutcomeColor(position.outcome)}`}>
+                                        {position.outcome} {formatPrice(position.currentPrice)}¢ <span className="text-gray-500 font-normal ml-1 text-[10px] md:text-xs">{position.shares.toFixed(2)} shares</span>
+                                      </div>
+                                      <div className="text-gray-900 font-medium text-xs md:text-sm leading-tight">{position.marketTitle}</div>
+                                    </div>
+                                  </td>
+                                  {/* Current Price */}
+                                  <td className="px-3 md:px-6 pr-3 py-3 md:py-4 text-left text-gray-900 text-xs md:text-base" colSpan={2}>
+                                    {formatPrice(position.currentPrice)}¢
+                                  </td>
+                                  {/* Shares */}
+                                  <td className="px-3 md:px-6 py-3 md:py-4 text-center text-gray-900 text-xs md:text-base">
+                                    {position.shares.toFixed(2)}
+                                  </td>
+                                  {/* Value */}
+                                  <td className="px-3 md:px-6 py-3 md:py-4 text-center text-xs md:text-base font-bold" style={{color: position.positionValue > 0 ? '#16a34a' : '#dc2626'}}>
+                                    ${position.positionValue.toFixed(2)}
+                                  </td>
+                                  {/* Potential (if outcome resolves to Yes, they win $1 per share) */}
+                                  <td className="px-3 md:px-6 py-3 md:py-4 text-center text-xs md:text-base font-bold text-green-600">
+                                    ${position.shares.toFixed(2)}
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                          {/* If no current positions, show a message */}
+                          {currentPositions.length === 0 && (
+                            <div className="text-center text-gray-500 py-12">
+                              No current positions. Your active positions will appear here.
                             </div>
-                            <div className="text-gray-900 font-medium text-xs md:text-sm leading-tight">{trade.marketTitle}</div>
-                          </div>
-                        </td>
-                        {/* Avg → Now */}
-                        <td className="px-3 md:px-6 pr-3 py-3 md:py-4 text-left text-gray-900 text-xs md:text-base" colSpan={2}>
-                          {formatPrice(trade.avgPrice)}¢ <span className="mx-1">→</span> {getCurrentPrice(trade)}¢
-                        </td>
-                        {/* Bet */}
-                        <td className="px-3 md:px-6 py-3 md:py-4 text-center text-gray-900 text-xs md:text-base">
-                          ${trade.betAmount.toFixed(2)}
-                        </td>
-                        {/* To Win */}
-                        <td className="px-3 md:px-6 py-3 md:py-4 text-center text-gray-900 text-xs md:text-base">
-                          ${trade.toWin.toFixed(2)}
-                        </td>
-                        {/* Value */}
-                        <td className="px-3 md:px-6 py-3 md:py-4 text-center text-xs md:text-base font-bold" style={{color: (trade.shares * getCurrentPriceNumber(trade)) > trade.betAmount ? '#16a34a' : '#dc2626'}}>
-                          ${ (trade.shares * getCurrentPriceNumber(trade)).toFixed(2) }
-                        </td>
-                        {/* P/L */}
-                        <td className="px-3 md:px-6 py-3 md:py-4 text-center text-xs md:text-base font-bold" style={{
-                          color: (trade.shares * getCurrentPriceNumber(trade) - trade.betAmount) > 0 ? '#16a34a' :
-                                (trade.shares * getCurrentPriceNumber(trade) - trade.betAmount) < 0 ? '#dc2626' : '#6b7280'
-                        }}>
-                          {(() => {
-                            const pl = trade.shares * getCurrentPriceNumber(trade) - trade.betAmount;
-                            return `${pl > 0 ? '+$' : pl < 0 ? '-$' : '$'}${Math.abs(pl).toFixed(2)}`;
-                          })()}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-                {/* If no positions, show a message */}
-                {trades.length === 0 && (
-                  <div className="text-center text-gray-500 py-12">
-                    No trades yet. Your portfolio will appear here after you make your first trade.
-                  </div>
-                )}
-              </>
-            )}
+                          )}
+                        </>
+                      )}
+                    </>
+                  )}
+                </>
+              )}
+            </div>
           </div>
         </div>
       </div>

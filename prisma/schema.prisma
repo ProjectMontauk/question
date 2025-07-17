@@ -194,3 +194,16 @@ model MarketIdeaVote {
   @@index([ideaId])
   @@index([walletAddress])
 }
+
+// Model to track user deposits for P/L calculations
+model UserDeposits {
+  id            Int      @id @default(autoincrement())
+  walletAddress String
+  amount        Float    // Amount deposited in USD
+  transactionHash String? // Optional: blockchain transaction hash
+  createdAt     DateTime @default(now())
+  
+  // Indexes for better query performance
+  @@index([walletAddress])
+  @@index([createdAt])
+}

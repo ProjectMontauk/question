@@ -4,7 +4,7 @@ import React, { useEffect, useState, useCallback } from "react";
 import { ConnectButton, useActiveAccount, useReadContract } from "thirdweb/react";
 import { client } from "../src/client";
 import { useRouter } from "next/navigation";
-import { tokenContract, marketContract, getContractsForMarket } from "../constants/contracts";
+import { tokenContract, getContractsForMarket } from "../constants/contracts";
 import { inAppWallet} from "thirdweb/wallets";
 import { polygonAmoy } from "thirdweb/chains";
 import { readContract } from "thirdweb";

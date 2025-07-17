@@ -59,16 +59,6 @@ const Navbar = () => {
     method: "function balanceOf(address account) view returns (uint256)",
     params: [account?.address ?? "0x0000000000000000000000000000000000000000"],
   });
-  const { data: oddsYes } = useReadContract({
-    contract: marketContract,
-    method: "function odds(uint256 _outcome) view returns (int128)",
-    params: [0n],
-  });
-  const { data: oddsNo } = useReadContract({
-    contract: marketContract,
-    method: "function odds(uint256 _outcome) view returns (int128)",
-    params: [1n],
-  });
 
   const wallets = [
     inAppWallet({

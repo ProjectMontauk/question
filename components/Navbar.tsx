@@ -8,6 +8,7 @@ import { tokenContract, getContractsForMarket } from "../constants/contracts";
 import { inAppWallet} from "thirdweb/wallets";
 import { polygonAmoy } from "thirdweb/chains";
 import { readContract } from "thirdweb";
+import { usePortfolio } from "../src/contexts/PortfolioContext";
 
 // TODO: Replace this with the actual ThirdWeb inAppWallet import
 // import { InAppWalletButton } from "thirdweb-package-path";
@@ -52,7 +53,7 @@ function formatBalance(balance: bigint | undefined): string {
 const Navbar = () => {
   const router = useRouter();
   const account = useActiveAccount();
-  const [portfolioValue, setPortfolioValue] = useState<string>("--");
+  const { portfolioValue, setPortfolioValue } = usePortfolio();
   const [portfolioLoading, setPortfolioLoading] = useState(false);
   const { data: balance, isPending, refetch } = useReadContract({
     contract: tokenContract,
@@ -186,27 +187,40 @@ const Navbar = () => {
         setPortfolioLoading(false);
         return;
       }
-      try {
+      
+      // Check if we already have a valid portfolio value from global state
+      const hasValidValue = portfolioValue !== "--" && !isNaN(Number(portfolioValue));
+      
+      // Only show loading and fetch new data if we don't have a valid value
+      if (!hasValidValue) {
         setPortfolioLoading(true);
-        const cash = balance ? Number(balance) / 1e18 : 0;
         
-        // Fetch current positions using the same method as portfolio page
-        const currentPositions = await fetchCurrentPositions();
-        
-        // Calculate total positions value using current positions
-        const totalPositionsValue = currentPositions.reduce((sum, position) => sum + position.positionValue, 0);
-        const totalPortfolio = cash + totalPositionsValue;
-        
-        setPortfolioValue(totalPortfolio.toFixed(2));
-        setPortfolioLoading(false);
-      } catch {
-        setPortfolioValue("--");
-        setPortfolioLoading(false);
+        try {
+          const cash = balance ? Number(balance) / 1e18 : 0;
+          
+          // Fetch current positions using the same method as portfolio page
+          const currentPositions = await fetchCurrentPositions();
+          
+          // Calculate total positions value using current positions
+          const totalPositionsValue = currentPositions.reduce((sum, position) => sum + position.positionValue, 0);
+          const totalPortfolio = cash + totalPositionsValue;
+          
+          const newPortfolioValue = totalPortfolio.toFixed(2);
+          // Only update if the value has actually changed
+          if (newPortfolioValue !== portfolioValue) {
+            setPortfolioValue(newPortfolioValue);
+          }
+          setPortfolioLoading(false);
+        } catch (error) {
+          console.error('Failed to load portfolio value:', error);
+          setPortfolioValue("--");
+          setPortfolioLoading(false);
+        }
       }
     };
     loadPortfolioValue();
     // Only update when account or balance changes
-  }, [account?.address, balance, fetchCurrentPositions]);
+  }, [account?.address, balance, fetchCurrentPositions, portfolioValue]);
 
   return (
     <nav className="w-full border-b border-gray-200 bg-white">

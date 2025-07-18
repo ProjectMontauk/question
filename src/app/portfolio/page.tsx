@@ -64,7 +64,7 @@ export default function PortfolioPage() {
   const [pnlHistory, setPnlHistory] = useState<{ timestamp: number; pnl: number }[]>([]);
   const { setPortfolioValue } = usePortfolio();
   const [marketOdds, setMarketOdds] = useState<MarketOdds>({});
-  const [activeTab, setActiveTab] = useState<'history' | 'current'>('history');
+  const [activeTab, setActiveTab] = useState<'history' | 'current'>('current');
   const [currentPositions, setCurrentPositions] = useState<CurrentPosition[]>([]);
   const [currentPositionsLoading, setCurrentPositionsLoading] = useState(false);
   const [totalDeposits, setTotalDeposits] = useState<number>(0);

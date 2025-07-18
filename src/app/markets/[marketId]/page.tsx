@@ -337,7 +337,6 @@ export default function MarketPage({ params }: { params: Promise<{ marketId: str
         onSuccess: async (result) => {
           console.log("Buy Yes transaction successful:", result);
           setBuyFeedback("Transaction submitted (2/3)");
-        setAmount("");
           
                 // Submit trade to database
       try {
@@ -441,7 +440,6 @@ export default function MarketPage({ params }: { params: Promise<{ marketId: str
               onSuccess: async (result) => {
         console.log("Buy No transaction successful:", result);
         setBuyFeedback("Transaction submitted (2/3)");
-        setAmount("");
           
           // Submit trade to database
           try {
@@ -1233,6 +1231,7 @@ export default function MarketPage({ params }: { params: Promise<{ marketId: str
       // Show success message immediately after balance is updated
       setBuyFeedback(null);
       setSuccessMessage(successMessage);
+      setAmount(""); // Clear the amount only after transaction is fully completed
       
       // Set up a retry mechanism to ensure balances are updated
       let retries = 0;
@@ -1250,6 +1249,7 @@ export default function MarketPage({ params }: { params: Promise<{ marketId: str
       // Still show success message even if there's an error
       setBuyFeedback(null);
       setSuccessMessage(successMessage);
+      setAmount(""); // Clear the amount even if there's an error
     }
   };
 

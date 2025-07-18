@@ -62,7 +62,7 @@ export default function AccountSetupLoader() {
 
   return (
     <div className="fixed left-1/2 top-1/2 z-50" style={{ transform: 'translate(-50%, -50%)' }}>
-      <div className="bg-white rounded-lg p-8 max-w-md w-full mx-4 shadow-xl border border-gray-200 relative">
+      <div className="bg-white rounded-lg p-8 w-[90vw] max-w-[90vw] md:max-w-md md:w-full mx-2 shadow-xl border border-gray-200 relative">
         <div className="text-center">
           {!showSuccess ? (
             <>

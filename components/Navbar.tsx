@@ -61,10 +61,22 @@ const Navbar = () => {
     params: [account?.address ?? "0x0000000000000000000000000000000000000000"],
   });
 
+  // Debug balance changes
+  useEffect(() => {
+    if (account?.address) {
+      console.log('Navbar balance debug:', {
+        account: account.address,
+        balance: balance?.toString(),
+        balanceNumber: balance ? Number(balance) / 1e18 : 'undefined',
+        isPending
+      });
+    }
+  }, [account?.address, balance, isPending]);
+
   const wallets = [
     inAppWallet({
       auth: {
-        options: ["google", "email","facebook", "phone", "apple", "passkey"],
+        options: ["google", "email","facebook", "phone", "apple", "passkey", "guest"],
       },
       smartAccount: {
         chain: polygonAmoy,

@@ -232,7 +232,7 @@ const Navbar = () => {
     };
     loadPortfolioValue();
     // Only update when account or balance changes
-  }, [account?.address, balance, fetchCurrentPositions, portfolioValue]);
+  }, [account?.address, balance, fetchCurrentPositions, portfolioValue, setPortfolioValue]);
 
   return (
     <nav className="w-full border-b border-gray-200 bg-white">

@@ -88,7 +88,7 @@ export default function AccountSetupLoader() {
               </div>
               <h2 className="text-xl font-semibold text-gray-900 mb-2">Account Ready!</h2>
               <p className="text-gray-600">
-                Your account has been created and $100 of test funds has been deposited. You're ready to start trading!
+                Your account has been created and $100 of test funds has been deposited. You&apos;re ready to start trading!
               </p>
             </>
           )}

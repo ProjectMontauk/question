@@ -2,7 +2,7 @@ import { useActiveAccount, useReadContract, useSendTransaction } from "thirdweb/
 import { prepareContractCall } from "thirdweb";
 import { tokenContract } from "../../constants/contracts";
 import { parseAmountToWei } from "../utils/parseAmountToWei";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
 
 export default function AutoDeposit() {
   const account = useActiveAccount();
@@ -11,9 +11,8 @@ export default function AutoDeposit() {
     method: "function balanceOf(address account) view returns (uint256)",
     params: [account?.address ?? "0x0000000000000000000000000000000000000000"],
   });
-  const { mutate: sendTransaction, status } = useSendTransaction();
+  const { mutate: sendTransaction } = useSendTransaction();
   const hasAttemptedMint = useRef(false);
-  const [isMinting, setIsMinting] = useState(false);
 
   useEffect(() => {
     // Reset the flag when account changes
@@ -26,9 +25,6 @@ export default function AutoDeposit() {
     // Only attempt minting once per account and when balance is confirmed to be 0
     if (account && balance !== undefined && Number(balance) === 0 && !hasAttemptedMint.current) {
       hasAttemptedMint.current = true;
-      setIsMinting(true);
-      
-      console.log('AutoDeposit: Starting immediate mint for new user');
       
       const parsedAmount = parseAmountToWei("100");
       const transaction = prepareContractCall({
@@ -39,14 +35,9 @@ export default function AutoDeposit() {
       
       sendTransaction(transaction, {
         onSuccess: () => {
-          console.log('AutoDeposit: Successfully minted $100');
-          setIsMinting(false);
           refetch();
         },
         onError: (error) => {
-          console.error('AutoDeposit: Failed to mint $100:', error);
-          setIsMinting(false);
-          // Reset the flag so user can try again
           hasAttemptedMint.current = false;
         }
       });

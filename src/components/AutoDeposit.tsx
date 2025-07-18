@@ -37,7 +37,7 @@ export default function AutoDeposit() {
         onSuccess: () => {
           refetch();
         },
-        onError: (error) => {
+        onError: () => {
           hasAttemptedMint.current = false;
         }
       });

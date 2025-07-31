@@ -62,6 +62,15 @@ export const markets: Market[] = [
     contractAddress: "0x615ed9da950d81b949b6347275aed697f4407ba0", // COVID vaccine market contract
     outcomes: ["Yes, mRNA vax is dangerous", "No, mRNA vax is safe"],
     rules: "The market will resolve 'Yes' if the Pfizer/Moderna mRNA-based COVID-19 vaccines (BNT162b2/mRNA-1273) significantly increase the risk of serious long-term adverse events relative to placebo. Otherwise, the market will resolve 'No.' This means that the Pfizer/Moderna mRNA-based COVID-19 vaccines (BNT162b2/mRNA-1273) do not significantly increase the risk of serious long-term adverse events."
+  },
+  {
+    id: 'jesus',
+    title: "Did Jesus Physically Exist?",
+    description: "Did Jesus of Nazareth exist as a historical person?",
+    image: "/Jesus.png", // You'll need to add this image
+    contractAddress: "0x6ab2a19ad08c2077608d19f553D99948C48E4733", // Jesus market contract
+    outcomes: ["Yes, Jesus physically existed", "No, Jesus did not physically exist"],
+    rules: "The market will resolve 'Yes' if Jesus of Nazareth existed as a historical person who lived in the 1st century CE in the region of Judea. Otherwise, the market will resolve 'No.' This means that Jesus of Nazareth was not a real historical person who lived in the 1st century CE in the region of Judea."
   }
 ];
 

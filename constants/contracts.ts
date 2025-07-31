@@ -26,6 +26,10 @@ export const stringTheoryConditionalTokensContractAddress = "0x98e494185622e9b32
 export const covidVaccineMarketContractAddress = "0x615ed9da950d81b949b6347275aed697f4407ba0";
 export const covidVaccineConditionalTokensContractAddress = "0x89249c2039f8B993BeF96ED8c31244D512396b50";
 
+// Jesus Market Contract
+export const jesusMarketContractAddress = "0x6ab2a19ad08c2077608d19f553D99948C48E4733";
+export const jesusConditionalTokensContractAddress = "0x323D9D0E7b4dEF5a49e6d18B1340E412d7c32D3B";
+
 
 export const tokenContract = getContract({
     client: client,
@@ -110,6 +114,19 @@ export const covidVaccineConditionalTokensContract = getContract({
     address: covidVaccineConditionalTokensContractAddress,
   });
 
+// Jesus Market Contract Instances
+export const jesusMarketContract = getContract({
+    client,
+    chain: polygonAmoy,
+    address: jesusMarketContractAddress,
+  });
+
+export const jesusConditionalTokensContract = getContract({
+    client,
+    chain: polygonAmoy,
+    address: jesusConditionalTokensContractAddress,
+  });
+
 // Helper function to get contracts based on market ID
 export function getContractsForMarket(marketId: string) {
   switch (marketId) {
@@ -155,6 +172,13 @@ export function getContractsForMarket(marketId: string) {
         conditionalTokensContract: covidVaccineConditionalTokensContract,
         outcome1PositionId: "33253703887555076110634854126059642248142965775821080603653281054560895337554", // Yes
         outcome2PositionId: "41411234717896460108678928017161839832069420312512780538617548626841056238525", // No
+      };
+    case 'jesus':
+      return {
+        marketContract: jesusMarketContract,
+        conditionalTokensContract: jesusConditionalTokensContract,
+        outcome1PositionId: "4606610666685697444324803758164580444074127963918489086130939403719605136916", // Yes
+        outcome2PositionId: "85686854817280015899206998734029271716183332691386482171479007978756788285254", // No
       };
   }
 }

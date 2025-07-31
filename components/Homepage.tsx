@@ -110,6 +110,14 @@ const Homepage = () => {
               ))}
             </div>
           )}
+          {/* Fourth row - Jesus market */}
+          {markets.length > 6 && (
+            <div className="flex flex-col sm:flex-row gap-6 w-full">
+              {markets.slice(6, 7).map((market) => (
+                <MarketCard key={market.id} market={market} />
+              ))}
+            </div>
+          )}
         </div>
       </div>
       <div className="w-full h-8 bg-[#f8f9fa]"></div>

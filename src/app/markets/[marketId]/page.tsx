@@ -177,6 +177,7 @@ export default function MarketPage({ params }: { params: Promise<{ marketId: str
 
   // Replace individual yesAmount and noAmount with a single amount state
   const [amount, setAmount] = useState("");
+  const [sellAllClicked, setSellAllClicked] = useState(false);
 
   const [buyFeedback, setBuyFeedback] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
@@ -278,6 +279,7 @@ export default function MarketPage({ params }: { params: Promise<{ marketId: str
   };
 
   // Buy/Sell handlers
+  /*
   const handleBuyYes = async (amount: string) => {
     if (!amount || !account?.address) return;
     setBuyFeedback("Preparing transaction (1/3)");
@@ -378,7 +380,131 @@ export default function MarketPage({ params }: { params: Promise<{ marketId: str
       }
     });
   };
+  */
 
+
+  // Buy/Sell handlers
+  const handleBuyYes = async (amount: string) => {
+    if (!amount || !account?.address) return;
+    setBuyFeedback("Preparing transaction (1/3)");
+    const usdAmount = parseFloat(amount);
+    
+    // Convert full amount to USDC (6 decimals) for Base Sepolia
+    const betAmountInUSDC = BigInt(Math.floor(usdAmount * 1e18));
+    
+    // Get the exact shares that will be received (using discounted amount for preview)
+    const discountedBetAmount = usdAmount * 0.98;
+    const discountedBetAmountInUSDC = BigInt(Math.floor(discountedBetAmount * 1e18));
+    
+    let sharesToBuy: number;
+    try {
+      const sharesResult = await readContract({
+        contract: marketContract,
+        method: "function calculateSharesFromBetAmount(uint256 _outcome, uint256 _betAmount) view returns (uint256 shares)",
+        params: [yesIndex, discountedBetAmountInUSDC],
+      });
+      
+      sharesToBuy = Number(sharesResult) / 1e18; // Shares returned in USDC units (6 decimals)
+      
+      if (isNaN(sharesToBuy) || sharesToBuy <= 0) {
+        setBuyFeedback("Invalid price calculation. Please try again.");
+        setTimeout(() => setBuyFeedback(null), 3000);
+        return;
+      }
+    } catch (error) {
+      console.error("calculateSharesFromBetAmount error:", error);
+      setBuyFeedback("Please input a lower bet amount");
+      setTimeout(() => setBuyFeedback(null), 3000);
+      return;
+    }
+    
+    const transaction = prepareContractCall({
+      contract: marketContract,
+      method: "function buy(uint256 _outcome, uint256 _betAmount) returns (uint256 shares)",
+      params: [yesIndex, betAmountInUSDC],
+    });
+    sendBuyYesTransaction(transaction, {
+      onError: (error) => {
+          console.error("=== BUY YES TRANSACTION ERROR ===");
+          console.error("Error object:", error);
+          console.error("Error type:", typeof error);
+          console.error("Error message:", error?.message);
+          console.error("Error name:", error?.name);
+          console.error("Error stack:", error?.stack);
+          console.error("Error properties:", Object.getOwnPropertyNames(error || {}));
+          console.error("Transaction details:", transaction);
+          console.error("USD amount:", usdAmount);
+          console.error("Shares to buy:", sharesToBuy);
+          console.error("Parsed amount:", betAmountInUSDC.toString());
+          console.error("Price result:", priceResult?.toString());
+          console.error("Is price pending:", isPricePending);
+          console.error("Price error:", priceError);
+          console.error("==================================");
+          
+          let errorMessage = "Purchase failed. Please try again.";
+          if (error?.message) {
+            const msg = error.message.toLowerCase();
+            if (msg.includes("insufficient funds")) {
+              errorMessage = "Insufficient funds for transaction.";
+            } else if (msg.includes("user rejected") || msg.includes("user denied transaction signature")) {
+              errorMessage = "User cancelled transaction";
+            } else if (msg.includes("gas")) {
+              errorMessage = "Gas estimation failed. Try a smaller amount.";
+            } else if (msg.includes("revert")) {
+              errorMessage = "Transaction reverted. Check your input.";
+            } else if (msg.includes("execution reverted")) {
+              errorMessage = "Contract execution failed. Check your input.";
+            }
+          }
+          
+          setBuyFeedback(errorMessage);
+      },
+        onSuccess: async (result) => {
+          console.log("Buy Yes transaction successful:", result);
+          setBuyFeedback("Transaction submitted (2/3)");
+          
+                // Submit trade to database
+      try {
+        const avgPrice = usdAmount / sharesToBuy;
+        const tradeData = {
+          walletAddress: account?.address || '',
+          marketTitle: market.title,
+          marketId: market.id, // Use the market ID string directly
+          outcome: "Yes",
+          shares: sharesToBuy,
+          avgPrice: avgPrice,
+          betAmount: usdAmount,
+          toWin: sharesToBuy - usdAmount, // Update this formula as needed
+          status: "OPEN"
+        };
+        
+        const tradeResult = await submitTrade(tradeData);
+        if (tradeResult) {
+          console.log("Trade submitted to database successfully");
+        } else {
+          console.log("Trade submitted to database (no response)");
+        }
+      } catch (error) {
+        console.error("Failed to submit trade to database:", error);
+        // Don't show error to user since the blockchain transaction was successful
+      }
+          
+          // Wait for transaction confirmation and update balances
+          await waitForTransactionConfirmation(result, "Purchase Successful! (3/3)");
+          
+          // Record odds in the background (don't wait for it)
+          recordNewOdds();
+      },
+      onSettled: () => {
+          setTimeout(() => {
+            setBuyFeedback(null);
+            setSuccessMessage(null);
+          }, 10000);
+      }
+    });
+  };
+
+  /*
   const handleBuyNo = async (amount: string) => {
     if (!amount || !account?.address) return;
     setBuyFeedback("Preparing transaction (1/3)");
@@ -481,6 +607,128 @@ export default function MarketPage({ params }: { params: Promise<{ marketId: str
       }
     });
   };
+  */
+
+  const handleBuyNo = async (amount: string) => {
+    if (!amount || !account?.address) return;
+    setBuyFeedback("Preparing transaction (1/3)");
+    const usdAmount = parseFloat(amount);
+    
+    // Convert full amount to USDC (6 decimals) for Base Sepolia
+    const betAmountInUSDC = BigInt(Math.floor(usdAmount * 1e18));
+    
+    // Get the exact shares that will be received (using discounted amount for preview)
+    const discountedBetAmount = usdAmount * 0.98;
+    const discountedBetAmountInUSDC = BigInt(Math.floor(discountedBetAmount * 1e18));
+    
+    let sharesToBuy: number;
+    try {
+      const sharesResult = await readContract({
+        contract: marketContract,
+        method: "function calculateSharesFromBetAmount(uint256 _outcome, uint256 _betAmount) view returns (uint256 shares)",
+        params: [noIndex, discountedBetAmountInUSDC],
+      });
+      
+      sharesToBuy = Number(sharesResult) / 1e18; // Shares returned in USDC units (6 decimals)
+      
+      if (isNaN(sharesToBuy) || sharesToBuy <= 0) {
+        setBuyFeedback("Invalid price calculation. Please try again.");
+        setTimeout(() => setBuyFeedback(null), 3000);
+        return;
+      }
+    } catch (error) {
+      console.error("calculateSharesFromBetAmount error:", error);
+      setBuyFeedback("Please input a lower bet amount");
+      setTimeout(() => setBuyFeedback(null), 3000);
+      return;
+    }
+    
+    const transaction = prepareContractCall({
+      contract: marketContract,
+      method: "function buy(uint256 _outcome, uint256 _betAmount) returns (uint256 shares)",
+      params: [noIndex, betAmountInUSDC],
+    });
+    sendBuyNoTransaction(transaction, {
+      onError: (error) => {
+          console.error("=== BUY NO TRANSACTION ERROR ===");
+          console.error("Error object:", error);
+          console.error("Error type:", typeof error);
+          console.error("Error message:", error?.message);
+          console.error("Error name:", error?.name);
+          console.error("Error stack:", error?.stack);
+          console.error("Error properties:", Object.getOwnPropertyNames(error || {}));
+          console.error("Transaction details:", transaction);
+          console.error("USD amount:", usdAmount);
+          console.error("Shares to buy:", sharesToBuy);
+          console.error("Parsed amount:", betAmountInUSDC.toString());
+          console.error("Price result:", priceResult?.toString());
+          console.error("Is price pending:", isPricePending);
+          console.error("Price error:", priceError);
+          console.error("==================================");
+          
+          let errorMessage = "Purchase failed. Please try again.";
+          if (error?.message) {
+            const msg = error.message.toLowerCase();
+            if (msg.includes("insufficient funds")) {
+              errorMessage = "Insufficient funds for transaction.";
+            } else if (msg.includes("user rejected") || msg.includes("user denied transaction signature")) {
+              errorMessage = "User cancelled transaction";
+            } else if (msg.includes("gas")) {
+              errorMessage = "Gas estimation failed. Try a smaller amount.";
+            } else if (msg.includes("revert")) {
+              errorMessage = "Transaction reverted. Check your input.";
+            } else if (msg.includes("execution reverted")) {
+              errorMessage = "Contract execution failed. Check your input.";
+            }
+          }
+          
+          setBuyFeedback(errorMessage);
+      },
+              onSuccess: async (result) => {
+        console.log("Buy No transaction successful:", result);
+        setBuyFeedback("Transaction submitted (2/3)");
+          
+          // Submit trade to database
+          try {
+            const avgPrice = usdAmount / sharesToBuy;
+            const tradeData = {
+              walletAddress: account?.address || '',
+              marketTitle: market.title,
+              marketId: market.id, // Use the market ID string directly
+              outcome: "No",
+              shares: sharesToBuy,
+              avgPrice: avgPrice,
+              betAmount: usdAmount,
+              toWin: sharesToBuy - usdAmount, // Update this formula as needed
+              status: "OPEN"
+            };
+            
+                    const tradeResult = await submitTrade(tradeData);
+        if (tradeResult) {
+          console.log("Trade submitted to database successfully");
+        } else {
+          console.log("Trade submitted to database (no response)");
+        }
+          } catch (error) {
+            console.error("Failed to submit trade to database:", error);
+            // Don't show error to user since the blockchain transaction was successful
+          }
+          
+          // Wait for transaction confirmation and update balances
+          await waitForTransactionConfirmation(result, "Purchase Successful! (3/3)");
+          
+          // Record odds in the background (don't wait for it)
+          recordNewOdds();
+      },
+      onSettled: () => {
+          setTimeout(() => {
+            setBuyFeedback(null);
+            setSuccessMessage(null);
+          }, 10000);
+      }
+    });
+  };
+
 
   const handleBuyNoWithApproval = async (amount: string) => {
     if (!handleWalletCheck()) return;
@@ -668,43 +916,79 @@ export default function MarketPage({ params }: { params: Promise<{ marketId: str
   // Add state for evidence submission success message
   const [evidenceSuccessMessage, setEvidenceSuccessMessage] = useState<string | null>(null);
 
-  // Handle automatic price calculation
-  const handleAutoGetPrice = useCallback(async (outcome: number, amount: number) => {
-    setIsPricePending(true);
-    setPriceError(null);
-    setPriceResult(undefined);
-    try {
+ // Handle automatic price calculation
+ const handleAutoGetPrice = useCallback(async (outcome: number, amount: number, isSellMode: boolean = false) => {
+  setIsPricePending(true);
+  setPriceError(null);
+  setPriceResult(undefined);
+  try {
+    if (isSellMode) {
+      // For sell mode, input is number of shares, convert to Wei format (like buy functions)
+      const shareAmount = amount;
+      const shareAmountInUSDC = BigInt(Math.floor(shareAmount * 1e18));
+      
       const result = await readContract({
         contract: marketContract,
-        method: "function price(uint256 _outcome, int128 _amount) view returns (int128)",
-        params: [BigInt(outcome), BigInt(Math.floor(amount * Math.pow(2, 64)))],
+        method: "function calculateSellRefund(uint256 _outcome, uint256 _amount) view returns (uint256 refund)",
+        params: [BigInt(outcome), shareAmountInUSDC],
       });
       setPriceResult(result);
-      console.log('Auto price result:', {
+      console.log('Auto sell price result:', {
         rawResult: result.toString(),
-        formattedPrice: `$${(Number(result) / Math.pow(2, 64)).toFixed(2)}`,
-        pricePerShare: `$${((Number(result) / Math.pow(2, 64)) / amount).toFixed(2)}`,
-        pricePerShareCents: `¢${(((Number(result) / Math.pow(2, 64)) / amount) * 100).toFixed(0)}`,
+        shareAmount: shareAmount,
+        shareAmountInUSDC: shareAmountInUSDC.toString(),
+        refundReceived: Number(result) / 1e18,
         outcome,
         amount
       });
-    } catch (error) {
-      setPriceError(error as Error);
-      console.error('Auto price function error:', error);
-    } finally {
-      setIsPricePending(false);
+    } else {
+      // For buy mode, apply 2% discount (overround) to the bet amount
+      const discountedBetAmount = amount * 0.98; // 2% discount
+      
+      // Convert discounted bet amount to USDC (multiply by 10^6 for Base Sepolia)
+      const betAmountInUSDC = BigInt(Math.floor(discountedBetAmount * 1e18));
+      
+      const result = await readContract({
+        contract: marketContract,
+        method: "function calculateSharesFromBetAmount(uint256 _outcome, uint256 _betAmount) view returns (uint256 shares)",
+        params: [BigInt(outcome), betAmountInUSDC],
+      });
+      setPriceResult(result);
+      console.log('Auto buy price result:', {
+        rawResult: result.toString(),
+        originalBetAmount: amount,
+        discountedBetAmount: discountedBetAmount,
+        betAmountInUSDC: betAmountInUSDC.toString(),
+        sharesReceived: Number(result) / 1e18, // Shares returned in USDC units (6 decimals)
+        outcome,
+        amount
+      });
     }
-  }, [marketContract]);
+  } catch (error) {
+    console.error('Auto price function error:', error);
+    
+    // Any error from the contract functions is likely due to amount being too high
+    setPriceError(new Error("Please enter a smaller amount"));
+  } finally {
+    setIsPricePending(false);
+  }
+}, [marketContract]);
 
-  useEffect(() => {
-    if (selectedOutcome && amount && parseFloat(amount) > 0) {
-      const outcome = selectedOutcome === 'yes' ? 1 : 2;
-      const amountValue = parseFloat(amount);
-      if (!isNaN(amountValue) && amountValue > 0) {
-        handleAutoGetPrice(outcome, amountValue);
-      }
+useEffect(() => {
+  if (selectedOutcome && amount && parseFloat(amount) > 0) {
+    const outcome = selectedOutcome === 'yes' ? 0 : 1;
+    const amountValue = parseFloat(amount);
+    if (!isNaN(amountValue) && amountValue > 0) {
+      handleAutoGetPrice(outcome, amountValue, mode === 'sell');
     }
-  }, [selectedOutcome, amount, handleAutoGetPrice]);
+  }
+}, [selectedOutcome, amount, mode, handleAutoGetPrice]);
+
+
+
+
+
+
 
   // Fetch odds history function (read-only, for page loads)
   const fetchOddsHistory = useCallback(async () => {
@@ -809,10 +1093,13 @@ export default function MarketPage({ params }: { params: Promise<{ marketId: str
       // Convert balances to strings and format them
       const balance1Str = balance1.toString();
       const balance2Str = balance2.toString();
+
+      console.log('balance1Str:', balance1Str);
+      console.log('balance2Str:', balance2Str);
       
       // Convert to real token amounts by dividing by 10^18 and remove decimals
-      const yesShares = Math.floor(Number(balance1Str) / 1e18).toString();
-      const noShares = Math.floor(Number(balance2Str) / 1e18).toString();
+      const yesShares = (Number(balance1Str) / 1e18).toString();
+      const noShares = (Number(balance2Str) / 1e18).toString();
       
       
       setOutcome1Balance(yesShares);
@@ -867,8 +1154,8 @@ export default function MarketPage({ params }: { params: Promise<{ marketId: str
       const balance2Str = balance2.toString();
       
       // Convert to real token amounts by dividing by 10^18 and remove decimals
-      const yesShares = Math.floor(Number(balance1Str) / 1e18).toString();
-      const noShares = Math.floor(Number(balance2Str) / 1e18).toString();
+      const yesShares = (Number(balance1Str) / 1e18).toString();
+      const noShares = (Number(balance2Str) / 1e18).toString();
       
       // Only update state if values actually changed to prevent blinking
       setOutcome1Balance(prev => prev !== yesShares ? yesShares : prev);
@@ -1125,49 +1412,73 @@ export default function MarketPage({ params }: { params: Promise<{ marketId: str
       No: entry.noProbability / ODDS_DIVISOR,
     }));
 
-  // Calculate payout based on actual price from priceResult
+  // Calculate payout and average price for the selected outcome
   let payoutDisplay = '--';
   let avgPriceDisplay = '--';
   if (selectedOutcome && amount && !isNaN(Number(amount)) && Number(amount) > 0) {
-    if (mode === 'sell') {
-      // Use live market price for sell
+    if (priceResult !== undefined && !isPricePending && !priceError) {
+      if (mode === 'sell') {
+        // Use the actual refund amount from calculateSellRefund for sell mode
+        const refundReceived = Number(priceResult) / 1e18; // Convert from Wei to USD
+        const shareAmount = parseFloat(amount);
+        
+        // For sell mode, the refund amount is the payout
+        payoutDisplay = `$${refundReceived.toFixed(2)}`;
+        // Calculate average price: (refund received / shares sold) * 100 cents
+        const avgPriceInCents = (refundReceived / shareAmount) * 100;
+        avgPriceDisplay = `¢${avgPriceInCents.toFixed(0)}`;
+        
+        // Debug logging for sell priceResult calculations
+        console.log('=== SELL PRICE RESULT CALCULATIONS ===');
+        console.log('Raw priceResult (refund in Wei):', priceResult.toString());
+        console.log('refundReceived (converted from Wei):', refundReceived);
+        console.log('shareAmount (user input):', shareAmount);
+        console.log('payoutDisplay (refund received):', payoutDisplay);
+        console.log('avgPrice calculation: (refundReceived / shareAmount) * 100 =', avgPriceInCents);
+        console.log('avgPriceDisplay (rounded):', avgPriceDisplay);
+        console.log('================================');
+      } else {
+        // Use the actual shares from calculateSharesFromBetAmount for buy mode
+        const sharesReceived = Number(priceResult) / 1e18; // Convert from Wei to shares
+        const amountNum = parseFloat(amount);
+        
+        // Calculate average price: (user's bet amount / shares received) * 100 cents
+        const avgPriceInCents = (amountNum / sharesReceived) * 100;
+        const totalReturn = sharesReceived; // $1 per share * number of shares
+        payoutDisplay = `$${totalReturn.toFixed(2)}`;
+        avgPriceDisplay = `¢${avgPriceInCents.toFixed(0)}`;
+        
+        // Debug logging for buy priceResult calculations
+        console.log('=== BUY PRICE RESULT CALCULATIONS ===');
+        console.log('Raw priceResult (shares in Wei):', priceResult.toString());
+        console.log('sharesReceived (converted from Wei):', sharesReceived);
+        console.log('amountNum (user input):', amountNum);
+        console.log('Discounted amount used in contract call:', amountNum * 0.98);
+        console.log('Overround adjustment: 2% discount applied');
+        console.log('avgPrice calculation: (amountNum / sharesReceived) * 100 =', avgPriceInCents);
+        console.log('avgPriceDisplay (rounded):', avgPriceDisplay);
+        console.log('totalReturn (shares received):', totalReturn);
+        console.log('================================');
+      }
+    } else {
+      // Fallback to odds-based calculation if priceResult not available
       const odds = selectedOutcome === 'yes' ? oddsYes : oddsNo;
       if (typeof odds === 'bigint' || typeof odds === 'number') {
         const oddsNum = Number(odds) / ODDS_DIVISOR;
-        const payout = Number(amount) * oddsNum;
+        let payout = 0;
+        if (mode === 'buy') {
+          payout = Number(amount) / oddsNum;
+        } else {
+          payout = Number(amount) * oddsNum;
+        }
         if (isFinite(payout)) {
           payoutDisplay = `$${payout.toFixed(2)}`;
         }
         avgPriceDisplay = `¢${(oddsNum * 100).toFixed(0)}`;
       }
-    } else if (priceResult !== undefined && !isPricePending && !priceError) {
-      // Use the actual price from priceResult for more accurate calculation
-      const totalCost = Number(priceResult) / Math.pow(2, 64);
-      const amountNum = parseFloat(amount);
-        // For buy: Input is USD amount, calculate how many shares that buys
-        const pricePerShare = totalCost / amountNum;
-        const sharesBought = amountNum / pricePerShare;
-        const totalReturn = sharesBought; // $1 per share * number of shares
-        payoutDisplay = `$${totalReturn.toFixed(2)}`;
-      avgPriceDisplay = `¢${((totalCost / amountNum) * 100).toFixed(0)}`;
-    } else {
-      // Fallback to odds-based calculation if priceResult not available
-      const odds = selectedOutcome === 'yes' ? oddsYes : oddsNo;
-    if (typeof odds === 'bigint' || typeof odds === 'number') {
-      const oddsNum = Number(odds) / ODDS_DIVISOR;
-      let payout = 0;
-      if (mode === 'buy') {
-        payout = Number(amount) / oddsNum;
-      } else {
-        payout = Number(amount) * oddsNum;
-      }
-      if (isFinite(payout)) {
-        payoutDisplay = `$${payout.toFixed(2)}`;
-      }
-        avgPriceDisplay = `¢${(oddsNum * 100).toFixed(0)}`;
-      }
     }
   }
+
   // Wait for transaction confirmation and update balances
   const waitForTransactionConfirmation = async (transactionResult: unknown, successMessage: string) => {
     try {
@@ -1477,14 +1788,24 @@ export default function MarketPage({ params }: { params: Promise<{ marketId: str
                     <div className="flex gap-2">
                       <button
                         className={`py-1 px-3 text-base rounded-full border ${mode === 'buy' ? 'bg-gray-100 text-green-600 border-gray-300 font-bold' : 'bg-white text-black border-gray-300 font-normal'}`}
-                        onClick={() => setMode('buy')}
+                        onClick={() => {
+                          setMode('buy');
+                          setAmount("");
+                          setSellAllClicked(false);
+                          setSelectedOutcome(null);
+                        }}
                         type="button"
                       >
                         Buy
                       </button>
                       <button
                         className={`py-1 px-3 text-base rounded-full border ${mode === 'sell' ? 'bg-gray-100 text-green-600 border-gray-300 font-bold' : 'bg-white text-black border-gray-300 font-normal'}`}
-                        onClick={() => setMode('sell')}
+                        onClick={() => {
+                          setMode('sell');
+                          setAmount("");
+                          setSellAllClicked(false);
+                          setSelectedOutcome(null);
+                        }}
                         type="button"
                       >
                         Sell
@@ -1521,6 +1842,7 @@ export default function MarketPage({ params }: { params: Promise<{ marketId: str
                     onChange={e => {
                       const value = e.target.value.replace(/[^0-9.]/g, '');
                       setAmount(value);
+                      setSellAllClicked(false);
                     }}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-black text-base mb-4"
                   />
@@ -1529,7 +1851,17 @@ export default function MarketPage({ params }: { params: Promise<{ marketId: str
                     <button
                       type="button"
                       className={`font-semibold px-6 py-2 rounded-lg shadow transition disabled:opacity-50 bg-green-600 hover:bg-green-700 text-white w-1/2 ${selectedOutcome === 'yes' ? 'ring-2 ring-black' : ''}`}
-                      onClick={() => setSelectedOutcome('yes')}
+                      onClick={() => {
+                      setSelectedOutcome('yes');
+                      // If Sell All is active, update input to show Yes shares
+                      if (sellAllClicked) {
+                        const yesShares = outcome1Balance !== '--' && outcome1Balance !== 'Error' ? parseFloat(outcome1Balance) : 0;
+                        setAmount(yesShares.toString());
+                        console.log('Sell All active - updated input to Yes shares:', yesShares);
+                      } else {
+                        setSellAllClicked(false);
+                      }
+                    }}
                     >
                       {mode === 'buy'
                         ? (buyYesStatus === 'pending' ? 'Buying...' : `Yes ${formatOddsToCents(oddsYes)}`)
@@ -1538,13 +1870,78 @@ export default function MarketPage({ params }: { params: Promise<{ marketId: str
                     <button
                       type="button"
                       className={`font-semibold px-6 py-2 rounded-lg shadow transition disabled:opacity-50 bg-red-600 hover:bg-red-700 text-white w-1/2 ${selectedOutcome === 'no' ? 'ring-2 ring-black' : ''}`}
-                      onClick={() => setSelectedOutcome('no')}
+                      onClick={() => {
+                      setSelectedOutcome('no');
+                      // If Sell All is active, update input to show No shares
+                      if (sellAllClicked) {
+                        const noShares = outcome2Balance !== '--' && outcome2Balance !== 'Error' ? parseFloat(outcome2Balance) : 0;
+                        setAmount(noShares.toString());
+                        console.log('Sell All active - updated input to No shares:', noShares);
+                      } else {
+                        setSellAllClicked(false);
+                      }
+                    }}
                     >
                       {mode === 'buy'
                         ? (buyNoStatus === 'pending' ? 'Buying...' : `No ${formatOddsToCents(oddsNo)}`)
                         : (buyNoStatus === 'pending' ? 'Selling...' : `No ${formatOddsToCents(oddsNo)}`)}
                     </button>
                   </div>
+                  {/* Sell All button - only show on sell mode when user has shares */}
+                  {mode === 'sell' && (
+                    (outcome1Balance !== '--' && outcome1Balance !== 'Error' && parseInt(outcome1Balance) > 0) ||
+                    (outcome2Balance !== '--' && outcome2Balance !== 'Error' && parseInt(outcome2Balance) > 0)
+                  ) && (
+                    <div className="flex justify-start mb-4">
+                      <button
+                        className={`py-1 px-3 text-base rounded-full border transition-colors ${sellAllClicked ? 'bg-gray-100 text-green-600 border-gray-300 font-bold' : 'bg-white text-black border-gray-300 font-normal hover:bg-gray-50'}`}
+                        onClick={() => {      
+                          if (sellAllClicked) {
+                            // Second click: return to normal state and clear input
+                            setSellAllClicked(false);
+                            setAmount("");
+                            setSelectedOutcome(null);
+                            console.log('Sell All button deactivated, input cleared, outcome deselected');
+                          } else {
+                            // First click: activate button and populate input
+                            setSellAllClicked(true);
+                            
+                            // Calculate shares for each outcome
+                            const yesShares = outcome1Balance !== '--' && outcome1Balance !== 'Error' ? parseFloat(outcome1Balance) : 0;
+                            const noShares = outcome2Balance !== '--' && outcome2Balance !== 'Error' ? parseFloat(outcome2Balance) : 0;
+                            
+                            // Check if user has already selected an outcome
+                            if (selectedOutcome === 'yes') {
+                              // User already selected Yes - input Yes shares
+                              setAmount(yesShares.toString());
+                              console.log('User already selected Yes - inputting Yes shares:', yesShares);
+                            } else if (selectedOutcome === 'no') {
+                              // User already selected No - input No shares
+                              setAmount(noShares.toString());
+                              console.log('User already selected No - inputting No shares:', noShares);
+                            } else {
+                              // No outcome selected - default to larger position
+                              const largerPosition = Math.max(yesShares, noShares);
+                              const outcomeWithMoreShares = yesShares >= noShares ? 'yes' : 'no';
+                              
+                              setAmount(largerPosition.toString());
+                              setSelectedOutcome(outcomeWithMoreShares);
+                              
+                              console.log('No outcome selected - defaulting to larger position:', largerPosition);
+                              console.log('Automatically selected outcome:', outcomeWithMoreShares);
+                            }
+                            
+                            // Debug: Print the parsed values
+                            console.log('Parsed yesShares:', yesShares);
+                            console.log('Parsed noShares:', noShares);
+                            console.log('Final amount set to input:', yesShares > noShares ? yesShares : noShares);
+                          }
+                        }}
+                      >
+                        Sell All
+                      </button>
+                    </div>
+                  )}
                   {/* Only show Max. Win, Avg Price, and Submit Trade if amount and selectedOutcome are set */}
                   {amount && !isNaN(Number(amount)) && selectedOutcome && (
                     <>
@@ -1580,11 +1977,11 @@ export default function MarketPage({ params }: { params: Promise<{ marketId: str
                     <div className="grid grid-cols-2 gap-4">
                       <div className="text-center">
                         <div className="text-sm font-semibold text-green-600 mb-1">Yes Shares</div>
-                        <div className="text-lg font-bold text-gray-800">{isBalanceLoading ? "..." : outcome1Balance}</div>
+                        <div className="text-lg font-bold text-gray-800">{isBalanceLoading ? "..." : (outcome1Balance !== '--' && outcome1Balance !== 'Error' ? parseFloat(outcome1Balance).toFixed(2) : outcome1Balance)}</div>
                       </div>
                       <div className="text-center">
                         <div className="text-sm font-semibold text-red-600 mb-1">No Shares</div>
-                        <div className="text-lg font-bold text-gray-800">{isBalanceLoading ? "..." : outcome2Balance}</div>
+                        <div className="text-lg font-bold text-gray-800">{isBalanceLoading ? "..." : (outcome2Balance !== '--' && outcome2Balance !== 'Error' ? parseFloat(outcome2Balance).toFixed(2) : outcome2Balance)}</div>
                       </div>
                     </div>
                   </div>
@@ -1905,14 +2302,24 @@ export default function MarketPage({ params }: { params: Promise<{ marketId: str
                 <div className="flex gap-2">
                   <button
                     className={`py-1 px-3 text-base rounded-full border ${mode === 'buy' ? 'bg-gray-100 text-green-600 border-gray-300 font-bold' : 'bg-white text-black border-gray-300 font-normal'}`}
-                    onClick={() => setMode('buy')}
+                    onClick={() => {
+                      setMode('buy');
+                      setAmount("");
+                      setSellAllClicked(false);
+                      setSelectedOutcome(null);
+                    }}
                     type="button"
                   >
                     Buy
                   </button>
                   <button
                     className={`py-1 px-3 text-base rounded-full border ${mode === 'sell' ? 'bg-gray-100 text-green-600 border-gray-300 font-bold' : 'bg-white text-black border-gray-300 font-normal'}`}
-                    onClick={() => setMode('sell')}
+                    onClick={() => {
+                      setMode('sell');
+                      setAmount("");
+                      setSellAllClicked(false);
+                      setSelectedOutcome(null);
+                    }}
                     type="button"
                   >
                     Sell
@@ -1929,6 +2336,7 @@ export default function MarketPage({ params }: { params: Promise<{ marketId: str
                 onChange={e => {
                   const value = e.target.value.replace(/[^0-9.]/g, '');
                   setAmount(value);
+                  setSellAllClicked(false);
                 }}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-black text-base mb-4"
               />
@@ -1937,7 +2345,17 @@ export default function MarketPage({ params }: { params: Promise<{ marketId: str
                 <button
                   type="button"
                   className={`font-semibold px-6 py-2 rounded-lg shadow transition disabled:opacity-50 bg-green-600 hover:bg-green-700 text-white w-1/2 ${selectedOutcome === 'yes' ? 'ring-2 ring-black' : ''}`}
-                  onClick={() => setSelectedOutcome('yes')}
+                                        onClick={() => {
+                        setSelectedOutcome('yes');
+                        // If Sell All is active, update input to show Yes shares
+                        if (sellAllClicked) {
+                          const yesShares = outcome1Balance !== '--' && outcome1Balance !== 'Error' ? parseFloat(outcome1Balance) : 0;
+                          setAmount(yesShares.toString());
+                          console.log('Sell All active - updated input to Yes shares:', yesShares);
+                        } else {
+                          setSellAllClicked(false);
+                        }
+                      }}
                 >
                   {mode === 'buy'
                     ? (buyYesStatus === 'pending' ? 'Buying...' : `Yes ${formatOddsToCents(oddsYes)}`)
@@ -1946,13 +2364,78 @@ export default function MarketPage({ params }: { params: Promise<{ marketId: str
                 <button
                   type="button"
                   className={`font-semibold px-6 py-2 rounded-lg shadow transition disabled:opacity-50 bg-red-600 hover:bg-red-700 text-white w-1/2 ${selectedOutcome === 'no' ? 'ring-2 ring-black' : ''}`}
-                  onClick={() => setSelectedOutcome('no')}
+                                        onClick={() => {
+                        setSelectedOutcome('no');
+                        // If Sell All is active, update input to show No shares
+                        if (sellAllClicked) {
+                          const noShares = outcome2Balance !== '--' && outcome2Balance !== 'Error' ? parseFloat(outcome2Balance) : 0;
+                          setAmount(noShares.toString());
+                          console.log('Sell All active - updated input to No shares:', noShares);
+                        } else {
+                          setSellAllClicked(false);
+                        }
+                      }}
                 >
                   {mode === 'buy'
                     ? (buyNoStatus === 'pending' ? 'Buying...' : `No ${formatOddsToCents(oddsNo)}`)
                     : (buyNoStatus === 'pending' ? 'Selling...' : `No ${formatOddsToCents(oddsNo)}`)}
                 </button>
               </div>
+              {/* Sell All button - only show on sell mode when user has shares */}
+              {mode === 'sell' && (
+                (outcome1Balance !== '--' && outcome1Balance !== 'Error' && parseFloat(outcome1Balance) > 0) ||
+                (outcome2Balance !== '--' && outcome2Balance !== 'Error' && parseFloat(outcome2Balance) > 0)
+              ) && (
+                <div className="flex justify-start mb-4">
+                  <button
+                                            className={`py-1 px-3 text-base rounded-full border transition-colors ${sellAllClicked ? 'bg-gray-100 text-green-600 border-gray-300 font-bold' : 'bg-white text-black border-gray-300 font-normal hover:bg-gray-50'}`}
+                                            onClick={() => {      
+                          if (sellAllClicked) {
+                            // Second click: return to normal state and clear input
+                            setSellAllClicked(false);
+                            setAmount("");
+                            setSelectedOutcome(null);
+                            console.log('Sell All button deactivated, input cleared, outcome deselected');
+                          } else {
+                            // First click: activate button and populate input
+                            setSellAllClicked(true);
+                            
+                            // Calculate shares for each outcome
+                            const yesShares = outcome1Balance !== '--' && outcome1Balance !== 'Error' ? parseFloat(outcome1Balance) : 0;
+                            const noShares = outcome2Balance !== '--' && outcome2Balance !== 'Error' ? parseFloat(outcome2Balance) : 0;
+                            
+                            // Check if user has already selected an outcome
+                            if (selectedOutcome === 'yes') {
+                              // User already selected Yes - input Yes shares
+                              setAmount(yesShares.toString());
+                              console.log('User already selected Yes - inputting Yes shares:', yesShares);
+                            } else if (selectedOutcome === 'no') {
+                              // User already selected No - input No shares
+                              setAmount(noShares.toString());
+                              console.log('User already selected No - inputting No shares:', noShares);
+                            } else {
+                              // No outcome selected - default to larger position
+                              const largerPosition = Math.max(yesShares, noShares);
+                              const outcomeWithMoreShares = yesShares >= noShares ? 'yes' : 'no';
+                              
+                              setAmount(largerPosition.toString());
+                              setSelectedOutcome(outcomeWithMoreShares);
+                              
+                              console.log('No outcome selected - defaulting to larger position:', largerPosition);
+                              console.log('Automatically selected outcome:', outcomeWithMoreShares);
+                            }
+                            
+                            // Debug: Print the parsed values
+                            console.log('Parsed yesShares:', yesShares);
+                            console.log('Parsed noShares:', noShares);
+                            console.log('Final amount set to input:', yesShares > noShares ? yesShares : noShares);
+                          }
+                        }}
+                  >
+                    Sell All
+                  </button>
+                </div>
+              )}
               {/* Only show Max. Win, Avg Price, and Submit Trade if amount and selectedOutcome are set */}
               {amount && !isNaN(Number(amount)) && selectedOutcome && (
                 <>
@@ -1988,11 +2471,11 @@ export default function MarketPage({ params }: { params: Promise<{ marketId: str
                 <div className="grid grid-cols-2 gap-4">
                   <div className="text-center">
                     <div className="text-sm font-semibold text-green-600 mb-1">Yes Shares</div>
-                    <div className="text-lg font-bold text-gray-800">{isBalanceLoading ? "..." : outcome1Balance}</div>
+                    <div className="text-lg font-bold text-gray-800">{isBalanceLoading ? "..." : (outcome1Balance !== '--' && outcome1Balance !== 'Error' ? parseFloat(outcome1Balance).toFixed(2) : outcome1Balance)}</div>
                   </div>
                   <div className="text-center">
                     <div className="text-sm font-semibold text-red-600 mb-1">No Shares</div>
-                    <div className="text-lg font-bold text-gray-800">{isBalanceLoading ? "..." : outcome2Balance}</div>
+                    <div className="text-lg font-bold text-gray-800">{isBalanceLoading ? "..." : (outcome2Balance !== '--' && outcome2Balance !== 'Error' ? parseFloat(outcome2Balance).toFixed(2) : outcome2Balance)}</div>
                   </div>
                 </div>
               </div>

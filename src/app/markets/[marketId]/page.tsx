@@ -2,6 +2,7 @@
 
 import Navbar from "../../../../components/Navbar";
 import React, { useState, useEffect, useCallback, use } from "react";
+import { useRouter } from "next/navigation";
 import { useActiveAccount, useReadContract, useSendTransaction } from "thirdweb/react";
 import { prepareContractCall, readContract, getContract } from "thirdweb";
 import { getContractsForMarket, tokenContract} from "../../../../constants/contracts";
@@ -133,6 +134,7 @@ export default function MarketPage({ params }: { params: Promise<{ marketId: str
   }
 
   const account = useActiveAccount();
+  const router = useRouter();
 
   // Get contracts and position IDs based on market ID
   const { marketContract, conditionalTokensContract, outcome1PositionId, outcome2PositionId } = getContractsForMarket(market.id);
@@ -279,111 +281,6 @@ export default function MarketPage({ params }: { params: Promise<{ marketId: str
   };
 
   // Buy/Sell handlers
-  /*
-  const handleBuyYes = async (amount: string) => {
-    if (!amount || !account?.address) return;
-    setBuyFeedback("Preparing transaction (1/3)");
-    const usdAmount = parseFloat(amount);
-    const sharesToBuy = await findSharesForAmount({
-      outcomeIndex: 1, // Yes is 1
-      maxAmount: usdAmount,
-      marketContract
-    });
-    if (isNaN(sharesToBuy) || sharesToBuy <= 0) {
-      setBuyFeedback("Invalid price calculation. Please try again.");
-      setTimeout(() => setBuyFeedback(null), 3000);
-      return;
-    }
-    const parsedAmount = BigInt(Math.floor(sharesToBuy * Math.pow(2, 64)));
-    const transaction = prepareContractCall({
-      contract: marketContract,
-      method: "function buy(uint256 _outcome, int128 _amount) returns (int128 _price)",
-      params: [yesIndex, parsedAmount],
-    });
-    sendBuyYesTransaction(transaction, {
-      onError: (error) => {
-          console.error("=== BUY YES TRANSACTION ERROR ===");
-          console.error("Error object:", error);
-          console.error("Error type:", typeof error);
-          console.error("Error message:", error?.message);
-          console.error("Error name:", error?.name);
-          console.error("Error stack:", error?.stack);
-          console.error("Error properties:", Object.getOwnPropertyNames(error || {}));
-          console.error("Transaction details:", transaction);
-          console.error("USD amount:", usdAmount);
-          console.error("Shares to buy:", sharesToBuy);
-          console.error("Parsed amount:", parsedAmount.toString());
-          console.error("Price result:", priceResult?.toString());
-          console.error("Is price pending:", isPricePending);
-          console.error("Price error:", priceError);
-          console.error("==================================");
-          
-          let errorMessage = "Purchase failed. Please try again.";
-          if (error?.message) {
-            const msg = error.message.toLowerCase();
-            if (msg.includes("insufficient funds")) {
-              errorMessage = "Insufficient funds for transaction.";
-            } else if (msg.includes("user rejected") || msg.includes("user denied transaction signature")) {
-              errorMessage = "User cancelled transaction";
-            } else if (msg.includes("gas")) {
-              errorMessage = "Gas estimation failed. Try a smaller amount.";
-            } else if (msg.includes("revert")) {
-              errorMessage = "Transaction reverted. Check your input.";
-            } else if (msg.includes("execution reverted")) {
-              errorMessage = "Contract execution failed. Check your input.";
-            }
-          }
-          
-          setBuyFeedback(errorMessage);
-      },
-        onSuccess: async (result) => {
-          console.log("Buy Yes transaction successful:", result);
-          setBuyFeedback("Transaction submitted (2/3)");
-          
-                // Submit trade to database
-      try {
-        const avgPrice = usdAmount / sharesToBuy;
-        const tradeData = {
-          walletAddress: account?.address || '',
-          marketTitle: market.title,
-          marketId: market.id, // Use the market ID string directly
-          outcome: "Yes",
-          shares: sharesToBuy,
-          avgPrice: avgPrice,
-          betAmount: usdAmount,
-          toWin: sharesToBuy - usdAmount, // Update this formula as needed
-          status: "OPEN"
-        };
-        
-        const tradeResult = await submitTrade(tradeData);
-        if (tradeResult) {
-          console.log("Trade submitted to database successfully");
-        } else {
-          console.log("Trade submitted to database (no response)");
-        }
-      } catch (error) {
-        console.error("Failed to submit trade to database:", error);
-        // Don't show error to user since the blockchain transaction was successful
-      }
-          
-          // Wait for transaction confirmation and update balances
-          await waitForTransactionConfirmation(result, "Purchase Successful! (3/3)");
-          
-          // Record odds in the background (don't wait for it)
-          recordNewOdds();
-      },
-      onSettled: () => {
-          setTimeout(() => {
-            setBuyFeedback(null);
-            setSuccessMessage(null);
-          }, 10000);
-      }
-    });
-  };
-  */
-
-
-  // Buy/Sell handlers
   const handleBuyYes = async (amount: string) => {
     if (!amount || !account?.address) return;
     setBuyFeedback("Preparing transaction (1/3)");
@@ -504,111 +401,6 @@ export default function MarketPage({ params }: { params: Promise<{ marketId: str
     });
   };
 
-  /*
-  const handleBuyNo = async (amount: string) => {
-    if (!amount || !account?.address) return;
-    setBuyFeedback("Preparing transaction (1/3)");
-    const usdAmount = parseFloat(amount);
-    const sharesToBuy = await findSharesForAmount({
-      outcomeIndex: 2, // No is 2
-      maxAmount: usdAmount,
-      marketContract
-    });
-    if (isNaN(sharesToBuy) || sharesToBuy <= 0) {
-      setBuyFeedback("Invalid price calculation. Please try again.");
-      setTimeout(() => setBuyFeedback(null), 3000);
-      return;
-    }
-    const parsedAmount = BigInt(Math.floor(sharesToBuy * Math.pow(2, 64)));
-    // Log outcome and amount for debugging
-    console.log(noIndex.toString(), parsedAmount.toString());
-    const transaction = prepareContractCall({
-      contract: marketContract,
-      method: "function buy(uint256 _outcome, int128 _amount) returns (int128 _price)",
-      params: [noIndex, parsedAmount],
-    });
-    sendBuyNoTransaction(transaction, {
-      onError: (error) => {
-          console.error("=== BUY NO TRANSACTION ERROR ===");
-          console.error("Error object:", error);
-          console.error("Error type:", typeof error);
-          console.error("Error message:", error?.message);
-          console.error("Error name:", error?.name);
-          console.error("Error stack:", error?.stack);
-          console.error("Error properties:", Object.getOwnPropertyNames(error || {}));
-          console.error("Transaction details:", transaction);
-          console.error("USD amount:", usdAmount);
-          console.error("Shares to buy:", sharesToBuy);
-          console.error("Parsed amount:", parsedAmount.toString());
-          console.error("Price result:", priceResult?.toString());
-          console.error("Is price pending:", isPricePending);
-          console.error("Price error:", priceError);
-          console.error("==================================");
-          
-          let errorMessage = "Purchase failed. Please try again.";
-          if (error?.message) {
-            const msg = error.message.toLowerCase();
-            if (msg.includes("insufficient funds")) {
-              errorMessage = "Insufficient funds for transaction.";
-            } else if (msg.includes("user rejected") || msg.includes("user denied transaction signature")) {
-              errorMessage = "User cancelled transaction";
-            } else if (msg.includes("gas")) {
-              errorMessage = "Gas estimation failed. Try a smaller amount.";
-            } else if (msg.includes("revert")) {
-              errorMessage = "Transaction reverted. Check your input.";
-            } else if (msg.includes("execution reverted")) {
-              errorMessage = "Contract execution failed. Check your input.";
-            }
-          }
-          
-          setBuyFeedback(errorMessage);
-      },
-              onSuccess: async (result) => {
-        console.log("Buy No transaction successful:", result);
-        setBuyFeedback("Transaction submitted (2/3)");
-          
-          // Submit trade to database
-          try {
-            const avgPrice = usdAmount / sharesToBuy;
-            const tradeData = {
-              walletAddress: account?.address || '',
-              marketTitle: market.title,
-              marketId: market.id, // Use the market ID string directly
-              outcome: "No",
-              shares: sharesToBuy,
-              avgPrice: avgPrice,
-              betAmount: usdAmount,
-              toWin: sharesToBuy - usdAmount, // Update this formula as needed
-              status: "OPEN"
-            };
-            
-                    const tradeResult = await submitTrade(tradeData);
-        if (tradeResult) {
-          console.log("Trade submitted to database successfully");
-        } else {
-          console.log("Trade submitted to database (no response)");
-        }
-          } catch (error) {
-            console.error("Failed to submit trade to database:", error);
-            // Don't show error to user since the blockchain transaction was successful
-          }
-          
-          // Wait for transaction confirmation and update balances
-          await waitForTransactionConfirmation(result, "Purchase Successful! (3/3)");
-          
-          // Record odds in the background (don't wait for it)
-          recordNewOdds();
-      },
-      onSettled: () => {
-          setTimeout(() => {
-            setBuyFeedback(null);
-            setSuccessMessage(null);
-          }, 10000);
-      }
-    });
-  };
-  */
-
   const handleBuyNo = async (amount: string) => {
     if (!amount || !account?.address) return;
     setBuyFeedback("Preparing transaction (1/3)");
@@ -728,7 +520,6 @@ export default function MarketPage({ params }: { params: Promise<{ marketId: str
       }
     });
   };
-
 
   const handleBuyNoWithApproval = async (amount: string) => {
     if (!handleWalletCheck()) return;
@@ -894,7 +685,7 @@ export default function MarketPage({ params }: { params: Promise<{ marketId: str
   const [evidence, setEvidence] = useState<Evidence[]>([]);
   const [votingEvidenceId, setVotingEvidenceId] = useState<number | null>(null);
   const [userVotes, setUserVotes] = useState<Set<number>>(new Set());
-  const [expandedEvidenceId, setExpandedEvidenceId] = useState<number | null>(null);
+
   const [showAllYes, setShowAllYes] = useState(false);
   const [showAllNo, setShowAllNo] = useState(false);
   
@@ -1423,7 +1214,7 @@ useEffect(() => {
         const shareAmount = parseFloat(amount);
         
         // For sell mode, the refund amount is the payout
-        payoutDisplay = `$${refundReceived.toFixed(2)}`;
+        payoutDisplay = `𐆖 ${refundReceived.toFixed(2)}`;
         // Calculate average price: (refund received / shares sold) * 100 cents
         const avgPriceInCents = (refundReceived / shareAmount) * 100;
         avgPriceDisplay = `¢${avgPriceInCents.toFixed(0)}`;
@@ -1445,7 +1236,7 @@ useEffect(() => {
         // Calculate average price: (user's bet amount / shares received) * 100 cents
         const avgPriceInCents = (amountNum / sharesReceived) * 100;
         const totalReturn = sharesReceived; // $1 per share * number of shares
-        payoutDisplay = `$${totalReturn.toFixed(2)}`;
+        payoutDisplay = `𐆖 ${totalReturn.toFixed(2)}`;
         avgPriceDisplay = `¢${avgPriceInCents.toFixed(0)}`;
         
         // Debug logging for buy priceResult calculations
@@ -1472,7 +1263,7 @@ useEffect(() => {
           payout = Number(amount) * oddsNum;
         }
         if (isFinite(payout)) {
-          payoutDisplay = `$${payout.toFixed(2)}`;
+          payoutDisplay = `𐆖 ${payout.toFixed(2)}`;
         }
         avgPriceDisplay = `¢${(oddsNum * 100).toFixed(0)}`;
       }
@@ -1815,10 +1606,10 @@ useEffect(() => {
                     <div className="text-right mr-2">
                       {mode === 'buy' ? (
                         <div className="text-sm font-semibold text-green-600">
-                          Cash: {(!account?.address) ? "$--" : (() => {
-                            if (!userTokenBalance) return "$0";
+                          Cash: {(!account?.address) ? "𐆖--" : (() => {
+                            if (!userTokenBalance) return "𐆖0";
                             const amount = Number(userTokenBalance) / 1e18;
-                            return `$${amount % 1 === 0 
+                            return `𐆖${amount % 1 === 0 
                               ? amount.toLocaleString(undefined, { maximumFractionDigits: 0 })
                               : amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
                             }`;
@@ -1833,12 +1624,12 @@ useEffect(() => {
                     </div>
                   </div>
                   {/* Bet Amount sub-title */}
-                  <div className="text-lg font-bold mb-2">{mode === 'buy' ? 'Bet Amount ($)' : 'Sell Shares'}</div>
+                  <div className="text-lg font-bold mb-2">{mode === 'buy' ? 'Bet Amount (𐆖)' : 'Sell Shares'}</div>
                   {/* Amount input */}
                   <input
                     type="text"
                     placeholder={`Enter ${mode === 'buy' ? 'Buy' : 'Sell'} Amount`}
-                    value={amount ? (mode === 'buy' ? `$${amount}` : amount) : ''}
+                    value={amount ? (mode === 'buy' ? `𐆖 ${amount}` : amount) : ''}
                     onChange={e => {
                       const value = e.target.value.replace(/[^0-9.]/g, '');
                       setAmount(value);
@@ -1946,7 +1737,7 @@ useEffect(() => {
                   {amount && !isNaN(Number(amount)) && selectedOutcome && (
                     <>
                       {/* Max. Win/Receive sub-title */}
-                      <div className="text-[1.15rem] font-medium text-black">{mode === 'buy' ? 'Max. Win:' : 'Receive:'} <span className="text-green-600 font-bold">{payoutDisplay}</span></div>
+                      <div className="text-[1.15rem] font-medium text-black">{mode === 'buy' ? 'Max. Win:' : 'Receive:'} <span className="text-green-600 font-bold"><span className="font-normal">𐆖</span> {payoutDisplay.replace('𐆖 ', '')}</span></div>
                       {/* Avg. Price display */}
                       <div className="text-left text-sm text-gray-600 mb-4">
                         Avg. Price
@@ -2112,19 +1903,14 @@ useEffect(() => {
                                     <button
                                       className="text-xs text-gray-600 mt-2 hover:underline hover:text-blue-800 focus:outline-none block"
                                       type="button"
-                                      onClick={() => setExpandedEvidenceId(expandedEvidenceId === evidence.id ? null : evidence.id)}
+                                      onClick={() => router.push(`/evidence/${evidence.id}`)}
                                     >
-                                      {expandedEvidenceId === evidence.id ? 'Hide Replies' : 'View Replies'}
+                                      View Discussion
                                     </button>
                                   </div>
                                 </div>
                                   {/* Show comments section if expanded */}
-                                  {expandedEvidenceId === evidence.id && (
-                                    <EvidenceComments
-                                      evidence={{ ...evidence, commentCount: evidence.commentCount ?? 0 }}
-                                      currentUserAddress={account?.address}
-                                    />
-                                  )}
+            
                               </div>
                             </div>
                           </div>
@@ -2200,19 +1986,14 @@ useEffect(() => {
                                     <button
                                       className="text-xs text-gray-600 mt-2 hover:underline hover:text-blue-800 focus:outline-none block"
                                       type="button"
-                                      onClick={() => setExpandedEvidenceId(expandedEvidenceId === evidence.id ? null : evidence.id)}
+                                      onClick={() => router.push(`/evidence/${evidence.id}`)}
                                     >
-                                      {expandedEvidenceId === evidence.id ? 'Hide Replies' : 'View Replies'}
+                                      View Discussion
                                     </button>
                                   </div>
                                 </div>
                                   {/* Show comments section if expanded */}
-                                  {expandedEvidenceId === evidence.id && (
-                                    <EvidenceComments
-                                      evidence={{ ...evidence, commentCount: evidence.commentCount ?? 0 }}
-                                      currentUserAddress={account?.address}
-                                    />
-                                  )}
+   
                               </div>
                             </div>
                           </div>
@@ -2327,12 +2108,12 @@ useEffect(() => {
                 </div>
               </div>
               {/* Bet Amount sub-title */}
-              <div className="text-lg font-bold mb-2">{mode === 'buy' ? 'Bet Amount ($)' : 'Sell Shares'}</div>
+              <div className="text-lg font-bold mb-2">{mode === 'buy' ? 'Bet Amount (𐆖)' : 'Sell Shares'}</div>
               {/* Amount input */}
               <input
                 type="text"
                 placeholder={`Enter ${mode === 'buy' ? 'Buy' : 'Sell'} Amount`}
-                value={amount ? (mode === 'buy' ? `$${amount}` : amount) : ''}
+                value={amount ? (mode === 'buy' ? `𐆖 ${amount}` : amount) : ''}
                 onChange={e => {
                   const value = e.target.value.replace(/[^0-9.]/g, '');
                   setAmount(value);
@@ -2440,7 +2221,7 @@ useEffect(() => {
               {amount && !isNaN(Number(amount)) && selectedOutcome && (
                 <>
                   {/* Max. Win/Receive sub-title */}
-                  <div className="text-[1.15rem] font-medium text-black">{mode === 'buy' ? 'Max. Win:' : 'Receive:'} <span className="text-green-600 font-bold">{payoutDisplay}</span></div>
+                  <div className="text-[1.15rem] font-medium text-black">{mode === 'buy' ? 'Max. Win:' : 'Receive:'} <span className="text-green-600 font-bold"><span className="font-normal">𐆖</span> {payoutDisplay.replace('𐆖 ', '')}</span></div>
                   {/* Avg. Price display */}
                   <div className="text-left text-sm text-gray-600 mb-4">
                     Avg. Price

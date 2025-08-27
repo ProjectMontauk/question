@@ -397,14 +397,14 @@ export default function PortfolioPage() {
               <div className="flex items-center mb-2">
                 <span className="uppercase tracking-widest text-gray-500 font-semibold text-xs md:text-sm">Portfolio</span>
               </div>
-              <div className="text-2xl md:text-4xl font-bold text-gray-900 mb-2">${totalPortfolio.toFixed(2)}</div>
+              <div className="text-2xl md:text-4xl font-bold text-gray-900 mb-2"><span className="text-[36px] font-normal">𐆖</span>&thinsp;{totalPortfolio.toFixed(2)}</div>
               <div className="text-gray-500 font-semibold text-xs md:text-sm uppercase tracking-widest mb-1">Profit/Loss</div>
               <div className={
                 allTimePL > 0 ? "text-green-600 font-semibold text-sm md:text-lg" :
                 allTimePL < 0 ? "text-red-600 font-semibold text-sm md:text-lg" :
                 "text-gray-500 font-semibold text-sm md:text-lg"
               }>
-                {allTimePL >= 0 ? "+" : "-"}${Math.abs(allTimePL).toFixed(2)}
+                {allTimePL >= 0 ? "+" : "-"}<span className="text-[17.5px] font-normal">𐆖</span>&thinsp;{Math.abs(allTimePL).toFixed(2)}
                 <span className="ml-1">
                   ({Math.abs(allTimePLPercent).toFixed(2)}%)
                 </span>
@@ -412,10 +412,10 @@ export default function PortfolioPage() {
               </div>
             </div>
             <div className="flex flex-col items-start ml-20">
-              <span className="text-gray-500 font-semibold text-xs md:text-sm uppercase tracking-widest mb-1">Cash</span>
-              <span className="text-gray-900 font-bold text-xs md:text-[14px] mb-4">${cash.toFixed(2)}</span>
+                              <span className="text-gray-500 font-semibold text-xs md:text-sm uppercase tracking-widest mb-1">Cash</span>
+                              <span className="text-gray-900 font-bold text-xs md:text-[14px] mb-4"><span className="text-[13.5px] font-normal">𐆖</span>&thinsp;{cash.toFixed(2)}</span>
               <span className="text-gray-500 font-semibold text-xs md:text-sm uppercase tracking-widest mb-1 block" style={{ paddingTop: 12 }}>Bet Value</span>
-              <span className="text-gray-900 font-bold text-xs md:text-[14px] mb-4">${totalPositionsValue.toFixed(2)}</span>
+                              <span className="text-gray-900 font-bold text-xs md:text-[14px] mb-4"><span className="text-[13.5px] font-normal">𐆖</span>&thinsp;{totalPositionsValue.toFixed(2)}</span>
             </div>
             </div>
 
@@ -490,15 +490,15 @@ export default function PortfolioPage() {
                               </td>
                               {/* Bet */}
                               <td className="px-3 md:px-6 py-3 md:py-4 text-center text-gray-900 text-xs md:text-base">
-                                ${trade.betAmount.toFixed(2)}
+                                <span className="text-[15.5px] font-normal">𐆖</span>&thinsp;{trade.betAmount.toFixed(2)}
                               </td>
                               {/* To Win */}
                               <td className="px-3 md:px-6 py-3 md:py-4 text-center text-gray-900 text-xs md:text-base">
-                                ${trade.toWin.toFixed(2)}
+                                <span className="text-[15.5px] font-normal">𐆖</span>&thinsp;{trade.toWin.toFixed(2)}
                               </td>
                               {/* Value */}
                               <td className="px-3 md:px-6 py-3 md:py-4 text-center text-xs md:text-base font-bold" style={{color: (trade.shares * getCurrentPriceNumber(trade)) > trade.betAmount ? '#16a34a' : '#dc2626'}}>
-                                ${ (trade.shares * getCurrentPriceNumber(trade)).toFixed(2) }
+                                <span className="text-[15.5px] font-normal">𐆖</span>&thinsp;{ (trade.shares * getCurrentPriceNumber(trade)).toFixed(2) }
                               </td>
                               {/* P/L */}
                               <td className="px-3 md:px-6 py-3 md:py-4 text-center text-xs md:text-base font-bold" style={{
@@ -507,7 +507,12 @@ export default function PortfolioPage() {
                               }}>
                                 {(() => {
                                   const pl = trade.shares * getCurrentPriceNumber(trade) - trade.betAmount;
-                                  return `${pl > 0 ? '+$' : pl < 0 ? '-$' : '$'}${Math.abs(pl).toFixed(2)}`;
+                                  return (
+                                    <>
+                                      {pl > 0 ? '+' : pl < 0 ? '-' : ''}
+                                      <span className="text-[15.5px] font-normal">𐆖</span>&thinsp;{Math.abs(pl).toFixed(2)}
+                                    </>
+                                  );
                                 })()}
                               </td>
                             </tr>
@@ -566,11 +571,11 @@ export default function PortfolioPage() {
                                   </td>
                                   {/* Value */}
                                   <td className="px-3 md:px-6 py-3 md:py-4 text-center text-xs md:text-base font-bold" style={{color: position.positionValue > 0 ? '#16a34a' : '#dc2626'}}>
-                                    ${position.positionValue.toFixed(2)}
+                                    <span className="text-[15.5px] font-normal">𐆖</span>&thinsp;{position.positionValue.toFixed(2)}
                                   </td>
                                   {/* Potential (if outcome resolves to Yes, they win $1 per share) */}
-                                  <td className="px-3 md:px-6 py-3 md:py-4 text-center text-xs md:text-base font-bold text-green-600">
-                                    ${position.shares.toFixed(2)}
+                                  <td className="px-3 md:py-4 text-center text-xs md:text-base font-bold text-green-600">
+                                    <span className="text-[15.5px] font-normal">𐆖</span>&thinsp;{position.shares.toFixed(2)}
                                   </td>
                                 </tr>
                               ))}

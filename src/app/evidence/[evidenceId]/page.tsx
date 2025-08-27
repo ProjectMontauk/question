@@ -1,0 +1,194 @@
+'use client';
+
+import { useState, useEffect } from 'react';
+import { useParams, useRouter } from 'next/navigation';
+import { useActiveAccount } from 'thirdweb/react';
+import EvidenceComments from '../../../components/EvidenceComments';
+import Navbar from '../../../../components/Navbar';
+
+interface Evidence {
+  id: number;
+  type: 'yes' | 'no';
+  title: string;
+  url?: string;
+  description: string;
+  netVotes: number;
+  walletAddress: string;
+  createdAt?: string;
+  commentCount: number;
+}
+
+export default function EvidenceDiscussionPage() {
+  const params = useParams();
+  const router = useRouter();
+  const account = useActiveAccount();
+  
+  const [evidence, setEvidence] = useState<Evidence | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const fetchEvidence = async () => {
+      try {
+        const evidenceId = params?.evidenceId as string;
+        if (!evidenceId) return;
+        
+        // Fetch evidence from the existing API
+        const response = await fetch(`/api/evidence/${evidenceId}`);
+        if (!response.ok) {
+          throw new Error('Evidence not found');
+        }
+        
+        const evidenceData = await response.json();
+        setEvidence(evidenceData);
+        setIsLoading(false);
+      } catch (err) {
+        console.error('Failed to load evidence:', err);
+        setError('Failed to load evidence');
+        setIsLoading(false);
+      }
+    };
+
+    if (params?.evidenceId) {
+      fetchEvidence();
+    }
+  }, [params?.evidenceId]);
+
+  const getDomain = (url: string) => {
+    try {
+      return new URL(url).hostname.replace('www.', '');
+    } catch {
+      return url;
+    }
+  };
+
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  };
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-black"></div>
+      </div>
+    );
+  }
+
+  if (error || !evidence) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <h1 className="text-2xl font-bold text-gray-900 mb-4">Evidence Not Found</h1>
+          <p className="text-gray-600 mb-6">The evidence you're looking for doesn't exist or has been removed.</p>
+          <button
+            onClick={() => router.back()}
+            className="px-4 py-2 bg-black text-white rounded-lg hover:bg-gray-800 transition-colors"
+          >
+            Go Back
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      <Navbar />
+      <div className="min-h-screen bg-gray-50">
+
+        {/* Main Content */}
+        <div className="max-w-4xl mx-auto px-4 py-8">
+          {/* Evidence Card */}
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-8">
+            {/* Evidence Header */}
+            <div className="flex items-start justify-between mb-4">
+              <div className="flex-1">
+                <div className="flex items-center gap-3 mb-2">
+                  <button
+                    onClick={() => router.back()}
+                    aria-label="Back to Market"
+                    className="inline-flex items-center text-gray-600 hover:text-gray-900"
+                    type="button"
+                  >
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                    </svg>
+                  </button>
+                  <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
+                    evidence.type === 'yes' 
+                      ? 'bg-green-100 text-green-800' 
+                      : 'bg-red-100 text-red-800'
+                  }`}>
+                    {evidence.type === 'yes' ? 'YES' : 'NO'}
+                  </span>
+                  <span className="text-sm text-gray-500">
+                    {evidence.createdAt && formatDate(evidence.createdAt)}
+                  </span>
+                </div>
+                
+                <h1 className="text-2xl font-bold text-gray-900 mb-3">
+                  {evidence.title}
+                </h1>
+                
+                {evidence.description && (
+                  <p className="text-gray-700 mb-4 leading-relaxed">
+                    {evidence.description}
+                  </p>
+                )}
+                
+                {evidence.url && (
+                  <a
+                    href={evidence.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center text-blue-600 hover:text-blue-800 transition-colors"
+                  >
+                    <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                    </svg>
+                    View Source ({getDomain(evidence.url)})
+                  </a>
+                )}
+              </div>
+              
+              {/* Voting Section */}
+              <div className="flex flex-col items-center ml-6">
+                              <div className="text-gray-900 text-lg font-bold mb-2">
+                {evidence.netVotes}
+              </div>
+                <div className="text-sm text-gray-600 text-center">
+                  Net Votes
+                </div>
+              </div>
+            </div>
+            
+            {/* Evidence Footer */}
+            <div className="border-t border-gray-200 pt-4">
+              <div className="flex items-center justify-between text-sm text-gray-500">
+                <span>Submitted by {evidence.walletAddress.slice(0, 6)}...{evidence.walletAddress.slice(-4)}</span>
+                <span>{evidence.commentCount} comments</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Discussion Section */}
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+            <h2 className="text-xl font-bold text-gray-900 mb-6">Discussion</h2>
+            
+            {/* Comments Component */}
+            <EvidenceComments
+              evidence={evidence}
+              currentUserAddress={account?.address}
+            />
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+} 

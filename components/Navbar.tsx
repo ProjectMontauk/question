@@ -252,20 +252,7 @@ const Navbar = () => {
             >
               All Markets
             </button>
-            <button
-              className="py-1 px-1 md:px-2 bg-white text-[#171A22] rounded-md text-[10px] md:text-sm font-semibold hover:bg-gray-100 transition border-none shadow-none text-left whitespace-nowrap"
-              style={{ minWidth: 0 }}
-              onClick={() => router.push("/markets?category=history")}
-            >
-              History
-            </button>
-            <button
-              className="py-1 px-1 md:px-2 bg-white text-[#171A22] rounded-md text-[10px] md:text-sm font-semibold hover:bg-gray-100 transition border-none shadow-none text-left whitespace-nowrap"
-              style={{ minWidth: 0 }}
-              onClick={() => router.push("/markets?category=science")}
-            >
-              Science
-            </button>
+
             <button
               className="py-1 px-1 md:px-2 bg-white text-[#171A22] rounded-md text-[10px] md:text-sm font-semibold hover:bg-gray-100 transition border-none shadow-none text-left whitespace-nowrap"
               style={{ minWidth: 0 }}
@@ -280,6 +267,13 @@ const Navbar = () => {
             >
               Portfolio
             </button>
+            <button
+              className="py-1 px-1 md:px-2 bg-white text-[#171A22] rounded-md text-[10px] md:text-sm font-semibold hover:bg-gray-100 transition border-none shadow-none text-left whitespace-nowrap"
+              style={{ minWidth: 0 }}
+              onClick={() => router.push("/deposit")}
+            >
+              Deposit
+            </button>
           </div>
         </div>
         <div className="flex items-center gap-0">
@@ -289,19 +283,19 @@ const Navbar = () => {
             onClick={() => router.push("/portfolio")}
           >
             <span className="text-[#171A22] font-medium text-sm">Portfolio</span>
-            <span className="text-green-600 font-semibold text-sm">
-              {portfolioLoading || portfolioValue === "--" ? "$--" : `$${Number(portfolioValue).toLocaleString(undefined, { maximumFractionDigits: 2 })}`}
-            </span>
+                            <span className="text-green-600 font-semibold text-sm">
+                  {portfolioLoading || portfolioValue === "--" ? "𐆖--" : <><span className="text-[13.5px] font-normal">𐆖</span>&thinsp;{Number(portfolioValue).toLocaleString(undefined, { maximumFractionDigits: 2 })}</>}
+                </span>
           </button>
           <button
             className="hidden md:flex flex-col items-center justify-center bg-white px-2 py-1 pr-4 m-0 p-0 rounded transition-colors duration-200 cursor-pointer focus:outline-none hover:bg-gray-200 text-center"
             style={{ boxShadow: "none", minWidth: 0, margin: 0 }}
             onClick={() => router.push("/portfolio")}
           >
-            <span className="text-[#171A22] font-medium text-sm">Cash</span>
-            <span className="text-green-600 font-semibold text-sm">
-              {(!account?.address || isPending) ? "$--" : `$${formatBalance(balance)}`}
-            </span>
+                            <span className="text-[#171A22] font-medium text-sm">Cash</span>
+                            <span className="text-green-600 font-semibold text-sm">
+                  {(!account?.address || isPending) ? "𐆖--" : <><span className="text-[13.5px] font-normal">𐆖</span>&thinsp;{formatBalance(balance)}</>}
+                </span>
           </button>
           <div className="flex scale-75 origin-left">
             <ConnectButton 

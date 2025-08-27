@@ -218,7 +218,6 @@ const EvidenceComments: React.FC<EvidenceCommentsProps> = ({
         )}
         {/* Comments section */}
         <div className="bg-white">
-          <h3 className="text-[15.2px] font-semibold text-gray-900 mb-4">Replies</h3>
           {isLoading ? (
             <div className="text-center py-8 bg-white">
               <div className="text-gray-500">Loading comments...</div>

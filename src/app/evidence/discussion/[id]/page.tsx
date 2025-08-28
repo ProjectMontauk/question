@@ -1,10 +1,10 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, use } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useActiveAccount } from 'thirdweb/react';
-import EvidenceComments from '../../../components/EvidenceComments';
-import Navbar from '../../../../components/Navbar';
+import EvidenceComments from '../../../../components/EvidenceComments';
+import Navbar from '../../../../../components/Navbar';
 
 interface Evidence {
   id: number;
@@ -18,8 +18,8 @@ interface Evidence {
   commentCount: number;
 }
 
-export default function EvidenceDiscussionPage() {
-  const params = useParams();
+export default function EvidenceDiscussionPage({ params }: { params: Promise<{ id: string }> }) {
+  const resolvedParams = use(params);
   const router = useRouter();
   const account = useActiveAccount();
   
@@ -30,11 +30,11 @@ export default function EvidenceDiscussionPage() {
   useEffect(() => {
     const fetchEvidence = async () => {
       try {
-        const evidenceId = params?.evidenceId as string;
+        const evidenceId = resolvedParams.id;
         if (!evidenceId) return;
         
-        // Fetch evidence from the existing API
-        const response = await fetch(`/api/evidence/${evidenceId}`);
+        // Fetch evidence from the new API route
+        const response = await fetch(`/api/evidence/discussion/${evidenceId}`);
         if (!response.ok) {
           throw new Error('Evidence not found');
         }
@@ -49,10 +49,10 @@ export default function EvidenceDiscussionPage() {
       }
     };
 
-    if (params?.evidenceId) {
+    if (resolvedParams.id) {
       fetchEvidence();
     }
-  }, [params?.evidenceId]);
+  }, [resolvedParams.id]);
 
   const getDomain = (url: string) => {
     try {

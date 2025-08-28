@@ -1903,7 +1903,7 @@ useEffect(() => {
                                     <button
                                       className="text-xs text-gray-600 mt-2 hover:underline hover:text-blue-800 focus:outline-none block"
                                       type="button"
-                                      onClick={() => router.push(`/evidence/${evidence.id}`)}
+                                      onClick={() => router.push(`/evidence/discussion/${evidence.id}`)}
                                     >
                                       View Discussion
                                     </button>
@@ -1986,7 +1986,7 @@ useEffect(() => {
                                     <button
                                       className="text-xs text-gray-600 mt-2 hover:underline hover:text-blue-800 focus:outline-none block"
                                       type="button"
-                                      onClick={() => router.push(`/evidence/${evidence.id}`)}
+                                      onClick={() => router.push(`/evidence/discussion/${evidence.id}`)}
                                     >
                                       View Discussion
                                     </button>

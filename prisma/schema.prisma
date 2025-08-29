@@ -207,3 +207,22 @@ model UserDeposits {
   @@index([walletAddress])
   @@index([createdAt])
 }
+
+// Model to track processed Stripe checkout sessions for minting
+model ProcessedSession {
+  id            Int      @id @default(autoincrement())
+  sessionId     String   @unique // Stripe checkout session ID
+  nashAmount    String   // Amount of Nash tokens to mint
+  customerWallet String  // Customer's wallet address
+  purchaseAmount String   // Purchase amount in USD
+  status        String   @default("pending") // 'pending', 'completed', 'failed'
+  mintedAt      DateTime? // When tokens were actually minted
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  
+  // Indexes for better query performance
+  @@index([sessionId])
+  @@index([customerWallet])
+  @@index([status])
+  @@index([createdAt])
+}

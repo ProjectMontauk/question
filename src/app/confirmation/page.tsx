@@ -18,11 +18,13 @@ export default function ConfirmationPage() {
     nashAmount: string;
     customerWallet: string;
     purchaseAmount: string;
+    sessionId: string;
   } | null>(null);
   
-  // Use useRef to track minting status (persists across re-renders)
-  const hasMintedRef = useRef(false);
-  const mintingStartedRef = useRef(false);
+  // Use ref to prevent multiple minting attempts
+  const hasStartedMinting = useRef(false);
+  
+
 
   // Hook for sending transactions
   const { mutate: sendTransaction } = useSendTransaction();
@@ -44,12 +46,15 @@ export default function ConfirmationPage() {
 
   // Extract URL parameters and validate payment
   useEffect(() => {
+    if (!searchParams) return;
+    
     const success = searchParams.get('success');
     const nashAmount = searchParams.get('nashAmount');
     const customerWallet = searchParams.get('customerWallet');
     const purchaseAmount = searchParams.get('purchaseAmount');
+    const sessionId = searchParams.get('session_id');
 
-    if (success !== 'true' || !nashAmount || !customerWallet || !purchaseAmount) {
+    if (success !== 'true' || !nashAmount || !customerWallet || !purchaseAmount || !sessionId) {
       setMessage('Invalid confirmation link. Please try again.');
       return;
     }
@@ -63,34 +68,130 @@ export default function ConfirmationPage() {
     setMintDetails({
       nashAmount,
       customerWallet,
-      purchaseAmount
+      purchaseAmount,
+      sessionId
     });
 
     setMessage(`Payment successful! You purchased ${nashAmount} Nash tokens for $${purchaseAmount}.`);
   }, [searchParams, account?.address]);
 
   // Auto-execute minting when wallet connects and details are available
-  // BUT only if we haven't already started minting (prevent double minting)
   useEffect(() => {
-    if (mintDetails && account?.address && !isMinting && !mintingStartedRef.current && !hasMintedRef.current) {
-      console.log('🚀 Starting auto-minting...');
-      mintingStartedRef.current = true;
-      executeMinting();
+    // Only execute if isMinting is false
+    if (isMinting) {
+      console.log('🚫 useEffect blocked - already minting');
+      return;
     }
-  }, [mintDetails, account?.address, isMinting]);
-
-  // Function to execute minting
-  const executeMinting = async () => {
-    if (!mintDetails || !account?.address || isMinting) return;
     
-    console.log('🔍 executeMinting called with refs:', {
-      hasMintedRef: hasMintedRef.current,
-      mintingStartedRef: mintingStartedRef.current,
-      isMinting,
-      accountAddress: account.address
+    let isActive = true;
+    
+    console.log('🔍 useEffect triggered with:', {
+      mintDetails: !!mintDetails,
+      accountAddress: !!account?.address,
+      isMinting: isMinting,
+      timestamp: new Date().toISOString()
     });
     
-    setIsMinting(true);
+    if (mintDetails && account?.address && !hasStartedMinting.current) {
+      console.log('🚀 Checking session status before minting...');
+      
+      // Set flags to prevent multiple calls
+      hasStartedMinting.current = true;
+      setIsMinting(true);
+      
+      // Only proceed if component is still mounted
+      if (isActive) {
+        checkSessionStatus();
+      }
+    }
+    
+    // Cleanup function to prevent state updates on unmounted component
+    return () => {
+      isActive = false;
+    };
+  }, [mintDetails, account?.address]); // Removed isMinting from dependencies to prevent loops
+
+  // Function to check if this session has already been processed
+  const checkSessionStatus = async () => {
+    // Double-check protection
+    if (hasStartedMinting.current === false) {
+      console.log('🚫 checkSessionStatus blocked - minting not started');
+      return;
+    }
+    
+    if (!mintDetails?.sessionId) {
+      console.log('⚠️ No session ID, cannot proceed with minting');
+      setMessage('Invalid session. Cannot proceed with minting.');
+      setIsMinting(false);
+      hasStartedMinting.current = false;
+      return;
+    }
+    
+    console.log('🔍 Checking session status for:', mintDetails.sessionId);
+    
+    try {
+      const response = await fetch('/api/check-session-status', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sessionId: mintDetails.sessionId })
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        console.log('📊 Session status response:', data);
+        
+        if (data.alreadyProcessed) {
+          console.log('✅ Session already processed. Skipping mint.');
+          setMessage('Tokens already minted! Session already processed.');
+          setIsMinting(false);
+          return;
+        }
+        
+        if (data.ready) {
+          console.log('🚀 Session ready for minting. Starting...');
+          executeMinting();
+        } else {
+          console.log('⏳ Session not ready yet. Cannot proceed with minting.');
+          setMessage('Payment processing. Please wait...');
+          setIsMinting(false);
+        }
+      } else {
+        console.log('⚠️ Session status check failed. Cannot proceed with minting.');
+        setMessage('Session check failed. Cannot proceed with minting.');
+        setIsMinting(false);
+      }
+    } catch (error) {
+      console.error('❌ Error checking session status:', error);
+      setMessage('Session check failed. Cannot proceed with minting.');
+      setIsMinting(false);
+    }
+  };
+
+
+
+    // Function to execute minting
+  const executeMinting = async () => {
+    // Triple-check protection
+    if (hasStartedMinting.current === false) {
+      console.log('🚫 executeMinting blocked - minting not started');
+      return;
+    }
+    
+    // Basic validation checks
+    if (!mintDetails || !account?.address) {
+      console.log('🚫 executeMinting blocked - missing details or account');
+      setIsMinting(false);
+      hasStartedMinting.current = false;
+      return;
+    }
+    
+    // Only block if we're already minting
+    if (isMinting) {
+      console.log('🚫 executeMinting blocked - already minting');
+      return;
+    }
+    
+    console.log('🚀 Starting minting process...');
     setMessage(`Minting ${mintDetails.nashAmount} Nash tokens...`);
     
     try {
@@ -104,33 +205,51 @@ export default function ConfirmationPage() {
         params: [account.address, mintAmount],
       });
       
-              // Send the transaction
-        sendTransaction(transaction, {
-          onSuccess: (result) => {
-            console.log('✅ Mint transaction successful:', result);
-            setMessage(`🎉 Successfully minted ${mintDetails.nashAmount} Nash tokens! Transaction: ${result.transactionHash}`);
-            
-            // Set the refs to prevent double minting
-            hasMintedRef.current = true;
-            mintingStartedRef.current = true;
-            
-            // Refresh the user's balance
-            refetchBalance();
-          },
-          onError: (error) => {
-            console.error('❌ Mint transaction failed:', error);
-            setMessage(`Failed to mint tokens: ${error.message}`);
-            
-            // Reset the minting started flag on error so user can retry
-            mintingStartedRef.current = false;
+      // Send the transaction
+      sendTransaction(transaction, {
+        onSuccess: async (result) => {
+          console.log('✅ Mint transaction successful:', result);
+          setMessage(`🎉 Successfully minted ${mintDetails.nashAmount} Nash tokens! Transaction: ${result.transactionHash}`);
+          
+          // Mark this session as processed in the database
+          try {
+            await fetch('/api/mark-session-processed', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                sessionId: mintDetails.sessionId,
+                nashAmount: mintDetails.nashAmount,
+                customerWallet: mintDetails.customerWallet,
+                purchaseAmount: mintDetails.purchaseAmount,
+                status: 'completed'
+              })
+            });
+            console.log('✅ Session marked as processed in database');
+          } catch (error) {
+            console.error('❌ Failed to mark session as processed:', error);
           }
-        });
+          
+          // Refresh the user's balance
+          refetchBalance();
+        },
+        onError: (error) => {
+          console.error('❌ Mint transaction failed:', error);
+          setMessage(`Failed to mint tokens: ${error.message}`);
+          // Reset flags on error
+          setIsMinting(false);
+          hasStartedMinting.current = false;
+        }
+      });
       
     } catch (error) {
       console.error('Error preparing mint transaction:', error);
       setMessage('Failed to prepare mint transaction');
+      // Reset flags on error
+      setIsMinting(false);
+      hasStartedMinting.current = false;
     } finally {
       setIsMinting(false);
+      hasStartedMinting.current = false;
     }
   };
 
@@ -139,6 +258,9 @@ export default function ConfirmationPage() {
     router.push('/deposit');
   };
 
+
+
+  // Show loading state if mintDetails is not yet loaded
   if (!mintDetails) {
     return (
       <div>
@@ -146,8 +268,8 @@ export default function ConfirmationPage() {
         <div className="min-h-screen bg-gray-50 flex items-center justify-center">
           <div className="text-center">
             <div className="text-6xl mb-4">⏳</div>
-            <h1 className="text-2xl font-bold text-gray-900 mb-2">Processing Payment</h1>
-            <p className="text-gray-600">Please wait while we confirm your payment...</p>
+            <h1 className="text-2xl font-bold text-gray-900 mb-2">Loading...</h1>
+            <p className="text-gray-600">Preparing your confirmation page...</p>
           </div>
         </div>
       </div>
@@ -197,15 +319,13 @@ export default function ConfirmationPage() {
               <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
                 <div className="text-center">
                   <p className="font-medium text-blue-900">
-                    {hasMintedRef.current ? 'Tokens already minted!' : isMinting ? 'Minting in progress...' : 'Ready to mint'}
+                    {isMinting ? 'Minting in progress...' : 'Mint Successful!'}
                   </p>
                   <p className="text-sm text-blue-600 mt-1">
-                    {hasMintedRef.current 
-                      ? 'Your Nash tokens have been successfully minted to your wallet'
-                      : isMinting 
-                        ? 'Please approve the transaction in your wallet' 
-                        : 'Ready to mint your tokens'
-                    }
+                                          {isMinting 
+                        ? `Minting 𐆖${mintDetails?.nashAmount || 0} to be added to your account...`
+                        : `Deposited 𐆖${mintDetails?.nashAmount || 0} into your account!`
+                      }
                   </p>
                 </div>
               </div>
@@ -214,7 +334,7 @@ export default function ConfirmationPage() {
 
 
             {/* Action Buttons */}
-            <div className="flex justify-center">
+            <div className="flex justify-start">
               <button
                 onClick={goToDeposit}
                 className="bg-gray-600 text-white px-8 py-2 rounded-lg font-semibold hover:bg-gray-700 transition-colors"

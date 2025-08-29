@@ -62,7 +62,7 @@ export async function POST(request: NextRequest) {
         quantity: 1,
       }],
       mode: 'payment',
-      success_url: `${request.headers.get('origin')}/confirmation?success=true&nashAmount=${nashAmount}&customerWallet=${customerWallet}&purchaseAmount=${amount}`,
+      success_url: `${request.headers.get('origin')}/confirmation?success=true&nashAmount=${nashAmount}&customerWallet=${customerWallet}&purchaseAmount=${amount}&session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${request.headers.get('origin')}/deposit?canceled=true`,
       metadata: {
         nashAmount: nashAmount.toString(),

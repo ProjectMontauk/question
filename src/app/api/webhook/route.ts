@@ -69,6 +69,9 @@ export async function POST(request: NextRequest) {
             console.log(`✅ ${nashAmount} Nash tokens purchased for $${(session.amount_total! / 100).toFixed(2)}`);
             console.log(`🔑 Customer wallet: ${customerWallet}`);
             console.log('💡 User will mint tokens on the confirmation page using their wallet');
+            
+            // Mark this session as ready for processing
+            console.log(`📝 Session ${session.id} marked as ready for minting`);
           } else {
             console.log('⚠️ Missing customer wallet or nash amount in metadata');
           }

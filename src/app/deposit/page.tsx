@@ -37,6 +37,8 @@ export default function DepositPage() {
     initStripe();
   }, []);
 
+
+
   const handlePayment = async (dollarAmount: number, nashAmount: number) => {
     if (!stripe || !account?.address) {
       setMessage('Please connect your wallet first');
@@ -60,19 +62,17 @@ export default function DepositPage() {
         }),
       });
 
-      const { sessionId, error } = await response.json();
+      const { url, error } = await response.json();
       
       if (error) {
         throw new Error(error);
       }
 
-      // Redirect to Stripe Checkout using session ID
-      const { error: stripeError } = await stripe.redirectToCheckout({
-        sessionId: sessionId,
-      });
-
-      if (stripeError) {
-        throw new Error(stripeError.message);
+      // Redirect directly to Stripe Checkout URL
+      if (url) {
+        window.location.href = url;
+      } else {
+        throw new Error('No checkout URL received');
       }
 
     } catch (error) {
@@ -99,6 +99,8 @@ export default function DepositPage() {
                 <span className="text-[23.5px] font-normal">𐆖</span> {account?.address ? formatBalance(balance) : '--'}
               </div>
             </div>
+
+
 
             {/* Message Display */}
             {message && (
@@ -127,14 +129,13 @@ export default function DepositPage() {
                     <div className="text-xl font-bold text-blue-900 mb-3">
                       <span className="text-[18px] font-normal">𐆖</span>250
                     </div>
-                    <a
-                      href="https://buy.stripe.com/5kQbJ2flH3P6enYfZP4gg03"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="block w-full bg-blue-600 text-white px-4 py-2 rounded-lg font-semibold hover:bg-blue-700 transition-colors text-center"
+                    <button
+                      onClick={() => handlePayment(10, 250)}
+                      disabled={isLoading || !account?.address}
+                      className="block w-full bg-blue-600 text-white px-4 py-2 rounded-lg font-semibold hover:bg-blue-700 transition-colors text-center disabled:opacity-50 disabled:cursor-not-allowed"
                     >
-                      Buy $10
-                    </a>
+                      {isLoading ? 'Processing...' : 'Buy $10'}
+                    </button>
                   </div>
 
                   {/* Second Offer */}
@@ -147,20 +148,19 @@ export default function DepositPage() {
                     <div className="text-xl font-bold text-blue-900 mb-3">
                       <span className="text-[18px] font-normal">𐆖</span>500
                     </div>
-                    <a
-                      href="https://buy.stripe.com/eVq7sMb5rbhygw68xn4gg02"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="block w-full bg-blue-600 text-white px-4 py-2 rounded-lg font-semibold hover:bg-blue-700 transition-colors text-center"
+                    <button
+                      onClick={() => handlePayment(20, 500)}
+                      disabled={isLoading || !account?.address}
+                      className="block w-full bg-blue-600 text-white px-4 py-2 rounded-lg font-semibold hover:bg-blue-700 transition-colors text-center disabled:opacity-50 disabled:cursor-not-allowed"
                     >
-                      Buy $20
-                    </a>
+                      {isLoading ? 'Processing...' : 'Buy $20'}
+                    </button>
                   </div>
                 </div>
 
                 {/* Second Row - Third Fixed Offer and Custom Amount */}
                 <div className="grid grid-cols-2 gap-4">
-                  {/* Fourth Offer - 750 Denari for $30 */}
+                  {/* Third Offer - 750 Denarius for $30 */}
                   <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-center">
                     <div className="flex justify-center mb-3">
                       <div className="w-12 h-12 bg-blue-600 rounded-full flex items-center justify-center">
@@ -170,14 +170,13 @@ export default function DepositPage() {
                     <div className="text-xl font-bold text-blue-900 mb-3">
                       <span className="text-[18px] font-normal">𐆖</span>750
                     </div>
-                    <a
-                      href="https://buy.stripe.com/aFa14oc9vdpG6Vw8xn4gg01"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="block w-full bg-blue-600 text-white px-4 py-2 rounded-lg font-semibold hover:bg-blue-700 transition-colors text-center"
+                    <button
+                      onClick={() => handlePayment(30, 750)}
+                      disabled={isLoading || !account?.address}
+                      className="block w-full bg-blue-600 text-white px-4 py-2 rounded-lg font-semibold hover:bg-blue-700 transition-colors text-center disabled:opacity-50 disabled:cursor-not-allowed"
                     >
-                      Buy $30
-                    </a>
+                      {isLoading ? 'Processing...' : 'Buy $30'}
+                    </button>
                   </div>
 
                   {/* Fourth Offer - 1000 Denarius for $40 */}
@@ -190,14 +189,13 @@ export default function DepositPage() {
                     <div className="text-xl font-bold text-blue-900 mb-3">
                       <span className="text-[18px] font-normal">𐆖</span>1000
                     </div>
-                    <a
-                      href="https://buy.stripe.com/3cI3cwddz85m1BceVL4gg04"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="block w-full bg-blue-600 text-white px-4 py-2 rounded-lg font-semibold hover:bg-blue-700 transition-colors text-center"
+                    <button
+                      onClick={() => handlePayment(40, 1000)}
+                      disabled={isLoading || !account?.address}
+                      className="block w-full bg-blue-600 text-white px-4 py-2 rounded-lg font-semibold hover:bg-blue-700 transition-colors text-center disabled:opacity-50 disabled:cursor-not-allowed"
                     >
-                      Buy $40
-                    </a>
+                      {isLoading ? 'Processing...' : 'Buy $40'}
+                    </button>
                   </div>
                 </div>
               </div>

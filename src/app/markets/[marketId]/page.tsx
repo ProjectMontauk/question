@@ -4,11 +4,11 @@ import Navbar from "../../../../components/Navbar";
 import React, { useState, useEffect, useCallback, use } from "react";
 import { useRouter } from "next/navigation";
 import { useActiveAccount, useReadContract, useSendTransaction } from "thirdweb/react";
-import { prepareContractCall, readContract, getContract } from "thirdweb";
+import { prepareContractCall, readContract } from "thirdweb";
 import { getContractsForMarket, tokenContract} from "../../../../constants/contracts";
 import { Tab } from "@headlessui/react";
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, ReferenceLine } from 'recharts';
-import EvidenceComments from '../../../components/EvidenceComments';
+
 import { formatOddsToCents } from "../../../utils/formatOdds";
 import { submitTrade } from "../../../utils/tradeApi";
 import { getMarketById } from "../../../data/markets";
@@ -48,80 +48,8 @@ interface OddsHistoryEntry {
   timestamp: string;
 }
 
-// Helper: Find max shares for a given dollar amount using binary search
-async function findSharesForAmount({
-  outcomeIndex,
-  maxAmount,
-  marketContract,
-  priceFnName = "price",
-  maxIterations = 30,
-  tolerance = 0.01,
-}: {
-  outcomeIndex: number;
-  maxAmount: number;
-  marketContract: ReturnType<typeof getContract>;
-  priceFnName?: string;
-  maxIterations?: number;
-  tolerance?: number;
-}) {
-  const safeAmount = Math.max(0, maxAmount - 0.35); // 35 cent buffer
-  let low = 0.0001; // Support fractional shares
-  let high = 1;
-  let bestShares = 0;
-  const epsilon = 1e-6;
-  const maxCap = 1000000;
-  const FIXED_POINT = Math.pow(2, 64);
 
-  // Debug: Check cost for 1 share
-  const priceOneShare = await readContract({
-    contract: marketContract,
-    method: `function ${priceFnName}(uint256 _outcome, int128 _amount) view returns (int128)`,
-    params: [BigInt(outcomeIndex), BigInt(Math.floor(1 * FIXED_POINT))]
-  });
-  const costOneShare = Number(priceOneShare) / FIXED_POINT;
-  if (costOneShare > safeAmount) {
-    window.alert(`The minimum purchase is $${costOneShare.toFixed(2)}. Please enter a higher amount.`);
-    return 0;
-  }
 
-  // Dynamically find a high bound
-  while (high < maxCap) {
-    const priceHigh = await readContract({
-      contract: marketContract,
-      method: `function ${priceFnName}(uint256 _outcome, int128 _amount) view returns (int128)`,
-      params: [BigInt(outcomeIndex), BigInt(Math.floor(high * FIXED_POINT))]
-    });
-    const costHigh = Number(priceHigh) / FIXED_POINT;
-    if (costHigh > safeAmount) break;
-    high *= 2;
-  }
-  if (high > maxCap) high = maxCap;
-
-  for (let i = 0; i < maxIterations; i++) {
-    const mid = (low + high) / 2;
-    const priceResult = await readContract({
-      contract: marketContract,
-      method: `function ${priceFnName}(uint256 _outcome, int128 _amount) view returns (int128)`,
-      params: [BigInt(outcomeIndex), BigInt(Math.floor(mid * FIXED_POINT))]
-    });
-    const cost = Number(priceResult) / FIXED_POINT;
-    if (Math.abs(cost - safeAmount) < tolerance) {
-      bestShares = mid;
-      break;
-    } else if (cost > safeAmount) {
-      high = mid - epsilon;
-    } else {
-      if (mid === low || cost === 0) break;
-      bestShares = mid;
-      low = mid + epsilon;
-    }
-    if (high - low < epsilon) break;
-  }
-  if (bestShares === 0 || bestShares === high) {
-    return 0;
-  }
-  return bestShares;
-}
 
 export default function MarketPage({ params }: { params: Promise<{ marketId: string }> }) {
   const resolvedParams = use(params);

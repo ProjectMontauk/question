@@ -2,19 +2,18 @@
 
 import { useState, useEffect } from 'react';
 import { useActiveAccount, useReadContract } from 'thirdweb/react';
-import { loadStripe } from '@stripe/stripe-js';
+import { loadStripe, Stripe } from '@stripe/stripe-js';
 import Navbar from '../../../components/Navbar';
 import { tokenContract } from '../../../constants/contracts';
 
 export default function DepositPage() {
   const account = useActiveAccount();
-  const [customAmount, setCustomAmount] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [message, setMessage] = useState('');
-  const [stripe, setStripe] = useState<any>(null);
+  const [stripe, setStripe] = useState<Stripe | null>(null);
 
   // Get user's current balance
-  const { data: balance, refetch: refetchBalance } = useReadContract({
+  const { data: balance } = useReadContract({
     contract: tokenContract,
     method: "function balanceOf(address account) view returns (uint256)",
     params: [account?.address || ""],

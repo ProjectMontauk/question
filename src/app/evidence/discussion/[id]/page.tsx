@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, use } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import { useActiveAccount } from 'thirdweb/react';
 import EvidenceComments from '../../../../components/EvidenceComments';
 import Navbar from '../../../../../components/Navbar';
@@ -85,7 +85,7 @@ export default function EvidenceDiscussionPage({ params }: { params: Promise<{ i
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
           <h1 className="text-2xl font-bold text-gray-900 mb-4">Evidence Not Found</h1>
-          <p className="text-gray-600 mb-6">The evidence you're looking for doesn't exist or has been removed.</p>
+          <p className="text-gray-600 mb-6">The evidence you&apos;re looking for doesn&apos;t exist or has been removed.</p>
           <button
             onClick={() => router.back()}
             className="px-4 py-2 bg-black text-white rounded-lg hover:bg-gray-800 transition-colors"

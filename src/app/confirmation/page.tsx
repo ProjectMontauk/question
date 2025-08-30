@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, Suspense } from 'react';
 import { useActiveAccount, useReadContract, useSendTransaction } from 'thirdweb/react';
 import { prepareContractCall } from 'thirdweb';
 import { useRouter, useSearchParams } from 'next/navigation';
@@ -8,6 +8,25 @@ import Navbar from '../../../components/Navbar';
 import { tokenContract } from '../../../constants/contracts';
 
 export default function ConfirmationPage() {
+  return (
+    <Suspense fallback={
+      <div>
+        <Navbar />
+        <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+          <div className="text-center">
+            <div className="text-6xl mb-4">⏳</div>
+            <h1 className="text-2xl font-bold text-gray-900 mb-2">Loading...</h1>
+            <p className="text-gray-600">Preparing your confirmation page...</p>
+          </div>
+        </div>
+      </div>
+    }>
+      <ConfirmationContent />
+    </Suspense>
+  );
+}
+
+function ConfirmationContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const account = useActiveAccount();

@@ -47,11 +47,16 @@ export async function POST(request: NextRequest) {
       processedSession: processedSession
     });
 
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Error marking session as processed:', error);
+    
+    // Type-safe error handling
+    const errorMessage = error instanceof Error ? error.message : 'Failed to mark session as processed';
+    const statusCode = (error as { statusCode?: number })?.statusCode || 500;
+    
     return NextResponse.json(
-      { error: error.message || 'Failed to mark session as processed' },
-      { status: error.statusCode || 500 }
+      { error: errorMessage },
+      { status: statusCode }
     );
   } finally {
     await prisma.$disconnect();

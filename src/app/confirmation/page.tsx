@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useActiveAccount, useReadContract, useSendTransaction } from 'thirdweb/react';
 import { prepareContractCall } from 'thirdweb';
 import { useRouter, useSearchParams } from 'next/navigation';
@@ -30,151 +30,15 @@ export default function ConfirmationPage() {
   // Hook for sending transactions
   const { mutate: sendTransaction } = useSendTransaction();
 
-  // Get user's current balance
-  const { data: balance, refetch: refetchBalance } = useReadContract({
+  // Get user's current balance (only refetch function is used)
+  const { refetch: refetchBalance } = useReadContract({
     contract: tokenContract,
     method: "function balanceOf(address account) view returns (uint256)",
     params: [account?.address || ""],
   });
 
-  const formatBalance = (balance: bigint | undefined): string => {
-    if (!balance) return "0";
-    const amount = Number(balance) / 1e18;
-    return amount % 1 === 0 
-      ? amount.toLocaleString(undefined, { maximumFractionDigits: 0 })
-      : amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-  };
-
-  // Extract URL parameters and validate payment
-  useEffect(() => {
-    if (!searchParams) return;
-    
-    const success = searchParams.get('success');
-    const nashAmount = searchParams.get('nashAmount');
-    const customerWallet = searchParams.get('customerWallet');
-    const purchaseAmount = searchParams.get('purchaseAmount');
-    const sessionId = searchParams.get('session_id');
-
-    if (success !== 'true' || !nashAmount || !customerWallet || !purchaseAmount || !sessionId) {
-      setMessage('Invalid confirmation link. Please try again.');
-      return;
-    }
-
-    // Verify the wallet address matches the connected wallet
-    if (account?.address && account.address.toLowerCase() !== customerWallet.toLowerCase()) {
-      setMessage('Wallet mismatch. Please connect the wallet used for payment.');
-      return;
-    }
-
-    setMintDetails({
-      nashAmount,
-      customerWallet,
-      purchaseAmount,
-      sessionId
-    });
-
-    // Set initial subtitle message
-    setSubtitleMessage(`Minting 𐆖${nashAmount} to be added to your account...`);
-  }, [searchParams, account?.address]);
-
-  // Auto-execute minting when wallet connects and details are available
-  useEffect(() => {
-    // Only execute if isMinting is false
-    if (isMinting) {
-      console.log('🚫 useEffect blocked - already minting');
-      return;
-    }
-    
-    let isActive = true;
-    
-    console.log('🔍 useEffect triggered with:', {
-      mintDetails: !!mintDetails,
-      accountAddress: !!account?.address,
-      isMinting: isMinting,
-      timestamp: new Date().toISOString()
-    });
-    
-    if (mintDetails && account?.address && !hasStartedMinting.current) {
-      console.log('🚀 Checking session status before minting...');
-      
-      // Set flags to prevent multiple calls
-      hasStartedMinting.current = true;
-      setIsMinting(true);
-      
-      // Only proceed if component is still mounted
-      if (isActive) {
-        checkSessionStatus();
-      }
-    }
-    
-    // Cleanup function to prevent state updates on unmounted component
-    return () => {
-      isActive = false;
-    };
-  }, [mintDetails, account?.address]); // Removed isMinting from dependencies to prevent loops
-
-  // Function to check if this session has already been processed
-  const checkSessionStatus = async () => {
-    // Double-check protection
-    if (hasStartedMinting.current === false) {
-      console.log('🚫 checkSessionStatus blocked - minting not started');
-      return;
-    }
-    
-    if (!mintDetails?.sessionId) {
-      console.log('⚠️ No session ID, cannot proceed with minting');
-      setMessage('Invalid session. Cannot proceed with minting.');
-      setIsMinting(false);
-      hasStartedMinting.current = false;
-      return;
-    }
-    
-    console.log('🔍 Checking session status for:', mintDetails.sessionId);
-    
-    try {
-      const response = await fetch('/api/check-session-status', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ sessionId: mintDetails.sessionId })
-      });
-      
-      if (response.ok) {
-        const data = await response.json();
-        console.log('📊 Session status response:', data);
-        
-        if (data.alreadyProcessed) {
-          console.log('✅ Session already processed. Skipping mint.');
-          setMessage('Tokens already minted!');
-          setSubtitleMessage(`Already deposited 𐆖${mintDetails.nashAmount} into your account!`);
-          setIsMinting(false);
-          return;
-        }
-        
-        if (data.ready) {
-          console.log('🚀 Session ready for minting. Starting...');
-          executeMinting();
-        } else {
-          console.log('⏳ Session not ready yet. Cannot proceed with minting.');
-          setMessage('Payment processing. Please wait...');
-          setIsMinting(false);
-          hasStartedMinting.current = false;
-        }
-      } else {
-        console.log('⚠️ Session status check failed. Cannot proceed with minting.');
-        setMessage('Session check failed. Cannot proceed with minting.');
-        setIsMinting(false);
-      }
-    } catch (error) {
-      console.error('❌ Error checking session status:', error);
-      setMessage('Session check failed. Cannot proceed with minting.');
-      setIsMinting(false);
-    }
-  };
-
-
-
-    // Function to execute minting
-  const executeMinting = async () => {
+  // Function to execute minting
+  const executeMinting = useCallback(async () => {
     // Triple-check protection
     if (hasStartedMinting.current === false) {
       console.log('🚫 executeMinting blocked - minting not started');
@@ -255,7 +119,139 @@ export default function ConfirmationPage() {
       setIsMinting(false);
       hasStartedMinting.current = false;
     }
-  };
+  }, [mintDetails, account?.address, isMinting, sendTransaction, refetchBalance]);
+
+  // Function to check if this session has already been processed
+  const checkSessionStatus = useCallback(async () => {
+    // Double-check protection
+    if (hasStartedMinting.current === false) {
+      console.log('🚫 checkSessionStatus blocked - minting not started');
+      return;
+    }
+    
+    if (!mintDetails?.sessionId) {
+      console.log('⚠️ No session ID, cannot proceed with minting');
+      setMessage('Invalid session. Cannot proceed with minting.');
+      setIsMinting(false);
+      hasStartedMinting.current = false;
+      return;
+    }
+    
+    console.log('🔍 Checking session status for:', mintDetails.sessionId);
+    
+    try {
+      const response = await fetch('/api/check-session-status', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sessionId: mintDetails.sessionId })
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        console.log('📊 Session status response:', data);
+        
+        if (data.alreadyProcessed) {
+          console.log('✅ Session already processed. Skipping mint.');
+          setMessage('Tokens already minted!');
+          setSubtitleMessage(`Already deposited 𐆖${mintDetails.nashAmount} into your account!`);
+          setIsMinting(false);
+          return;
+        }
+        
+        if (data.ready) {
+          console.log('🚀 Session ready for minting. Starting...');
+          executeMinting();
+        } else {
+          console.log('⏳ Session not ready yet. Cannot proceed with minting.');
+          setMessage('Payment processing. Please wait...');
+          setIsMinting(false);
+          hasStartedMinting.current = false;
+        }
+      } else {
+        console.log('⚠️ Session status check failed. Cannot proceed with minting.');
+        setMessage('Session check failed. Cannot proceed with minting.');
+        setIsMinting(false);
+      }
+    } catch (error) {
+      console.error('❌ Error checking session status:', error);
+      setMessage('Session check failed. Cannot proceed with minting.');
+      setIsMinting(false);
+    }
+  }, [mintDetails, account?.address]);
+
+  // Extract URL parameters and validate payment
+  useEffect(() => {
+    if (!searchParams) return;
+    
+    const success = searchParams.get('success');
+    const nashAmount = searchParams.get('nashAmount');
+    const customerWallet = searchParams.get('customerWallet');
+    const purchaseAmount = searchParams.get('purchaseAmount');
+    const sessionId = searchParams.get('session_id');
+
+    if (success !== 'true' || !nashAmount || !customerWallet || !purchaseAmount || !sessionId) {
+      setMessage('Invalid confirmation link. Please try again.');
+      return;
+    }
+
+    // Verify the wallet address matches the connected wallet
+    if (account?.address && account.address.toLowerCase() !== customerWallet.toLowerCase()) {
+      setMessage('Wallet mismatch. Please connect the wallet used for payment.');
+      return;
+    }
+
+    setMintDetails({
+      nashAmount,
+      customerWallet,
+      purchaseAmount,
+      sessionId
+    });
+
+    // Set initial subtitle message
+    setSubtitleMessage(`Minting 𐆖${nashAmount} to be added to your account...`);
+  }, [searchParams, account?.address]);
+
+  // Auto-execute minting when wallet connects and details are available
+  useEffect(() => {
+    // Only execute if isMinting is false
+    if (isMinting) {
+      console.log('🚫 useEffect blocked - already minting');
+      return;
+    }
+    
+    let isActive = true;
+    
+    console.log('🔍 useEffect triggered with:', {
+      mintDetails: !!mintDetails,
+      accountAddress: !!account?.address,
+      isMinting: isMinting,
+      timestamp: new Date().toISOString()
+    });
+    
+    if (mintDetails && account?.address && !hasStartedMinting.current) {
+      console.log('🚀 Checking session status before minting...');
+      
+      // Set flags to prevent multiple calls
+      hasStartedMinting.current = true;
+      setIsMinting(true);
+      
+      // Only proceed if component is still mounted
+      if (isActive) {
+        checkSessionStatus();
+      }
+    }
+    
+    // Cleanup function to prevent state updates on unmounted component
+    return () => {
+      isActive = false;
+    };
+  }, [mintDetails, account?.address, checkSessionStatus]); // Added checkSessionStatus to dependencies
+
+
+
+
+
+
 
   // Function to go back to deposit page
   const goToDeposit = () => {

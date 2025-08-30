@@ -13,7 +13,8 @@ export default function ConfirmationPage() {
   const account = useActiveAccount();
   
   const [isMinting, setIsMinting] = useState(false);
-  const [message, setMessage] = useState('');
+  const [message, setMessage] = useState('Mint in progress...');
+  const [subtitleMessage, setSubtitleMessage] = useState('');
   const [mintDetails, setMintDetails] = useState<{
     nashAmount: string;
     customerWallet: string;
@@ -72,7 +73,8 @@ export default function ConfirmationPage() {
       sessionId
     });
 
-    setMessage(`Payment successful! You purchased ${nashAmount} Nash tokens for $${purchaseAmount}.`);
+    // Set initial subtitle message
+    setSubtitleMessage(`Minting 𐆖${nashAmount} to be added to your account...`);
   }, [searchParams, account?.address]);
 
   // Auto-execute minting when wallet connects and details are available
@@ -142,7 +144,8 @@ export default function ConfirmationPage() {
         
         if (data.alreadyProcessed) {
           console.log('✅ Session already processed. Skipping mint.');
-          setMessage('Tokens already minted! Session already processed.');
+          setMessage('Tokens already minted!');
+          setSubtitleMessage(`Already deposited 𐆖${mintDetails.nashAmount} into your account!`);
           setIsMinting(false);
           return;
         }
@@ -154,6 +157,7 @@ export default function ConfirmationPage() {
           console.log('⏳ Session not ready yet. Cannot proceed with minting.');
           setMessage('Payment processing. Please wait...');
           setIsMinting(false);
+          hasStartedMinting.current = false;
         }
       } else {
         console.log('⚠️ Session status check failed. Cannot proceed with minting.');
@@ -191,9 +195,6 @@ export default function ConfirmationPage() {
       return;
     }
     
-    console.log('🚀 Starting minting process...');
-    setMessage(`Minting ${mintDetails.nashAmount} Nash tokens...`);
-    
     try {
       // Convert nashAmount to wei (18 decimals)
       const mintAmount = BigInt(mintDetails.nashAmount) * BigInt(10 ** 18);
@@ -209,7 +210,8 @@ export default function ConfirmationPage() {
       sendTransaction(transaction, {
         onSuccess: async (result) => {
           console.log('✅ Mint transaction successful:', result);
-          setMessage(`🎉 Successfully minted ${mintDetails.nashAmount} Nash tokens! Transaction: ${result.transactionHash}`);
+          setMessage('Mint Successful!');
+          setSubtitleMessage(`Deposited 𐆖${mintDetails.nashAmount} into your account!`);
           
           // Mark this session as processed in the database
           try {
@@ -234,7 +236,8 @@ export default function ConfirmationPage() {
         },
         onError: (error) => {
           console.error('❌ Mint transaction failed:', error);
-          setMessage(`Failed to mint tokens: ${error.message}`);
+          setMessage('Minting failed. Please try again.');
+          setSubtitleMessage(`Minting 𐆖${mintDetails.nashAmount} to be added to your account...`);
           // Reset flags on error
           setIsMinting(false);
           hasStartedMinting.current = false;
@@ -243,7 +246,8 @@ export default function ConfirmationPage() {
       
     } catch (error) {
       console.error('Error preparing mint transaction:', error);
-      setMessage('Failed to prepare mint transaction');
+      setMessage('Failed to prepare mint transaction. Please try again.');
+      setSubtitleMessage(`Minting 𐆖${mintDetails.nashAmount} to be added to your account...`);
       // Reset flags on error
       setIsMinting(false);
       hasStartedMinting.current = false;
@@ -297,7 +301,7 @@ export default function ConfirmationPage() {
                 <div className="flex justify-between">
                   <span className="text-gray-600">Nash Tokens:</span>
                   <span className="font-semibold text-green-900">
-                    <span className="text-[18px] font-normal">𐆖</span>{mintDetails.nashAmount}
+                    <span className="text-[16.5px] font-normal">𐆖</span>{mintDetails.nashAmount}
                   </span>
                 </div>
                 <div className="flex justify-between">
@@ -319,13 +323,10 @@ export default function ConfirmationPage() {
               <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
                 <div className="text-center">
                   <p className="font-medium text-blue-900">
-                    {isMinting ? 'Minting in progress...' : 'Mint Successful!'}
+                    {isMinting ? 'Mint in progress...' : message}
                   </p>
                   <p className="text-sm text-blue-600 mt-1">
-                                          {isMinting 
-                        ? `Minting 𐆖${mintDetails?.nashAmount || 0} to be added to your account...`
-                        : `Deposited 𐆖${mintDetails?.nashAmount || 0} into your account!`
-                      }
+                    {subtitleMessage}
                   </p>
                 </div>
               </div>

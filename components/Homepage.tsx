@@ -79,7 +79,7 @@ const Homepage = () => {
   
   return (
     <div className="min-h-screen bg-[#f8f9fa] flex flex-col items-center w-full pt-5 md:pt-10">
-      <h1 className="text-2xl md:text-4xl font-bold mb-1 md:mb-4 text-left pl-5 md:text-center md:pl-0 w-full">Welcome to Tinfoil!</h1>
+              <h1 className="text-2xl md:text-4xl font-bold mb-1 md:mb-4 text-left pl-5 md:text-center md:pl-0 w-full">Welcome to The Citizen!</h1>
       <div className="text-base md:text-xl text-gray-600 mb-0 text-left pl-5 md:text-center md:pl-0 w-full">
         A home for honest debate about anything.
         <br />

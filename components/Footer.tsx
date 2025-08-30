@@ -7,10 +7,7 @@ const Footer = () => (
         Contact:
       </div>
       <div className="py-1 px-3 rounded-md text-xs font-semibold text-black bg-white transition" style={{minWidth: 0}}>
-        trevor@tinfoilnews.com
-      </div>
-      <div className="py-1 px-3 rounded-md text-xs font-semibold text-black bg-white transition" style={{minWidth: 0}}>
-        631-356-9643
+        thehelpfulcitizen@pm.me
       </div>
     </div>
   </footer>

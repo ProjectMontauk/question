@@ -14,7 +14,7 @@ export const markets: Market[] = [
     title: "CIA Involved in JFK Assassination?",
     description: "Did the CIA aid in the planning or execution of John F. Kennedy's Assassination?",
     image: "/JFKCar.png",
-    contractAddress: "0x4127d494258eb3f89e7a40d466f09bfa60e83205", // New LMSR contract
+    contractAddress: "0xa015eBbaB5c6db0748a504ea71589BE21B2Cbe22", // JFK Market Contract on Base
     outcomes: ["Yes, CIA involved in JFK's death", "No, CIA innocent in JFK's death"],
     rules: "The market will resolve 'Yes' if current or former CIA personnel aided in the planning or execution of President John F. Kennedy's Assassination. Otherwise, the market will resolve 'No.' This means that no current or former CIA personnel or a group receiving funding from the CIA participated in John F. Kennedy's assassination."
   },
@@ -23,7 +23,7 @@ export const markets: Market[] = [
     title: "Is the Apollo 11 Moon Landing Fake?",
     description: "Did humans actually land on the moon?",
     image: "/Moon.png",
-    contractAddress: "0x6d6892d6ba83bd9c21707aacbf45269d1211898e", // New contract
+    contractAddress: "0xeeaca4019f25e573c33a0de266ba0d1020932cc9", // Moon Landing Market Contract on Base
     outcomes: ["Yes, Moon Landing was Fake", "No, Moon Landing was real"],
     rules: "The market will resolve 'Yes' if Neil Armstrong and Buzz Aldrin physically walked on the moon during the Apollo 11 mission in 1969. Otherwise, the market will resolve 'No.' This means that the Apollo 11 moon landings were faked, staged, or exaggerated to an extent where the Apollo 11 Crew never walked on the moon."
   }

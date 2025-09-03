@@ -1,43 +1,43 @@
 import { client } from "../src/client";
 import { getContract } from "thirdweb";
-import { polygonAmoy } from "thirdweb/chains";
+import { base } from "thirdweb/chains";
 
-export const marketContractAddress = "0x4127d494258eb3f89e7a40d466f09bfa60e83205"; // New JFK LMSR contract
-export const tokenContractAddress = "0xb1b53857c6702ebc8c2e924873f2fd4c90c5bc40"; // New JFK token contract
-export const conditionalTokensContractAddress = "0x904532f95fe960946b76ecdf95e75a4d89ab2e80"; // New JFK conditional tokens contract
+export const marketContractAddress = "0xa015eBbaB5c6db0748a504ea71589BE21B2Cbe22"; // JFK Market Contract on Base
+export const tokenContractAddress = "0x025bF090c6A0155bCe81D3D75b58Dac6b37EF82f"; // Token Contract on Base
+export const conditionalTokensContractAddress = "0xFEE92177cCA79c985b95FB7c1437245340BCaAE2"; // Conditional Tokens Contract on Base
 
 // Moon Landing Market Contracts
-export const moonLandingMarketContractAddress = "0x6d6892d6ba83bd9c21707aacbf45269d1211898e";
-export const moonLandingConditionalTokensContractAddress = "0x27f2bff72e4669e94810fe52d7e67c9ad27b13f9";
+export const moonLandingMarketContractAddress = "0xeeaca4019f25e573c33a0de266ba0d1020932cc9"; // Moon Landing Market Contract on Base
+export const moonLandingConditionalTokensContractAddress = "0x7dFb064Ae49f5A7101C387717f1CDb1b4f2DF7d3"; // Moon Landing Conditional Tokens Contract on Base
 
 export const tokenContract = getContract({
     client: client,
-    chain: polygonAmoy,
+    chain: base,
     address: tokenContractAddress,
 })
 
 export const marketContract = getContract({
     client,
-    chain: polygonAmoy,
+    chain: base,
     address: marketContractAddress,
   });
 
 export const conditionalTokensContract = getContract({
     client,
-    chain: polygonAmoy,
+    chain: base,
     address: conditionalTokensContractAddress,
   });
 
 // Moon Landing Market Contract Instances
 export const moonLandingMarketContract = getContract({
     client,
-    chain: polygonAmoy,
+    chain: base,
     address: moonLandingMarketContractAddress,
   });
 
 export const moonLandingConditionalTokensContract = getContract({
     client,
-    chain: polygonAmoy,
+    chain: base,
     address: moonLandingConditionalTokensContractAddress,
   });
 
@@ -48,16 +48,16 @@ export function getContractsForMarket(marketId: string) {
       return {
         marketContract: moonLandingMarketContract,
         conditionalTokensContract: moonLandingConditionalTokensContract,
-        outcome1PositionId: "81241744392996501442954167419350265018961561271257702254598251888191980798656", // Yes
-        outcome2PositionId: "95525080663185639939468249274591047430695283909291654082158662915798152267826", // No
+        outcome1PositionId: "97045190584393032725705126979012781984659070008452916210401226821468609683793", // Yes - Base position ID
+        outcome2PositionId: "78958204779993795274253300281532453836400562991479897783072243516005340819969", // No - Base position ID
       };
     case 'jfk':
     default:
       return {
         marketContract: marketContract,
         conditionalTokensContract: conditionalTokensContract,
-        outcome1PositionId: "30968655683754742826259861795379406501940381095392491054724940515481931906073", // JFK Yes - new position ID
-        outcome2PositionId: "77840841398957582649276894914505828498672471545324478817656652121358114794022", // JFK No - new position ID
+        outcome1PositionId: "63109534412325451546451217737273315801307940086008058061930328791531947950174", // JFK Yes - Base position ID
+        outcome2PositionId: "66301810619553321140640091715448846820451689612222731173839422851370585795126", // JFK No - Base position ID
       };
   }
 }

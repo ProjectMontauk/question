@@ -2,15 +2,15 @@ import { NextApiRequest, NextApiResponse } from 'next';
 import { PrismaClient } from '@prisma/client';
 import { readContract } from "thirdweb";
 import { client } from "../../src/client";
-import { polygonAmoy } from "thirdweb/chains";
+import { base } from "thirdweb/chains";
 
 const prisma = new PrismaClient();
 
 // Get the market contract instance
-const marketContractAddress = "0x03d7fa2716c0ff897000e1dcafdd6257ecce943a" as `0x${string}`;
+const marketContractAddress = "0xa015eBbaB5c6db0748a504ea71589BE21B2Cbe22" as `0x${string}`;
 const marketContract = {
   client,
-  chain: polygonAmoy,
+  chain: base,
   address: marketContractAddress,
 };
 

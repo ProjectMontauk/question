@@ -287,6 +287,7 @@ export default function MarketPage({ params }: { params: Promise<{ marketId: str
         onSuccess: async (result) => {
           console.log("Buy Yes transaction successful:", result);
           setBuyFeedback("Transaction submitted (2/3)");
+          setAmount("");
           
                 // Submit trade to database
       try {
@@ -324,7 +325,7 @@ export default function MarketPage({ params }: { params: Promise<{ marketId: str
           setTimeout(() => {
             setBuyFeedback(null);
             setSuccessMessage(null);
-          }, 10000);
+          }, 5000);
       }
     });
   };
@@ -407,6 +408,7 @@ export default function MarketPage({ params }: { params: Promise<{ marketId: str
               onSuccess: async (result) => {
         console.log("Buy No transaction successful:", result);
         setBuyFeedback("Transaction submitted (2/3)");
+        setAmount("");
           
           // Submit trade to database
           try {
@@ -444,7 +446,7 @@ export default function MarketPage({ params }: { params: Promise<{ marketId: str
           setTimeout(() => {
             setBuyFeedback(null);
             setSuccessMessage(null);
-          }, 10000);
+          }, 5000);
       }
     });
   };
@@ -548,7 +550,7 @@ export default function MarketPage({ params }: { params: Promise<{ marketId: str
         setTimeout(() => {
           setBuyFeedback(null);
           setSuccessMessage(null);
-        }, 10000);
+        }, 5000);
       }
     });
   };
@@ -604,7 +606,7 @@ export default function MarketPage({ params }: { params: Promise<{ marketId: str
         setTimeout(() => {
           setBuyFeedback(null);
           setSuccessMessage(null);
-        }, 10000);
+        }, 5000);
       }
     });
   };

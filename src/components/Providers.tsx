@@ -1,7 +1,7 @@
 "use client";
 
 import { ThirdwebProvider } from "thirdweb/react";
-import AutoDeposit from "./AutoDeposit";
+// 
 import AccountSetupLoader from "./AccountSetupLoader";
 
 interface ProvidersProps {
@@ -11,7 +11,7 @@ interface ProvidersProps {
 export default function Providers({ children }: ProvidersProps) {
   return (
     <ThirdwebProvider>
-      <AutoDeposit />
+      {/* <AutoDeposit /> */}
       <AccountSetupLoader />
       {children}
     </ThirdwebProvider>

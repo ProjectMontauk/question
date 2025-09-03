@@ -33,14 +33,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const deposit = await prisma.userDeposits.create({
       data: {
         walletAddress: walletAddress,
-        amount: 100000, // $100,000 deposit
+        amount: 100000, // 𐆖100,000 deposit
         transactionHash: "0x0000000000000000000000000000000000000000000000000000000000000000", // Fake transaction hash
       },
     });
 
     res.status(200).json({ 
       success: true, 
-      message: 'Test deposit of $100,000 added successfully',
+      message: 'Test deposit of 𐆖100,000 added successfully',
       deposit 
     });
   } catch (error) {

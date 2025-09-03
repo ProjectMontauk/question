@@ -226,3 +226,16 @@ model ProcessedSession {
   @@index([status])
   @@index([createdAt])
 }
+
+// Model to track auto-deposits to prevent double deposits
+model AutoDeposit {
+  id            Int      @id @default(autoincrement())
+  walletAddress String   @unique // User's wallet address
+  amount        String   // Amount of Nash tokens deposited
+  transactionHash String? // Optional: blockchain transaction hash
+  createdAt     DateTime @default(now())
+  
+  // Indexes for better query performance
+  @@index([walletAddress])
+  @@index([createdAt])
+}

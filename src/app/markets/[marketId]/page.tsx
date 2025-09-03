@@ -61,6 +61,18 @@ export default function MarketPage({ params }: { params: Promise<{ marketId: str
     notFound();
   }
 
+  // Helper function to truncate one digit from the end of a number string
+  const truncateOneDigit = (num: number): string => {
+    const numStr = num.toString();
+    if (numStr.includes('.')) {
+      // If it's a decimal number, remove the last digit
+      return numStr.slice(0, -1);
+    } else {
+      // If it's a whole number, convert to decimal and remove last digit
+      return (num / 10).toString();
+    }
+  };
+
   const account = useActiveAccount();
   const router = useRouter();
 
@@ -214,11 +226,11 @@ export default function MarketPage({ params }: { params: Promise<{ marketId: str
     setBuyFeedback("Preparing transaction (1/3)");
     const usdAmount = parseFloat(amount);
     
-    // Convert full amount to USDC (6 decimals) for Base Sepolia
+    // Convert full amount to USDC (18 decimals) for Base Sepolia
     const betAmountInUSDC = BigInt(Math.floor(usdAmount * 1e18));
     
     // Get the exact shares that will be received (using discounted amount for preview)
-    const discountedBetAmount = usdAmount * 0.98;
+    const discountedBetAmount = usdAmount * 0.99;
     const discountedBetAmountInUSDC = BigInt(Math.floor(discountedBetAmount * 1e18));
     
     let sharesToBuy: number;
@@ -325,7 +337,7 @@ export default function MarketPage({ params }: { params: Promise<{ marketId: str
           setTimeout(() => {
             setBuyFeedback(null);
             setSuccessMessage(null);
-          }, 5000);
+          }, 10000);
       }
     });
   };
@@ -339,7 +351,7 @@ export default function MarketPage({ params }: { params: Promise<{ marketId: str
     const betAmountInUSDC = BigInt(Math.floor(usdAmount * 1e18));
     
     // Get the exact shares that will be received (using discounted amount for preview)
-    const discountedBetAmount = usdAmount * 0.98;
+    const discountedBetAmount = usdAmount * 0.99;
     const discountedBetAmountInUSDC = BigInt(Math.floor(discountedBetAmount * 1e18));
     
     let sharesToBuy: number;
@@ -446,7 +458,7 @@ export default function MarketPage({ params }: { params: Promise<{ marketId: str
           setTimeout(() => {
             setBuyFeedback(null);
             setSuccessMessage(null);
-          }, 5000);
+          }, 10000);
       }
     });
   };
@@ -550,7 +562,7 @@ export default function MarketPage({ params }: { params: Promise<{ marketId: str
         setTimeout(() => {
           setBuyFeedback(null);
           setSuccessMessage(null);
-        }, 5000);
+        }, 10000);
       }
     });
   };
@@ -606,7 +618,7 @@ export default function MarketPage({ params }: { params: Promise<{ marketId: str
         setTimeout(() => {
           setBuyFeedback(null);
           setSuccessMessage(null);
-        }, 5000);
+        }, 10000);
       }
     });
   };
@@ -664,7 +676,7 @@ export default function MarketPage({ params }: { params: Promise<{ marketId: str
       });
     } else {
       // For buy mode, apply 2% discount (overround) to the bet amount
-      const discountedBetAmount = amount * 0.98; // 2% discount
+      const discountedBetAmount = amount * 0.99; // 2% discount
       
       // Convert discounted bet amount to USDC (multiply by 10^6 for Base Sepolia)
       const betAmountInUSDC = BigInt(Math.floor(discountedBetAmount * 1e18));
@@ -1577,7 +1589,7 @@ useEffect(() => {
                       // If Sell All is active, update input to show Yes shares
                       if (sellAllClicked) {
                         const yesShares = outcome1Balance !== '--' && outcome1Balance !== 'Error' ? parseFloat(outcome1Balance) : 0;
-                        setAmount(yesShares.toString());
+                        setAmount(truncateOneDigit(yesShares));
                         console.log('Sell All active - updated input to Yes shares:', yesShares);
                       } else {
                         setSellAllClicked(false);
@@ -1596,7 +1608,7 @@ useEffect(() => {
                       // If Sell All is active, update input to show No shares
                       if (sellAllClicked) {
                         const noShares = outcome2Balance !== '--' && outcome2Balance !== 'Error' ? parseFloat(outcome2Balance) : 0;
-                        setAmount(noShares.toString());
+                        setAmount(truncateOneDigit(noShares));
                         console.log('Sell All active - updated input to No shares:', noShares);
                       } else {
                         setSellAllClicked(false);
@@ -1633,19 +1645,19 @@ useEffect(() => {
                             
                             // Check if user has already selected an outcome
                             if (selectedOutcome === 'yes') {
-                              // User already selected Yes - input Yes shares
-                              setAmount(yesShares.toString());
+                              // User already selected Yes - input Yes shares (truncated)
+                              setAmount(truncateOneDigit(yesShares));
                               console.log('User already selected Yes - inputting Yes shares:', yesShares);
                             } else if (selectedOutcome === 'no') {
-                              // User already selected No - input No shares
-                              setAmount(noShares.toString());
+                              // User already selected No - input No shares (truncated)
+                              setAmount(truncateOneDigit(noShares));
                               console.log('User already selected No - inputting No shares:', noShares);
                             } else {
-                              // No outcome selected - default to larger position
+                              // No outcome selected - default to larger position (truncated)
                               const largerPosition = Math.max(yesShares, noShares);
                               const outcomeWithMoreShares = yesShares >= noShares ? 'yes' : 'no';
                               
-                              setAmount(largerPosition.toString());
+                              setAmount(truncateOneDigit(largerPosition));
                               setSelectedOutcome(outcomeWithMoreShares);
                               
                               console.log('No outcome selected - defaulting to larger position:', largerPosition);
@@ -2061,7 +2073,7 @@ useEffect(() => {
                         // If Sell All is active, update input to show Yes shares
                         if (sellAllClicked) {
                           const yesShares = outcome1Balance !== '--' && outcome1Balance !== 'Error' ? parseFloat(outcome1Balance) : 0;
-                          setAmount(yesShares.toString());
+                          setAmount(truncateOneDigit(yesShares));
                           console.log('Sell All active - updated input to Yes shares:', yesShares);
                         } else {
                           setSellAllClicked(false);
@@ -2080,7 +2092,7 @@ useEffect(() => {
                         // If Sell All is active, update input to show No shares
                         if (sellAllClicked) {
                           const noShares = outcome2Balance !== '--' && outcome2Balance !== 'Error' ? parseFloat(outcome2Balance) : 0;
-                          setAmount(noShares.toString());
+                          setAmount(truncateOneDigit(noShares));
                           console.log('Sell All active - updated input to No shares:', noShares);
                         } else {
                           setSellAllClicked(false);
@@ -2117,19 +2129,19 @@ useEffect(() => {
                             
                             // Check if user has already selected an outcome
                             if (selectedOutcome === 'yes') {
-                              // User already selected Yes - input Yes shares
-                              setAmount(yesShares.toString());
+                              // User already selected Yes - input Yes shares (truncated)
+                              setAmount(truncateOneDigit(yesShares));
                               console.log('User already selected Yes - inputting Yes shares:', yesShares);
                             } else if (selectedOutcome === 'no') {
-                              // User already selected No - input No shares
-                              setAmount(noShares.toString());
+                              // User already selected No - input No shares (truncated)
+                              setAmount(truncateOneDigit(noShares));
                               console.log('User already selected No - inputting No shares:', noShares);
                             } else {
-                              // No outcome selected - default to larger position
+                              // No outcome selected - default to larger position (truncated)
                               const largerPosition = Math.max(yesShares, noShares);
                               const outcomeWithMoreShares = yesShares >= noShares ? 'yes' : 'no';
                               
-                              setAmount(largerPosition.toString());
+                              setAmount(truncateOneDigit(largerPosition));
                               setSelectedOutcome(outcomeWithMoreShares);
                               
                               console.log('No outcome selected - defaulting to larger position:', largerPosition);

@@ -162,8 +162,8 @@ export default function PortfolioPage() {
           const currentPriceYes = Number(oddsYes) / Math.pow(2, 64);
           const currentPriceNo = Number(oddsNo) / Math.pow(2, 64);
 
-          // Add Yes position if user has shares
-          if (yesShares > 0) {
+          // Add Yes position if user has shares >= 0.01
+          if (yesShares >= 0.01) {
             positions.push({
               marketId: market.id,
               marketTitle: market.title,
@@ -174,8 +174,8 @@ export default function PortfolioPage() {
             });
           }
 
-          // Add No position if user has shares
-          if (noShares > 0) {
+          // Add No position if user has shares >= 0.01
+          if (noShares >= 0.01) {
             positions.push({
               marketId: market.id,
               marketTitle: market.title,

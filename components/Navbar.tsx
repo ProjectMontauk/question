@@ -6,7 +6,7 @@ import { client } from "../src/client";
 import { useRouter } from "next/navigation";
 import { tokenContract, getContractsForMarket } from "../constants/contracts";
 import { inAppWallet} from "thirdweb/wallets";
-import { polygonAmoy } from "thirdweb/chains";
+import { base } from "thirdweb/chains";
 import { readContract } from "thirdweb";
 import { usePortfolio } from "../src/contexts/PortfolioContext";
 
@@ -79,7 +79,7 @@ const Navbar = () => {
         options: ["google", "apple","email", "phone", "passkey", "guest"],
       },
       smartAccount: {
-        chain: polygonAmoy,
+        chain: base,
         sponsorGas: true,
       },
     }),

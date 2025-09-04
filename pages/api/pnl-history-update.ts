@@ -1,22 +1,14 @@
 import { NextApiRequest, NextApiResponse } from 'next';
 import { PrismaClient } from '@prisma/client';
 import { readContract } from "thirdweb";
-import { client } from "../../src/client";
-import { base } from "thirdweb/chains";
+import { getContractsForMarket } from "../../constants/contracts";
 
 const prisma = new PrismaClient();
 
-// Get the market contract instance
-const marketContractAddress = "0xa015eBbaB5c6db0748a504ea71589BE21B2Cbe22" as `0x${string}`;
-const marketContract = {
-  client,
-  chain: base,
-  address: marketContractAddress,
-};
-
 // Function to fetch current price for a given outcome from the smart contract
-async function getCurrentPrice(outcome: string): Promise<number> {
+async function getCurrentPrice(outcome: string, marketId: string): Promise<number> {
   try {
+    const { marketContract } = getContractsForMarket(marketId);
     let oddsResult;
     
     if (outcome.toLowerCase().includes('yes')) {
@@ -41,7 +33,7 @@ async function getCurrentPrice(outcome: string): Promise<number> {
     // Convert odds to price (same logic as portfolio page)
     return Number(oddsResult) / Math.pow(2, 64);
   } catch (error) {
-    console.error('Error fetching current price for outcome:', outcome, error);
+    console.error('Error fetching current price for outcome:', outcome, 'market:', marketId, error);
     // Fallback to 0 if contract call fails
     return 0;
   }
@@ -69,8 +61,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   let pnl = 0;
   for (const trade of trades) {
-    // Fetch the current price for this trade's outcome
-    const currentPrice = await getCurrentPrice(trade.outcome);
+    // Fetch the current price for this trade's outcome using the correct market
+    const currentPrice = await getCurrentPrice(trade.outcome, trade.marketId);
     pnl += (trade.shares * currentPrice) - trade.betAmount;
   }
 

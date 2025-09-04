@@ -26,6 +26,15 @@ export const markets: Market[] = [
     contractAddress: "0xeeaca4019f25e573c33a0de266ba0d1020932cc9", // Moon Landing Market Contract on Base
     outcomes: ["Yes, Moon Landing was Fake", "No, Moon Landing was real"],
     rules: "The market will resolve 'Yes' if Neil Armstrong and Buzz Aldrin physically walked on the moon during the Apollo 11 mission in 1969. Otherwise, the market will resolve 'No.' This means that the Apollo 11 moon landings were faked, staged, or exaggerated to an extent where the Apollo 11 Crew never walked on the moon."
+  },
+  {
+    id: 'bridgitte-macron',
+    title: "Bridgitte Macron Born a Man?",
+    description: "Was Bridgitte Macron born a man?",
+    image: "/Macron.png",
+    contractAddress: "0x1fef92c81b4ef16b099330d5cb5981b8bfc69383", // Bridgitte Macron Market Contract on Base
+    outcomes: ["Yes, Bridgitte Macron was born a man", "No, Bridgitte Macron was born a female"],
+    rules: "The market will resolve 'Yes' if Bridgitte Macron was born a man. The market will resolve 'No' if Bridgitte Macron was born a female."
   }
 ];
 

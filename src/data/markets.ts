@@ -16,7 +16,7 @@ export const markets: Market[] = [
     image: "/JFKCar.png",
     contractAddress: "0xa015eBbaB5c6db0748a504ea71589BE21B2Cbe22", // JFK Market Contract on Base
     outcomes: ["Yes, CIA involved in JFK's death", "No, CIA innocent in JFK's death"],
-    rules: "The market will resolve 'Yes' if current or former CIA personnel aided in the planning or execution of President John F. Kennedy's Assassination. Otherwise, the market will resolve 'No.' This means that no current or former CIA personnel or a group receiving funding from the CIA participated in John F. Kennedy's assassination."
+    rules: "The market will resolve 'Yes' if current or former CIA personnel aided in the planning or execution of President John F. Kennedy's Assassination. Otherwise, the market will resolve 'No.'This means that no current or former CIA personnel or a group receiving funding from the CIA participated in John F. Kennedy's assassination. The market will resolve as soon as verifiable evidence or consensus emerges, as determined by The Citizen. To provide ample time for discovery, the Citizen is unable to resolve the market until at least March 3rd, 2026."
   },
   {
     id: 'moon-landing',
@@ -25,7 +25,7 @@ export const markets: Market[] = [
     image: "/Moon.png",
     contractAddress: "0xeeaca4019f25e573c33a0de266ba0d1020932cc9", // Moon Landing Market Contract on Base
     outcomes: ["Yes, Moon Landing was Fake", "No, Moon Landing was real"],
-    rules: "The market will resolve 'Yes' if Neil Armstrong and Buzz Aldrin physically walked on the moon during the Apollo 11 mission in 1969. Otherwise, the market will resolve 'No.' This means that the Apollo 11 moon landings were faked, staged, or exaggerated to an extent where the Apollo 11 Crew never walked on the moon."
+    rules: "The market will resolve 'Yes' if Neil Armstrong and Buzz Aldrin physically walked on the moon during the Apollo 11 mission in 1969. Otherwise, the market will resolve 'No.'This means that the Apollo 11 moon landings were faked, staged, or exaggerated to an extent where the Apollo 11 Crew never walked on the moon. The market will resolve as soon as verifiable evidence or consensus emerges, as determined by The Citizen. To provide ample time for discovery, the Citizen is unable to resolve the market until at least March 3rd, 2026."
   },
   {
     id: 'bridgitte-macron',
@@ -34,7 +34,7 @@ export const markets: Market[] = [
     image: "/Macron.png",
     contractAddress: "0x1fef92c81b4ef16b099330d5cb5981b8bfc69383", // Bridgitte Macron Market Contract on Base
     outcomes: ["Yes, Bridgitte Macron was born a man", "No, Bridgitte Macron was born a female"],
-    rules: "The market will resolve 'Yes' if Bridgitte Macron was born a man. The market will resolve 'No' if Bridgitte Macron was born a female."
+    rules: "The market will resolve 'Yes' if Bridgitte Macron was born a man. Otherwise, the market will resolve 'No.' This means that Bridgitte Macron was born a female. Otherwise, the market will resolve 'No' if Bridgitte Macron was born a female. The market will resolve as soon as verifiable evidence or consensus emerges, as determined by The Citizen. To provide ample time for discovery, the Citizen is unable to resolve the market until at least March 3rd, 2026."
   }
 ];
 

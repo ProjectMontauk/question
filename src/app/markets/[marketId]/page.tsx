@@ -108,15 +108,46 @@ export default function MarketPage({ params }: { params: Promise<{ marketId: str
   // Get only the first sentence for the collapsed view
   const firstLine = rulesShort.split(".")[0] + ".";
 
-  // Split rules into two paragraphs at "Otherwise, the market will resolve 'No.'"
+  // Split rules into paragraphs for better formatting
   function splitRules(text: string) {
-    const splitStr = "Otherwise, the market will resolve 'No.'";
-    const idx = text.indexOf(splitStr);
-    if (idx === -1) return [text];
-    return [
-      text.slice(0, idx).trim(),
-      text.slice(idx).trim()
-    ];
+    // Split by double newlines first
+    const paragraphs = text.split('\n\n').filter(p => p.trim());
+    
+    // If we have multiple paragraphs, return them as separate elements
+    if (paragraphs.length > 1) {
+      return paragraphs;
+    }
+    
+    // Fallback: split into 3 paragraphs: Yes condition, No condition, Resolution statement
+    const parts = [];
+    
+    // Split at "Otherwise, the market will resolve 'No.'"
+    const noSplit = "Otherwise, the market will resolve 'No.'";
+    const noIdx = text.indexOf(noSplit);
+    
+    if (noIdx !== -1) {
+      // First part: Yes condition (everything before "Otherwise")
+      parts.push(text.slice(0, noIdx).trim());
+      
+      // Find where resolution statement starts
+      const resolutionSplit = "The market will resolve as soon as";
+      const resolutionIdx = text.indexOf(resolutionSplit);
+      
+      if (resolutionIdx !== -1) {
+        // Second part: No condition + clarification (from "Otherwise" to resolution)
+        parts.push(text.slice(noIdx, resolutionIdx).trim());
+        // Third part: Resolution statement
+        parts.push(text.slice(resolutionIdx).trim());
+      } else {
+        // No resolution statement found, just split at "Otherwise"
+        parts.push(text.slice(noIdx).trim());
+      }
+    } else {
+      // No "Otherwise" found, return as single paragraph
+      parts.push(text);
+    }
+    
+    return parts.filter(p => p.trim());
   }
 
   // Replace individual yesMode and noMode with a single mode state

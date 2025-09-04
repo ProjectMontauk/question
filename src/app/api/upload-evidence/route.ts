@@ -9,8 +9,6 @@ export async function POST(request: NextRequest) {
     const file = formData.get('file') as File;
     const marketId = formData.get('marketId') as string;
     const evidenceType = formData.get('evidenceType') as string;
-    const title = formData.get('title') as string;
-    const walletAddress = formData.get('walletAddress') as string;
 
     if (!file) {
       return NextResponse.json({ error: 'No file provided' }, { status: 400 });

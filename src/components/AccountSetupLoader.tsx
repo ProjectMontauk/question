@@ -6,7 +6,7 @@ import { useState, useEffect, useRef } from "react";
 
 export default function AccountSetupLoader() {
   const account = useActiveAccount();
-  const { data: balance, refetch } = useReadContract({
+  const { refetch } = useReadContract({
     contract: tokenContract,
     method: "function balanceOf(address account) view returns (uint256)",
     params: [account?.address ?? "0x0000000000000000000000000000000000000000"],

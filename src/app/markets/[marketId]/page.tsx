@@ -27,6 +27,11 @@ function getDomain(url: string) {
   }
 }
 
+// Helper to check if URL is a PDF
+function isPdfUrl(url: string): boolean {
+  return url.toLowerCase().includes('/uploads/evidence/') || url.toLowerCase().endsWith('.pdf');
+}
+
 // Define Evidence type
 interface Evidence {
   id: number;
@@ -644,7 +649,11 @@ export default function MarketPage({ params }: { params: Promise<{ marketId: str
   // Evidence form state
   const [evidenceType, setEvidenceType] = useState<'yes' | 'no'>('yes');
   const [title, setTitle] = useState('');
+  const [description, setDescription] = useState('');
   const [url, setUrl] = useState('');
+  const [uploadType, setUploadType] = useState<'url' | 'pdf'>('url');
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
 
   // Add state for evidence submission success message
   const [evidenceSuccessMessage, setEvidenceSuccessMessage] = useState<string | null>(null);
@@ -926,30 +935,107 @@ useEffect(() => {
     return () => clearInterval(interval);
   }, [account?.address, fetchUserBalances, fetchUserBalancesWithoutLoading]);
 
+  // Handle file selection
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      // Check file type
+      if (file.type !== 'application/pdf') {
+        alert('Please select a PDF file only.');
+        e.target.value = ''; // Clear the input
+        return;
+      }
+      
+      // Check file size (10MB = 10 * 1024 * 1024 bytes)
+      const maxSize = 10 * 1024 * 1024; // 10MB in bytes
+      if (file.size > maxSize) {
+        alert(`File size must be less than 10MB. Your file is ${(file.size / (1024 * 1024)).toFixed(1)}MB.`);
+        e.target.value = ''; // Clear the input
+        setSelectedFile(null); // Clear selected file state
+        return;
+      }
+      
+      // File is valid
+      setSelectedFile(file);
+      setUrl(''); // Clear URL when file is selected
+    }
+  };
+
   // Handle submit document
   const handleSubmitDocument = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!title.trim() && !url.trim()) return;
-    const newEvidence = {
-      marketId: market.id,
-      type: evidenceType,
-      title: title.trim(),
-      url: url.trim(),
-      description: '', // No description field anymore
-      walletAddress: account?.address || '',
-    };
-    const res = await fetch(`${API_BASE_URL}/api/evidence`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(newEvidence),
-    });
-    const created = await res.json();
-    setEvidence(prev => [created, ...prev]);
-    setTitle('');
-    setUrl('');
-    setEvidenceType('yes');
-    setEvidenceSuccessMessage('Evidence Successfully Submitted!');
-    setTimeout(() => setEvidenceSuccessMessage(null), 10000);
+    if (!title.trim()) return;
+    
+    // Validate based on upload type
+    if (uploadType === 'url' && !url.trim()) {
+      alert('Please enter a URL or switch to PDF upload.');
+      return;
+    }
+    if (uploadType === 'pdf' && !selectedFile) {
+      alert('Please select a PDF file or switch to URL.');
+      return;
+    }
+
+    setIsUploading(true);
+    
+    try {
+      let finalUrl = url.trim();
+      
+      // If PDF upload, we'll need to upload the file first
+      if (uploadType === 'pdf' && selectedFile) {
+        const formData = new FormData();
+        formData.append('file', selectedFile);
+        formData.append('marketId', market.id);
+        formData.append('evidenceType', evidenceType);
+        formData.append('title', title.trim());
+        formData.append('walletAddress', account?.address || '');
+        
+        const uploadRes = await fetch(`${API_BASE_URL}/api/upload-evidence`, {
+          method: 'POST',
+          body: formData,
+        });
+        
+        if (!uploadRes.ok) {
+          throw new Error('Failed to upload PDF');
+        }
+        
+        const uploadResult = await uploadRes.json();
+        finalUrl = uploadResult.fileUrl; // Get the uploaded file URL
+      }
+      
+      // Submit evidence with the URL (either original URL or uploaded PDF URL)
+      const newEvidence = {
+        marketId: market.id,
+        type: evidenceType,
+        title: title.trim(),
+        url: finalUrl,
+        description: description.trim(),
+        walletAddress: account?.address || '',
+      };
+      
+      const res = await fetch(`${API_BASE_URL}/api/evidence`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newEvidence),
+      });
+      
+      const created = await res.json();
+      setEvidence(prev => [created, ...prev]);
+      setTitle('');
+      setDescription('');
+      setUrl('');
+      setSelectedFile(null);
+      setEvidenceType('yes');
+      setUploadType('url');
+      setEvidenceSuccessMessage('Evidence Successfully Submitted!');
+      setTimeout(() => setEvidenceSuccessMessage(null), 10000);
+    } catch (error) {
+      console.error('Error submitting evidence:', error);
+      setEvidenceSuccessMessage('Error submitting evidence. Please try again.');
+      setTimeout(() => setEvidenceSuccessMessage(null), 10000);
+    } finally {
+      setIsUploading(false);
+    }
   };
 
   // Handle upvote/downvote toggle
@@ -1837,7 +1923,7 @@ useEffect(() => {
                                         className="font-bold text-[#171A22] hover:underline text-[95%]"
                                         onClick={e => e.stopPropagation()} // Prevent expand/collapse when clicking link
                                       >
-                                        {evidence.title} ({getDomain(evidence.url)})
+                                        {evidence.title} ({isPdfUrl(evidence.url) ? 'pdf' : getDomain(evidence.url)})
                                       </a>
                                     ) : (
                                       <span className="font-bold text-[#171A22] text-[95%]">{evidence.title}</span>
@@ -1920,7 +2006,7 @@ useEffect(() => {
                                         className="font-bold text-[#171A22] hover:underline text-[95%]"
                                         onClick={e => e.stopPropagation()} // Prevent expand/collapse when clicking link
                                       >
-                                        {evidence.title} ({getDomain(evidence.url)})
+                                        {evidence.title} ({isPdfUrl(evidence.url) ? 'pdf' : getDomain(evidence.url)})
                                       </a>
                                     ) : (
                                       <span className="font-bold text-[#171A22] text-[95%]">{evidence.title}</span>
@@ -1994,23 +2080,83 @@ useEffect(() => {
                           />
                         </div>
                         <div>
-                          <label className="block font-medium text-gray-700 mb-2 text-[95%]">URL</label>
-                          <input
-                            type="text"
-                            placeholder="Enter the URL of the document..."
-                            value={url}
-                            onChange={e => setUrl(e.target.value)}
-                            className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-600 text-base"
+                          <label className="block font-medium text-gray-700 mb-2 text-[95%]">Description (Optional)</label>
+                          <textarea
+                            placeholder="Provide additional context or details about this evidence..."
+                            value={description}
+                            onChange={e => setDescription(e.target.value)}
+                            rows={3}
+                            className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-600 text-base resize-none"
                           />
+                        </div>
+                        <div>
+                          <label className="block font-medium text-gray-700 mb-2 text-[95%]">Document Source</label>
+                          <div className="flex items-center gap-6 mb-3">
+                            <label className="flex items-center gap-2">
+                              <input
+                                type="radio"
+                                name="uploadType"
+                                value="url"
+                                checked={uploadType === 'url'}
+                                onChange={() => {
+                                  setUploadType('url');
+                                  setSelectedFile(null);
+                                }}
+                                className="accent-blue-600"
+                              />
+                              <span>URL Link</span>
+                            </label>
+                            <label className="flex items-center gap-2">
+                              <input
+                                type="radio"
+                                name="uploadType"
+                                value="pdf"
+                                checked={uploadType === 'pdf'}
+                                onChange={() => {
+                                  setUploadType('pdf');
+                                  setUrl('');
+                                }}
+                                className="accent-blue-600"
+                              />
+                              <span>PDF Upload</span>
+                            </label>
+                          </div>
+                          {uploadType === 'url' ? (
+                            <input
+                              type="text"
+                              placeholder="Enter the URL of the document..."
+                              value={url}
+                              onChange={e => setUrl(e.target.value)}
+                              className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-600 text-base"
+                            />
+                          ) : (
+                            <div>
+                              <input
+                                type="file"
+                                accept=".pdf"
+                                onChange={handleFileChange}
+                                className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-600 text-base file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+                              />
+                              <p className="mt-1 text-xs text-gray-500">
+                                Maximum file size: 10MB
+                              </p>
+                              {selectedFile && (
+                                <p className="mt-2 text-sm text-green-600">
+                                  ✓ Selected: {selectedFile.name} ({(selectedFile.size / (1024 * 1024)).toFixed(1)}MB)
+                                </p>
+                              )}
+                            </div>
+                          )}
                         </div>
                         {evidenceSuccessMessage && (
                           <div className="text-green-600 font-semibold text-center mb-2">{evidenceSuccessMessage}</div>
                         )}
                         <button
                           type="submit"
-                          className="w-full bg-[#171A22] text-white font-semibold py-3 rounded-lg text-lg hover:bg-[#232635] transition"
+                          disabled={isUploading}
+                          className="w-full bg-[#171A22] text-white font-semibold py-3 rounded-lg text-lg hover:bg-[#232635] transition disabled:opacity-50 disabled:cursor-not-allowed"
                         >
-                          Submit Document
+                          {isUploading ? 'Uploading...' : 'Submit Document'}
                         </button>
                       </form>
                     </Tab.Panel>

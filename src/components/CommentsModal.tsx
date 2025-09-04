@@ -200,6 +200,10 @@ const CommentsModal: React.FC<CommentsModalProps> = ({
     }
   };
 
+  const isPdfUrl = (url: string): boolean => {
+    return url.toLowerCase().includes('/uploads/evidence/') || url.toLowerCase().endsWith('.pdf');
+  };
+
   if (!isOpen || !evidence) return null;
 
   return (
@@ -213,7 +217,7 @@ const CommentsModal: React.FC<CommentsModalProps> = ({
             </h2>
             {evidence.url && (
               <p className="text-sm text-gray-500 mt-1">
-                {getDomain(evidence.url)}
+                {isPdfUrl(evidence.url) ? 'pdf' : getDomain(evidence.url)}
               </p>
             )}
           </div>

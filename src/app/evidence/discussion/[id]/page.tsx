@@ -62,6 +62,10 @@ export default function EvidenceDiscussionPage({ params }: { params: Promise<{ i
     }
   };
 
+  const isPdfUrl = (url: string): boolean => {
+    return url.toLowerCase().includes('/uploads/evidence/') || url.toLowerCase().endsWith('.pdf');
+  };
+
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('en-US', {
       year: 'numeric',
@@ -152,7 +156,7 @@ export default function EvidenceDiscussionPage({ params }: { params: Promise<{ i
                     <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
                     </svg>
-                    View Source ({getDomain(evidence.url)})
+                    View Source ({isPdfUrl(evidence.url) ? 'pdf' : getDomain(evidence.url)})
                   </a>
                 )}
               </div>

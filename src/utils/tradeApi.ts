@@ -9,7 +9,8 @@ export async function submitTrade(tradeData: {
   toWin: number;
   status?: string;
 }) {
-  const res = await fetch('/api/trade', {
+  // Use server-side API route for secure trade submission
+  const res = await fetch('/api/submit-trade', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(tradeData),
@@ -23,7 +24,9 @@ export async function submitTrade(tradeData: {
   }
   
   try {
-    return JSON.parse(text);
+    const result = JSON.parse(text);
+    // Return the data field from server-side response
+    return result.success ? result.data : result;
   } catch (error) {
     console.error('Failed to parse trade response:', error);
     return null;

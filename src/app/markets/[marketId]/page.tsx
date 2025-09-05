@@ -1511,7 +1511,10 @@ useEffect(() => {
       // Record to database (after trade, odds should have changed)
       const oddsResponse = await fetch(`${API_BASE_URL}/api/odds-history`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'X-API-Key': process.env.NEXT_PUBLIC_API_KEY || 'your-api-key-here'
+        },
         body: JSON.stringify({
           marketId: market.id,
           yesProbability,

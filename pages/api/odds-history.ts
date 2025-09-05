@@ -1,16 +1,22 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import prisma from '../../lib/prisma';
+import { validateApiKeyPages } from '../../src/lib/auth';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   // Set CORS headers
   res.setHeader('Access-Control-Allow-Origin', 'https://www.thecitizen.io');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PATCH, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, X-API-Key');
 
   // Handle preflight requests
   if (req.method === 'OPTIONS') {
     res.status(200).end();
     return;
+  }
+
+  // Validate API key for POST requests (creating odds data)
+  if (req.method === 'POST' && !validateApiKeyPages(req)) {
+    return res.status(401).json({ error: 'Unauthorized - Invalid API key' });
   }
 
   if (req.method === 'POST') {

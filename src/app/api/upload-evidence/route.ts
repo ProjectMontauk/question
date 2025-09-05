@@ -1,7 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { writeFile, mkdir } from 'fs/promises';
-import { join } from 'path';
-import { existsSync } from 'fs';
+import { put } from '@vercel/blob';
 
 // Handle preflight requests
 export async function OPTIONS() {
@@ -44,24 +42,22 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'File size must be less than 10MB' }, { status: 400, headers });
     }
 
-    // Create uploads directory if it doesn't exist
-    const uploadsDir = join(process.cwd(), 'public', 'uploads', 'evidence');
-    if (!existsSync(uploadsDir)) {
-      await mkdir(uploadsDir, { recursive: true });
-    }
-
     // Generate unique filename
     const timestamp = Date.now();
     const filename = `${marketId}_${evidenceType}_${timestamp}_${file.name}`;
-    const filepath = join(uploadsDir, filename);
-
-    // Convert file to buffer and save
+    
+    // Convert file to buffer
     const bytes = await file.arrayBuffer();
     const buffer = Buffer.from(bytes);
-    await writeFile(filepath, buffer);
-
+    
+    // Upload to Vercel Blob storage
+    const blob = await put(filename, buffer, {
+      access: 'public',
+      contentType: 'application/pdf',
+    });
+    
     // Return the public URL for the uploaded file
-    const fileUrl = `/uploads/evidence/${filename}`;
+    const fileUrl = blob.url;
 
     return NextResponse.json({ 
       success: true, 

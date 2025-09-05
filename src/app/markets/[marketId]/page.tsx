@@ -28,9 +28,11 @@ function getDomain(url: string) {
 }
 
 // Helper to check if URL is a PDF
-function isPdfUrl(url: string): boolean {
-  return url.toLowerCase().includes('/uploads/evidence/') || url.toLowerCase().endsWith('.pdf');
-}
+  function isPdfUrl(url: string): boolean {
+    return url.toLowerCase().includes('/uploads/evidence/') || 
+           url.toLowerCase().includes('blob.vercel-storage.com') ||
+           url.toLowerCase().endsWith('.pdf');
+  }
 
 // Define Evidence type
 interface Evidence {

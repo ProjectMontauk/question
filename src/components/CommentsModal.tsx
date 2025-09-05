@@ -201,7 +201,9 @@ const CommentsModal: React.FC<CommentsModalProps> = ({
   };
 
   const isPdfUrl = (url: string): boolean => {
-    return url.toLowerCase().includes('/uploads/evidence/') || url.toLowerCase().endsWith('.pdf');
+    return url.toLowerCase().includes('/uploads/evidence/') || 
+           url.toLowerCase().includes('blob.vercel-storage.com') ||
+           url.toLowerCase().endsWith('.pdf');
   };
 
   if (!isOpen || !evidence) return null;

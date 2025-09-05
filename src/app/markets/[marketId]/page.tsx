@@ -1025,6 +1025,9 @@ useEffect(() => {
         
         const uploadRes = await fetch(`${API_BASE_URL}/api/upload-evidence`, {
           method: 'POST',
+          headers: {
+            'X-API-Key': process.env.NEXT_PUBLIC_API_KEY || 'your-api-key-here',
+          },
           body: formData,
         });
         

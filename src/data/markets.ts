@@ -40,7 +40,7 @@ export const markets: Market[] = [
     id: 'vaccines-autism',
     title: "Childhood Vaccines cause Autism?",
     description: "Do childhood vaccines cause autism?",
-    image: "/vaccines.png", // Placeholder image until we add the actual photo
+    image: "/RFK.png", // Placeholder image until we add the actual photo
     contractAddress: "0x9db8664c16dcffb5b1bb8cde365fd174d46b3c25", // Vaccines Autism Market Contract on Base
     outcomes: ["Yes, childhood vaccines cause autism", "No, childhood vaccines do not cause autism"],
     rules: "The market will resolve 'Yes' if childhood vaccines cause autism. Otherwise, the market will resolve 'No.' This means that childhood vaccines do not cause autism. The market will resolve as soon as verifiable evidence or consensus emerges, as determined by The Citizen. To provide ample time for discovery, the Citizen is unable to resolve the market until at least March 3rd, 2026."

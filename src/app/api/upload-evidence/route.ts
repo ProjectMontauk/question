@@ -3,7 +3,26 @@ import { writeFile, mkdir } from 'fs/promises';
 import { join } from 'path';
 import { existsSync } from 'fs';
 
+// Handle preflight requests
+export async function OPTIONS(request: NextRequest) {
+  return new NextResponse(null, {
+    status: 200,
+    headers: {
+      'Access-Control-Allow-Origin': 'https://www.thecitizen.io',
+      'Access-Control-Allow-Methods': 'POST, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type',
+    },
+  });
+}
+
 export async function POST(request: NextRequest) {
+  // Set CORS headers
+  const headers = {
+    'Access-Control-Allow-Origin': 'https://www.thecitizen.io',
+    'Access-Control-Allow-Methods': 'POST, OPTIONS',
+    'Access-Control-Allow-Headers': 'Content-Type',
+  };
+
   try {
     const formData = await request.formData();
     const file = formData.get('file') as File;
@@ -11,18 +30,18 @@ export async function POST(request: NextRequest) {
     const evidenceType = formData.get('evidenceType') as string;
 
     if (!file) {
-      return NextResponse.json({ error: 'No file provided' }, { status: 400 });
+      return NextResponse.json({ error: 'No file provided' }, { status: 400, headers });
     }
 
     // Validate file type
     if (file.type !== 'application/pdf') {
-      return NextResponse.json({ error: 'Only PDF files are allowed' }, { status: 400 });
+      return NextResponse.json({ error: 'Only PDF files are allowed' }, { status: 400, headers });
     }
 
     // Validate file size (max 10MB)
     const maxSize = 10 * 1024 * 1024; // 10MB
     if (file.size > maxSize) {
-      return NextResponse.json({ error: 'File size must be less than 10MB' }, { status: 400 });
+      return NextResponse.json({ error: 'File size must be less than 10MB' }, { status: 400, headers });
     }
 
     // Create uploads directory if it doesn't exist
@@ -50,13 +69,13 @@ export async function POST(request: NextRequest) {
       filename,
       originalName: file.name,
       size: file.size
-    });
+    }, { headers });
 
   } catch (error) {
     console.error('Error uploading file:', error);
     return NextResponse.json(
       { error: 'Failed to upload file' }, 
-      { status: 500 }
+      { status: 500, headers }
     );
   }
 }

@@ -41,7 +41,7 @@ async function getCurrentPrice(outcome: string, marketId: string): Promise<numbe
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   // Set CORS headers
-  res.setHeader('Access-Control-Allow-Origin', 'https://www.tinfoilnews.com');
+  res.setHeader('Access-Control-Allow-Origin', 'https://www.thecitizen.io');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PATCH, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 

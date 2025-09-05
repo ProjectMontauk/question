@@ -16,7 +16,7 @@ export function getApiKeyFromRequest(request: Request): string | null {
 }
 
 // For Pages API routes (legacy)
-export function validateApiKeyPages(req: any): boolean {
+export function validateApiKeyPages(req: { headers: { [key: string]: string | string[] | undefined } }): boolean {
   const apiKey = req.headers['x-api-key'];
   const validApiKey = process.env.API_SECRET_KEY;
   

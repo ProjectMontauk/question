@@ -15,7 +15,7 @@ import { getMarketById } from "../../../data/markets";
 import { notFound } from "next/navigation";
 
 // Backend API base URL - use Next.js API routes for both dev and production
-const API_BASE_URL = process.env.NODE_ENV === 'production' ? 'https://tacoshell.vercel.app' : '';
+const API_BASE_URL = process.env.NODE_ENV === 'production' ? 'https://mvpshell.vercel.app' : '';
 
 // Helper to extract domain from URL
 function getDomain(url: string) {

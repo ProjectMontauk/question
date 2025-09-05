@@ -1509,11 +1509,11 @@ useEffect(() => {
       const yesProbability = Number(currentYesOdds);
       const noProbability = Number(currentNoOdds);
       // Record to database (after trade, odds should have changed)
-      const oddsResponse = await fetch(`${API_BASE_URL}/api/odds-history`, {
+      const oddsResponse = await fetch(`${API_BASE_URL}/api/record-odds`, {
         method: 'POST',
         headers: { 
-          'Content-Type': 'application/json',
-          'X-API-Key': process.env.NEXT_PUBLIC_API_KEY || 'your-api-key-here'
+          'Content-Type': 'application/json'
+          // No API key needed - handled server-side
         },
         body: JSON.stringify({
           marketId: market.id,

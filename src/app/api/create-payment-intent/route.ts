@@ -10,6 +10,8 @@ export async function POST(request: NextRequest) {
     const { amount, nashAmount, customerWallet } = await request.json();
     
     console.log('🔍 API Route - Received data:', { amount, nashAmount, customerWallet });
+    console.log('🔑 Stripe Secret Key (first 10 chars):', process.env.STRIPE_SECRET_KEY?.substring(0, 10));
+    console.log('🔑 Stripe Publishable Key (first 10 chars):', process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY?.substring(0, 10));
 
     if (!amount || amount <= 0) {
       return NextResponse.json(
@@ -27,10 +29,10 @@ export async function POST(request: NextRequest) {
 
     // Price map for existing Stripe products
     const priceMap: { [key: number]: string } = {
-      10: 'price_1S0kx5GYPawnv17VzhESgC00',    // 250 Nash for $10
-      20: 'price_1S0kxQGYPawnv17VBgyBxniG',    // 500 Nash for $20 (you'll need to create this)
-      30: 'price_1S0kxmGYPawnv17Vv8PYA3A0',    // 750 Nash for $30 (you'll need to create this)
-      40: 'price_1S0kyTGYPawnv17V6zYBK1rC',    // 1000 Nash for $40 (you'll need to create this)
+      10: 'price_1S0jJUKCmSSc8peUMry2IRDq',    // 250 Nash for $10
+      20: 'price_1S0jPrKCmSSc8peUZKHcdsjF',    // 500 Nash for $20 (you'll need to create this)
+      30: 'price_1S0jR6KCmSSc8peU77v5mzRQ',    // 750 Nash for $30 (you'll need to create this)
+      40: 'price_1S0jdDKCmSSc8peUWqvalcy5',    // 1000 Nash for $40 (you'll need to create this)
     };
 
     // Validate that we have a price for this amount

@@ -39,7 +39,7 @@ export const markets: Market[] = [
   },
   {
     id: 'vaccines-autism',
-    title: "Childhood Vaccines cause Autism?",
+    title: "Childhood Vaccines Cause Autism?",
     description: "Do childhood vaccines cause autism?",
     image: "/RFK.png", // Placeholder image until we add the actual photo
     contractAddress: "0x9db8664c16dcffb5b1bb8cde365fd174d46b3c25", // Vaccines Autism Market Contract on Base
@@ -57,12 +57,12 @@ export const markets: Market[] = [
   },
   {
     id: 'mrna-turbocancer',
-    title: "MRNA Vax Cause TurboCancer?",
+    title: "MRNA Vax Cause Cancer?",
     description: "Do COVID-19 MRNA vaccinations cause turbo cancers?",
     image: "/MRNATurboCancer.png", // Placeholder image - you'll need to add this image
     contractAddress: "0xdc57601061c30DCdFbE849e2440CC36A929C7205", // MRNA TurboCancer Market Contract on Base
-    outcomes: ["Yes, MRNA vax cause turbo cancer", "No, MRNA vax do not cause turbo cancer"],
-    rules: "The market will resolve 'Yes' if the COVID-19 MRNA vaccinations produce a statistically significant increase in Turbo Cancers in vaccinated individuals vs unvaccinated. Otherwise, the market will resolve 'No.' This means that the COVID-19 MRNA vaccinations do not cause a statistically significant increase in Turbo cancers across vaccinated and unvaccinated individuals. The market will resolve as soon as verifiable evidence or consensus emerges after the discovery period ends on March 8th, 2026."
+    outcomes: ["Yes, MRNA vax cause cancer", "No, MRNA vax do not cause cancer"],
+    rules: "The market will resolve 'Yes' if the COVID-19 MRNA vaccinations produce a statistically significant increase in Cancers in vaccinated individuals vs unvaccinated. Otherwise, the market will resolve 'No.' This means that the COVID-19 MRNA vaccinations do not cause a statistically significant increase in cancers across vaccinated and unvaccinated individuals. The market will resolve as soon as verifiable evidence or consensus emerges after the discovery period ends on March 8th, 2026."
   }
 ];
 

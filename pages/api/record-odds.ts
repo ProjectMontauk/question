@@ -1,8 +1,17 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-  // Set CORS headers
-  res.setHeader('Access-Control-Allow-Origin', 'https://www.thecitizen.io');
+  // Set CORS headers based on environment
+  const origin = req.headers.origin;
+  const isDevelopment = process.env.NODE_ENV === 'development';
+  
+  const allowedOrigins = isDevelopment 
+    ? ['http://localhost:3000', 'https://localhost:3000']
+    : ['https://www.thecitizen.io'];
+  
+  if (origin && allowedOrigins.includes(origin)) {
+    res.setHeader('Access-Control-Allow-Origin', origin);
+  }
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 

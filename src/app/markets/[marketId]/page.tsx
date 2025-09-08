@@ -1049,13 +1049,17 @@ useEffect(() => {
         walletAddress: account?.address || '',
       };
       
-      const res = await fetch(`${API_BASE_URL}/api/evidence`, {
+      const res = await fetch(`${API_BASE_URL}/api/submit-evidence`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json'
+          // No API key needed - handled server-side
+        },
         body: JSON.stringify(newEvidence),
       });
       
-      const created = await res.json();
+      const result = await res.json();
+      const created = result.success ? result.data : result;
       setEvidence(prev => [created, ...prev]);
       setTitle('');
       setDescription('');

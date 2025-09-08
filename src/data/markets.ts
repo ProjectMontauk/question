@@ -53,7 +53,7 @@ export const markets: Market[] = [
     image: "/TrumpEpstein.png", // Placeholder image - you'll need to add this image
     contractAddress: "0xbf7b301d6b0542f2b69da5816eda102bbcc2aaf2", // Trump Epstein Market Contract on Base
     outcomes: ["Yes, Trump a pedophile", "No, Trump not a pedophile"],
-    rules: "The market will resolve 'Yes' if Donald Trump engaged in inappropriate sexual relations with a minor, likely in association with Jeffrey Epstein. Otherwise, the market will resolve 'No.' This means that Donald Trump did not engage in inappropriate sexual relations with a minor in association with Jeffrey Epstein. The market will resolve as soon as verifiable evidence or consensus emerges after the discovery period ends on March 8th, 2026."
+    rules: "The market will resolve 'Yes' if Donald Trump engaged in inappropriate sexual relations with a minor, likely in association with Jeffrey Epstein. Otherwise, the market will resolve 'No.' This means that Donald Trump did not engage in inappropriate sexual relations with a minor. The market will resolve as soon as verifiable evidence or consensus emerges after the discovery period ends on March 8th, 2026."
   },
   {
     id: 'mrna-turbocancer',

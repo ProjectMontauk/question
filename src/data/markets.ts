@@ -48,7 +48,7 @@ export const markets: Market[] = [
   },
   {
     id: 'trump-epstein',
-    title: "Trump, an Epstein Pedophile?",
+    title: "Is Trump an Epstein-Pedophile?",
     description: "Did Trump engage in inappropriate sexual relations with a minor, likely in association with Jeffrey Epstein?",
     image: "/TrumpEpstein.png", // Placeholder image - you'll need to add this image
     contractAddress: "0xbf7b301d6b0542f2b69da5816eda102bbcc2aaf2", // Trump Epstein Market Contract on Base

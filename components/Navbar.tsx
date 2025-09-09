@@ -9,6 +9,7 @@ import { inAppWallet} from "thirdweb/wallets";
 import { base } from "thirdweb/chains";
 import { readContract } from "thirdweb";
 import { usePortfolio } from "../src/contexts/PortfolioContext";
+import DenariusSymbolInline from "../src/components/DenariusSymbolInline";
 
 // TODO: Replace this with the actual ThirdWeb inAppWallet import
 // import { InAppWalletButton } from "thirdweb-package-path";
@@ -284,7 +285,7 @@ const Navbar = () => {
           >
             <span className="text-[#171A22] font-medium text-sm">Portfolio</span>
                             <span className="text-green-600 font-semibold text-sm">
-                  {portfolioLoading || portfolioValue === "--" ? "𐆖--" : <><span className="text-[13.5px] font-normal">𐆖</span>&thinsp;{Number(portfolioValue).toLocaleString(undefined, { maximumFractionDigits: 2 })}</>}
+                  {portfolioLoading || portfolioValue === "--" ? <><DenariusSymbolInline size={18} />--</> : <><DenariusSymbolInline size={18} />{Number(portfolioValue).toLocaleString(undefined, { maximumFractionDigits: 2 })}</>}
                 </span>
           </button>
           <button
@@ -294,7 +295,7 @@ const Navbar = () => {
           >
                             <span className="text-[#171A22] font-medium text-sm">Cash</span>
                             <span className="text-green-600 font-semibold text-sm">
-                  {(!account?.address || isPending) ? "𐆖--" : <><span className="text-[13.5px] font-normal">𐆖</span>&thinsp;{formatBalance(balance)}</>}
+                  {(!account?.address || isPending) ? <><DenariusSymbolInline size={18} />--</> : <><DenariusSymbolInline size={18} />{formatBalance(balance)}</>}
                 </span>
           </button>
           <div className="flex scale-75 origin-left">

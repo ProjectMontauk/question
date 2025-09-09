@@ -8,6 +8,7 @@ import { useState, useEffect, useCallback } from "react";
 import { readContract } from "thirdweb";
 import { usePortfolio } from "../../contexts/PortfolioContext";
 import React from "react";
+import DenariusSymbolInline from "../../../components/DenariusSymbolInline";
 import { prepareContractCall } from "thirdweb";
 import { parseAmountToWei } from "../../utils/parseAmountToWei";
 
@@ -397,7 +398,7 @@ export default function PortfolioPage() {
               <div className="flex items-center mb-2">
                 <span className="uppercase tracking-widest text-gray-500 font-semibold text-xs md:text-sm">Portfolio</span>
               </div>
-              <div className="text-2xl md:text-4xl font-bold text-gray-900 mb-2"><span className="text-[36px] font-normal">𐆖</span>&thinsp;{totalPortfolio.toFixed(2)}</div>
+              <div className="text-2xl md:text-4xl font-bold text-gray-900 mb-2"><DenariusSymbolInline size={36} />&thinsp;{totalPortfolio.toFixed(2)}</div>
               <div className="text-gray-500 font-semibold text-xs md:text-sm uppercase tracking-widest mb-1">Profit/Loss</div>
               <div className={
                 allTimePL > 0 ? "text-green-600 font-semibold text-sm md:text-lg" :

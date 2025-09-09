@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+Symbols:wght@400;700&display=swap');
 
 :root {
   --background: #ffffff;
@@ -14,6 +15,27 @@ body {
   @apply font-sans;
   background: var(--background);
   color: var(--foreground);
+}
+
+/* Nash Symbol Font Support */
+.nash-symbol, 
+span:contains("𐆖"),
+*:contains("𐆖") {
+  font-family: 'Noto Sans Symbols', 'Apple Symbols', 'Segoe UI Symbol', 'Symbola', 'Arial Unicode MS', sans-serif;
+  font-weight: 400;
+  font-size: inherit;
+  line-height: 1;
+  display: inline-block;
+  vertical-align: baseline;
+}
+
+/* Fallback for unsupported browsers */
+@supports not (font-variation-settings: normal) {
+  .nash-symbol::before,
+  span:contains("𐆖")::before {
+    content: '₦'; /* Nigerian Naira as fallback */
+    font-family: 'Noto Sans Symbols', 'Apple Symbols', 'Segoe UI Symbol', 'Symbola', sans-serif;
+  }
 }
 
 /* font-family: Arial, Helvetica, sans-serif; */

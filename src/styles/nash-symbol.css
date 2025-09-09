@@ -1,0 +1,23 @@
+/* Nash Symbol Font Support */
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+Symbols:wght@400;700&display=swap');
+
+.nash-symbol {
+  font-family: 'Noto Sans Symbols', 'Apple Symbols', 'Segoe UI Symbol', 'Symbola', sans-serif;
+  font-weight: 400;
+  font-size: inherit;
+  line-height: 1;
+  display: inline-block;
+  vertical-align: baseline;
+}
+
+/* Fallback for browsers that don't support the Unicode character */
+.nash-symbol::before {
+  content: '𐆖';
+  font-family: 'Noto Sans Symbols', 'Apple Symbols', 'Segoe UI Symbol', 'Symbola', sans-serif;
+}
+
+/* Alternative fallback using CSS content */
+.nash-symbol-fallback::before {
+  content: '₦'; /* Nigerian Naira symbol as fallback */
+  font-family: 'Noto Sans Symbols', 'Apple Symbols', 'Segoe UI Symbol', 'Symbola', sans-serif;
+}

@@ -13,7 +13,6 @@ import { formatOddsToCents } from "../../../utils/formatOdds";
 import { submitTrade } from "../../../utils/tradeApi";
 import { getMarketById } from "../../../data/markets";
 import { notFound } from "next/navigation";
-import DenariusSymbolInline from "../../../components/DenariusSymbolInline";
 import DenariusSymbolLarge from "../../../components/DenariusSymbolLarge";
 
 // Backend API base URL - use Next.js API routes for both dev and production

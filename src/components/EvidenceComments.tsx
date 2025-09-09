@@ -30,11 +30,13 @@ interface CommentData {
 interface EvidenceCommentsProps {
   evidence: Evidence;
   currentUserAddress?: string;
+  onShowSignInModal?: () => void;
 }
 
 const EvidenceComments: React.FC<EvidenceCommentsProps> = ({
   evidence,
-  currentUserAddress
+  currentUserAddress,
+  onShowSignInModal
 }) => {
   const [comments, setComments] = useState<CommentData[]>([]);
   const [newComment, setNewComment] = useState('');
@@ -72,7 +74,23 @@ const EvidenceComments: React.FC<EvidenceCommentsProps> = ({
 
   // Auto-expand textarea as user types
   const handleTextareaInput = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    setNewComment(e.target.value);
+    const textarea = e.target;
+    
+    // If user is not signed in and tries to type, show sign-in modal
+    if (!currentUserAddress && textarea.value.trim().length > 0) {
+      if (onShowSignInModal) {
+        onShowSignInModal();
+      }
+      // Clear the textarea
+      setNewComment('');
+      textarea.value = '';
+      if (textareaRef.current) {
+        textareaRef.current.style.height = '2.5rem';
+      }
+      return;
+    }
+    
+    setNewComment(textarea.value);
     if (textareaRef.current) {
       textareaRef.current.style.height = '2.5rem'; // Reset to min height
       textareaRef.current.style.height = textareaRef.current.scrollHeight + 'px';
@@ -191,18 +209,17 @@ const EvidenceComments: React.FC<EvidenceCommentsProps> = ({
     <div className="bg-white rounded-xl mt-4">
       <div className="pb-4 bg-white">
         {/* New comment form */}
-        {currentUserAddress && (
-          <form onSubmit={handleSubmitComment} className="mb-4">
-            <textarea
-              ref={textareaRef}
-              value={newComment}
-              onChange={handleTextareaInput}
-              placeholder="Add a comment..."
-              className="w-full p-[5px] border border-gray-300 rounded-lg resize-none bg-white text-gray-900 min-h-[2.25rem] text-[15.2px]"
-              rows={1}
-              style={{overflow: 'hidden'}}
-              disabled={isSubmitting}
-            />
+        <form onSubmit={handleSubmitComment} className="mb-4">
+          <textarea
+            ref={textareaRef}
+            value={newComment}
+            onChange={handleTextareaInput}
+            placeholder="Add a comment..."
+            className="w-full p-[5px] border border-gray-300 rounded-lg resize-none bg-white text-gray-900 min-h-[2.25rem] text-[15.2px]"
+            rows={1}
+            style={{overflow: 'hidden'}}
+            disabled={isSubmitting}
+          />
             <div className="flex justify-end mt-2">
               {newComment.trim().length > 0 && (
                 <button
@@ -215,7 +232,6 @@ const EvidenceComments: React.FC<EvidenceCommentsProps> = ({
               )}
             </div>
           </form>
-        )}
         {/* Comments section */}
         <div className="bg-white">
           {isLoading ? (

@@ -690,6 +690,9 @@ export default function MarketPage({ params }: { params: Promise<{ marketId: str
 
   // Add state for evidence submission success message
   const [evidenceSuccessMessage, setEvidenceSuccessMessage] = useState<string | null>(null);
+  
+  // Add state for sign-in modal
+  const [showSignInModal, setShowSignInModal] = useState(false);
 
  // Handle automatic price calculation
  const handleAutoGetPrice = useCallback(async (outcome: number, amount: number, isSellMode: boolean = false) => {
@@ -1088,7 +1091,10 @@ useEffect(() => {
 
   // Handle upvote/downvote toggle
   const handleVote = async (id: number, evidenceType: 'yes' | 'no') => {
-    if (!account?.address) return;
+    if (!account?.address) {
+      setShowSignInModal(true);
+      return;
+    }
     
     // Update user position before voting
     await fetch('/api/update-user-position', {
@@ -1434,8 +1440,10 @@ useEffect(() => {
   // Calculate user's voting power for Yes and No
   const yesShares = parseInt(outcome1Balance) || 0;
   const noShares = parseInt(outcome2Balance) || 0;
-  const yesVotingPower = yesShares > noShares ? Math.max(1, yesShares - noShares) : 1;
-  const noVotingPower = noShares > yesShares ? Math.max(1, noShares - yesShares) : 1;
+  
+  // If user has shares in one position, they have zero voting power for the opposite position
+  const yesVotingPower = account?.address ? ((yesShares - noShares) > 0 ? Math.max(1, yesShares - noShares) : 0) : 0;
+  const noVotingPower = account?.address ? ((noShares - yesShares) > 0 ? Math.max(1, noShares - yesShares) : 0) : 0;
 
   // For conditional tokens approval (for selling)
   const { mutate: sendSetApprovalForAll } = useSendTransaction();
@@ -2432,6 +2440,53 @@ useEffect(() => {
           </div>
         </div>
       </div>
+      
+      {/* Sign-in Modal */}
+      {showSignInModal && (
+        <div className="fixed inset-0 flex items-center justify-center z-50 pointer-events-none">
+          <div className="bg-white rounded-lg p-8 max-w-md w-full mx-4 shadow-2xl border border-gray-200 pointer-events-auto">
+            <div className="text-center">
+              <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-blue-100 mb-4">
+                <svg className="h-6 w-6 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                </svg>
+              </div>
+              <h3 className="text-lg font-medium text-gray-900 mb-2">Sign In Required</h3>
+              <p className="text-sm text-gray-500 mb-6">
+                Please sign in to upvote or downvote information
+              </p>
+              <div className="flex space-x-3">
+                <button
+                  onClick={() => setShowSignInModal(false)}
+                  className="flex-1 bg-gray-300 text-gray-700 py-2 px-4 rounded-md text-sm font-medium hover:bg-gray-400 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={() => {
+                    setShowSignInModal(false);
+                    // Scroll to and focus the ConnectButton in the Navbar
+                    setTimeout(() => {
+                      const connectButton = document.querySelector('[data-testid="connect-button"], button[class*="bg-black"]') as HTMLElement;
+                      if (connectButton) {
+                        connectButton.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                        connectButton.focus();
+                        // Trigger click after a short delay to ensure it's visible
+                        setTimeout(() => {
+                          connectButton.click();
+                        }, 500);
+                      }
+                    }, 100);
+                  }}
+                  className="flex-1 bg-blue-600 text-white py-2 px-4 rounded-md text-sm font-medium hover:bg-blue-700 transition-colors"
+                >
+                  Sign In
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

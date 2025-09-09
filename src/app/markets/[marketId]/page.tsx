@@ -13,6 +13,8 @@ import { formatOddsToCents } from "../../../utils/formatOdds";
 import { submitTrade } from "../../../utils/tradeApi";
 import { getMarketById } from "../../../data/markets";
 import { notFound } from "next/navigation";
+import DenariusSymbolInline from "../../../components/DenariusSymbolInline";
+import DenariusSymbolLarge from "../../../components/DenariusSymbolLarge";
 
 // Backend API base URL - use Next.js API routes for both dev and production
 const API_BASE_URL = process.env.NODE_ENV === 'production' ? 'https://mvpshell.vercel.app' : '';
@@ -1711,7 +1713,7 @@ useEffect(() => {
                     </div>
                   </div>
                   {/* Bet Amount sub-title */}
-                  <div className="text-lg font-bold mb-2">{mode === 'buy' ? 'Bet Amount (𐆖)' : 'Sell Shares'}</div>
+                  <div className="text-lg font-bold mb-2">{mode === 'buy' ? <>Bet Amount (<DenariusSymbolLarge size={20} />)</> : 'Sell Shares'}</div>
                   {/* Amount input */}
                   <input
                     type="text"
@@ -2255,7 +2257,7 @@ useEffect(() => {
                 </div>
               </div>
               {/* Bet Amount sub-title */}
-              <div className="text-lg font-bold mb-2">{mode === 'buy' ? 'Bet Amount (𐆖)' : 'Sell Shares'}</div>
+              <div className="text-lg font-bold mb-2">{mode === 'buy' ? <>Bet Amount (<DenariusSymbolLarge size={20} />)</> : 'Sell Shares'}</div>
               {/* Amount input */}
               <input
                 type="text"

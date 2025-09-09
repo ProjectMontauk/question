@@ -8,7 +8,7 @@ import { useState, useEffect, useCallback } from "react";
 import { readContract } from "thirdweb";
 import { usePortfolio } from "../../contexts/PortfolioContext";
 import React from "react";
-import DenariusSymbolInline from "../../../components/DenariusSymbolInline";
+import DenariusSymbolInline from "../../components/DenariusSymbolInline";
 import { prepareContractCall } from "thirdweb";
 import { parseAmountToWei } from "../../utils/parseAmountToWei";
 

@@ -9,11 +9,15 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const isDevelopment = process.env.NODE_ENV === 'development';
   
   const allowedOrigins = isDevelopment 
-    ? ['http://localhost:3000', 'https://localhost:3000']
-    : ['https://www.thecitizen.io'];
+    ? ['http://localhost:3000', 'https://localhost:3000', 'http://localhost:3001']
+    : ['https://www.thecitizen.io', 'https://mvpshell.vercel.app'];
+  
+  console.log('CORS Debug:', { origin, isDevelopment, allowedOrigins });
   
   if (origin && allowedOrigins.includes(origin)) {
     res.setHeader('Access-Control-Allow-Origin', origin);
+  } else {
+    console.log('❌ CORS: Origin not allowed:', origin);
   }
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
@@ -33,6 +37,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     console.log('=== EVIDENCE API DEBUG ===');
     console.log('Request method:', req.method);
     console.log('Request headers:', req.headers);
+    console.log('Origin header:', req.headers.origin);
+    console.log('Referer header:', req.headers.referer);
     console.log('Request body:', req.body);
     console.log('Body type:', typeof req.body);
     console.log('Body keys:', Object.keys(req.body || {}));
@@ -57,27 +63,33 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     // Validate required fields
     if (!marketId || typeof marketId !== 'string') {
-      return res.status(400).json({ error: 'Missing or invalid marketId' });
+      console.log('❌ Validation failed: marketId');
+      return res.status(400).json({ error: 'Missing or invalid marketId', details: { marketId, type: typeof marketId } });
     }
 
     if (!type || !['yes', 'no'].includes(type)) {
-      return res.status(400).json({ error: 'Missing or invalid type (must be yes or no)' });
+      console.log('❌ Validation failed: type');
+      return res.status(400).json({ error: 'Missing or invalid type (must be yes or no)', details: { type, typeOf: typeof type } });
     }
 
     if (!title || typeof title !== 'string' || title.trim().length === 0) {
-      return res.status(400).json({ error: 'Missing or invalid title' });
+      console.log('❌ Validation failed: title');
+      return res.status(400).json({ error: 'Missing or invalid title', details: { title, type: typeof title, length: title?.length } });
     }
 
     if (!url || typeof url !== 'string' || url.trim().length === 0) {
-      return res.status(400).json({ error: 'Missing or invalid url' });
+      console.log('❌ Validation failed: url');
+      return res.status(400).json({ error: 'Missing or invalid url', details: { url, type: typeof url, length: url?.length } });
     }
 
     if (description !== undefined && description !== '' && (typeof description !== 'string' || description.trim().length === 0)) {
-      return res.status(400).json({ error: 'Description must be a non-empty string if provided' });
+      console.log('❌ Validation failed: description');
+      return res.status(400).json({ error: 'Description must be a non-empty string if provided', details: { description, type: typeof description } });
     }
 
     if (!walletAddress || typeof walletAddress !== 'string') {
-      return res.status(400).json({ error: 'Missing or invalid walletAddress' });
+      console.log('❌ Validation failed: walletAddress');
+      return res.status(400).json({ error: 'Missing or invalid walletAddress', details: { walletAddress, type: typeof walletAddress } });
     }
 
     console.log('✅ All validations passed!');

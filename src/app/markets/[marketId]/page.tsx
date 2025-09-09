@@ -997,6 +997,14 @@ useEffect(() => {
   // Handle submit document
   const handleSubmitDocument = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Check if user is signed in
+    if (!account?.address) {
+      setEvidenceSuccessMessage('Please sign-in to contribute information');
+      setTimeout(() => setEvidenceSuccessMessage(null), 5000);
+      return;
+    }
+    
     if (!title.trim()) return;
     
     // Validate based on upload type
@@ -2192,7 +2200,7 @@ useEffect(() => {
                           )}
                         </div>
                         {evidenceSuccessMessage && (
-                          <div className="text-green-600 font-semibold text-center mb-2">{evidenceSuccessMessage}</div>
+                          <div className="text-black font-semibold text-center mb-2">{evidenceSuccessMessage}</div>
                         )}
                         <button
                           type="submit"

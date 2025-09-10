@@ -4,12 +4,14 @@ interface DenariusSymbolLargeProps {
   className?: string;
   size?: number;
   color?: string;
+  style?: React.CSSProperties;
 }
 
 const DenariusSymbolLarge: React.FC<DenariusSymbolLargeProps> = ({ 
   className = '', 
   size = 10, 
-  color = 'currentColor' 
+  color = 'currentColor',
+  style = {}
 }) => {
   return (
     <svg 
@@ -20,9 +22,10 @@ const DenariusSymbolLarge: React.FC<DenariusSymbolLargeProps> = ({
       className={`denarius-symbol-large ${className}`}
       style={{ 
         display: 'inline-block',
-        verticalAlign: 'bottom',
+        verticalAlign: 'middle',
         marginBottom: '5px',
-        marginRight: '2px'
+        marginRight: '2px',
+        ...style
       }}
     >
         <path 

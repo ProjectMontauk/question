@@ -128,7 +128,7 @@ export default function DepositPage() {
                       </div>
                     </div>
                     <div className="text-xl font-bold text-blue-900 mb-3">
-                      <DenariusSymbol size={24} />250
+                      <DenariusSymbol size={24} style={{ marginBottom: '0.5px' }} />250
                     </div>
                     <button
                       onClick={() => handlePayment(10, 250)}
@@ -147,7 +147,7 @@ export default function DepositPage() {
                       </div>
                     </div>
                     <div className="text-xl font-bold text-blue-900 mb-3">
-                      <DenariusSymbol size={24} />500
+                      <DenariusSymbol size={24} style={{ marginBottom: '0.5px' }} />500
                     </div>
                     <button
                       onClick={() => handlePayment(20, 500)}
@@ -169,7 +169,7 @@ export default function DepositPage() {
                       </div>
                     </div>
                     <div className="text-xl font-bold text-blue-900 mb-3">
-                      <DenariusSymbol size={24} />750
+                      <DenariusSymbol size={24} style={{ marginBottom: '0.5px' }} />750
                     </div>
                     <button
                       onClick={() => handlePayment(30, 750)}
@@ -188,7 +188,7 @@ export default function DepositPage() {
                       </div>
                     </div>
                     <div className="text-xl font-bold text-blue-900 mb-3">
-                      <DenariusSymbol size={24} />1000
+                      <DenariusSymbol size={24} style={{ marginBottom: '0.5px' }} />1000
                     </div>
                     <button
                       onClick={() => handlePayment(40, 1000)}

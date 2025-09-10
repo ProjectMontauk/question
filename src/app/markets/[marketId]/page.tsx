@@ -14,6 +14,7 @@ import { submitTrade } from "../../../utils/tradeApi";
 import { getMarketById } from "../../../data/markets";
 import { notFound } from "next/navigation";
 import DenariusSymbolLarge from "../../../components/DenariusSymbolLarge";
+import DenariusSymbol from "../../../components/DenariusSymbol";
 
 // Backend API base URL - use Next.js API routes for both dev and production
 const API_BASE_URL = process.env.NODE_ENV === 'production' ? 'https://mvpshell.vercel.app' : '';
@@ -1694,13 +1695,13 @@ useEffect(() => {
                     <div className="text-right mr-2">
                       {mode === 'buy' ? (
                         <div className="text-sm font-semibold text-green-600">
-                          Cash: {(!account?.address) ? "𐆖--" : (() => {
-                            if (!userTokenBalance) return "𐆖0";
+                          Cash: {(!account?.address) ? <><DenariusSymbol size={16} style={{ marginBottom: '1px' }} />--</> : (() => {
+                            if (!userTokenBalance) return <><DenariusSymbol size={16} style={{ marginBottom: '1px' }} />0</>;
                             const amount = Number(userTokenBalance) / 1e18;
-                            return `𐆖${amount % 1 === 0 
+                            return <><DenariusSymbol size={16} style={{ marginBottom: '1px' }} />{amount % 1 === 0 
                               ? amount.toLocaleString(undefined, { maximumFractionDigits: 0 })
                               : amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-                            }`;
+                            }</>;
                           })()}
                         </div>
                       ) : (

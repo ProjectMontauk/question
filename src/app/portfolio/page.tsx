@@ -68,7 +68,6 @@ export default function PortfolioPage() {
   const [activeTab, setActiveTab] = useState<'history' | 'current'>('current');
   const [currentPositions, setCurrentPositions] = useState<CurrentPosition[]>([]);
   const [currentPositionsLoading, setCurrentPositionsLoading] = useState(false);
-  const [totalDeposits, setTotalDeposits] = useState<number>(0);
 
   // Fetch current odds for each market that the user has positions in
   const fetchMarketOdds = async (marketIds: string[]) => {
@@ -237,28 +236,6 @@ export default function PortfolioPage() {
     loadTrades();
   }, [account?.address]);
 
-  // Fetch total deposits for P/L calculation
-  const fetchTotalDeposits = useCallback(async () => {
-    if (!account?.address) {
-      setTotalDeposits(0);
-      return;
-    }
-
-    try {
-      const response = await fetch(`/api/user-deposits?walletAddress=${account.address}`);
-      if (response.ok) {
-        const data = await response.json();
-        setTotalDeposits(data.totalDeposits || 0);
-      } else {
-        console.error('Failed to fetch deposits');
-        setTotalDeposits(0);
-      }
-    } catch (error) {
-      console.error('Error fetching deposits:', error);
-      setTotalDeposits(0);
-    } finally {
-    }
-  }, [account?.address]);
 
   // Fetch current positions when account changes or when Current tab is selected
   useEffect(() => {
@@ -267,10 +244,6 @@ export default function PortfolioPage() {
     }
   }, [account?.address, activeTab, fetchCurrentPositions]);
 
-  // Fetch total deposits when account changes
-  useEffect(() => {
-    fetchTotalDeposits();
-  }, [account?.address, fetchTotalDeposits]);
 
   // Add PnL history update on page visit
   useEffect(() => {

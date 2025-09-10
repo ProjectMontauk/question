@@ -8,7 +8,6 @@ import { useState, useEffect, useCallback } from "react";
 import { readContract } from "thirdweb";
 import { usePortfolio } from "../../contexts/PortfolioContext";
 import React from "react";
-import DenariusSymbolInline from "../../components/DenariusSymbolInline";
 import DenariusSymbol from "../../components/DenariusSymbol";
 import { prepareContractCall } from "thirdweb";
 import { parseAmountToWei } from "../../utils/parseAmountToWei";
@@ -345,20 +344,6 @@ export default function PortfolioPage() {
     return 0;
   };
 
-  // Helper function to get current price for a position
-  const getCurrentPrice = (trade: Trade) => {
-    const marketOddsData = marketOdds[trade.marketId];
-    if (!marketOddsData) return '--';
-    
-    if (trade.outcome.toLowerCase().includes('yes') && marketOddsData.oddsYes !== undefined) {
-      const price = Number(marketOddsData.oddsYes) / Math.pow(2, 64);
-      return formatPrice(price);
-    } else if (trade.outcome.toLowerCase().includes('no') && marketOddsData.oddsNo !== undefined) {
-      const price = Number(marketOddsData.oddsNo) / Math.pow(2, 64);
-      return formatPrice(price);
-    }
-    return '--';
-  };
 
   // Calculate total portfolio value using current positions
   const totalPositionsValue = currentPositions.reduce((sum, position) => sum + position.positionValue, 0);
@@ -369,7 +354,6 @@ export default function PortfolioPage() {
 
   // Calculate all-time P/L using deposits vs current portfolio value
   const allTimePL = totalPortfolio - totalDeposits;
-  const allTimePLPercent = totalDeposits > 0 ? (allTimePL / totalDeposits) * 100 : 0;
 
   useEffect(() => {
     if (account && balance !== undefined && Number(balance) === 0) {

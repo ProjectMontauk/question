@@ -6,7 +6,6 @@ import { loadStripe, Stripe } from '@stripe/stripe-js';
 import Navbar from '../../../components/Navbar';
 import { tokenContract } from '../../../constants/contracts';
 import DenariusSymbol from '../../components/DenariusSymbol';
-import DenariusSymbolLarge from '../../components/DenariusSymbolLarge';
 
 export default function DepositPage() {
   const account = useActiveAccount();

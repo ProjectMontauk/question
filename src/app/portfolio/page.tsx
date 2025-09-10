@@ -352,8 +352,6 @@ export default function PortfolioPage() {
     setPortfolioValue(totalPortfolio.toFixed(2));
   }, [totalPortfolio, setPortfolioValue]);
 
-  // Calculate all-time P/L using deposits vs current portfolio value
-  const allTimePL = totalPortfolio - totalDeposits;
 
   useEffect(() => {
     if (account && balance !== undefined && Number(balance) === 0) {

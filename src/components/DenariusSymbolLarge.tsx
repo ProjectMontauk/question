@@ -21,7 +21,7 @@ const DenariusSymbolLarge: React.FC<DenariusSymbolLargeProps> = ({
       style={{ 
         display: 'inline-block',
         verticalAlign: 'bottom',
-        marginBottom: '4px',
+        marginBottom: '5px',
         marginRight: '2px'
       }}
     >

@@ -5,6 +5,8 @@ import { useActiveAccount, useReadContract } from 'thirdweb/react';
 import { loadStripe, Stripe } from '@stripe/stripe-js';
 import Navbar from '../../../components/Navbar';
 import { tokenContract } from '../../../constants/contracts';
+import DenariusSymbol from '../../components/DenariusSymbol';
+import DenariusSymbolLarge from '../../components/DenariusSymbolLarge';
 
 export default function DepositPage() {
   const account = useActiveAccount();
@@ -95,7 +97,7 @@ export default function DepositPage() {
             <div className="mb-6">
               <h2 className="text-lg font-semibold text-gray-900 mb-2">Current Balance</h2>
               <div className="text-2xl font-bold text-green-600">
-                <span className="text-[23.5px] font-normal">𐆖</span> {account?.address ? formatBalance(balance) : '--'}
+                <DenariusSymbol size={28} /> {account?.address ? formatBalance(balance) : '--'}
               </div>
             </div>
 
@@ -114,7 +116,7 @@ export default function DepositPage() {
 
             {/* Buy Nash Offers */}
             <div className="mb-6">
-              <h3 className="text-lg font-semibold text-blue-900 mb-4">Buy Nash (𐆖)</h3>
+              <h3 className="text-lg font-semibold text-blue-900 mb-4">Buy Nash (<DenariusSymbolLarge size={18} />)</h3>
               <div className="space-y-4">
                 {/* First Row - Fixed Offers */}
                 <div className="grid grid-cols-2 gap-4">
@@ -122,11 +124,11 @@ export default function DepositPage() {
                   <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-center">
                     <div className="flex justify-center mb-3">
                       <div className="w-12 h-12 bg-blue-600 rounded-full flex items-center justify-center">
-                        <span className="text-[23.5px] font-normal text-white">𐆖</span>
+                        <DenariusSymbolLarge size={24} color="white" />
                       </div>
                     </div>
                     <div className="text-xl font-bold text-blue-900 mb-3">
-                      <span className="text-[18px] font-normal">𐆖</span>250
+                      <DenariusSymbol size={24} />250
                     </div>
                     <button
                       onClick={() => handlePayment(10, 250)}
@@ -141,11 +143,11 @@ export default function DepositPage() {
                   <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-center">
                     <div className="flex justify-center mb-3">
                       <div className="w-12 h-12 bg-blue-600 rounded-full flex items-center justify-center">
-                        <span className="text-[18px] font-normal text-white">𐆖</span>
+                        <DenariusSymbolLarge size={24} color="white"/>
                       </div>
                     </div>
                     <div className="text-xl font-bold text-blue-900 mb-3">
-                      <span className="text-[18px] font-normal">𐆖</span>500
+                      <DenariusSymbol size={24} />500
                     </div>
                     <button
                       onClick={() => handlePayment(20, 500)}
@@ -163,11 +165,11 @@ export default function DepositPage() {
                   <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-center">
                     <div className="flex justify-center mb-3">
                       <div className="w-12 h-12 bg-blue-600 rounded-full flex items-center justify-center">
-                        <span className="text-[18px] font-normal text-white">𐆖</span>
+                        <DenariusSymbolLarge size={24} color="white" />
                       </div>
                     </div>
                     <div className="text-xl font-bold text-blue-900 mb-3">
-                      <span className="text-[18px] font-normal">𐆖</span>750
+                      <DenariusSymbol size={24} />750
                     </div>
                     <button
                       onClick={() => handlePayment(30, 750)}
@@ -182,11 +184,11 @@ export default function DepositPage() {
                   <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-center">
                     <div className="flex justify-center mb-3">
                       <div className="w-12 h-12 bg-blue-600 rounded-full flex items-center justify-center">
-                        <span className="text-[18px] font-normal text-white">𐆖</span>
+                        <DenariusSymbolLarge size={24} color="white" />
                       </div>
                     </div>
                     <div className="text-xl font-bold text-blue-900 mb-3">
-                      <span className="text-[18px] font-normal">𐆖</span>1000
+                      <DenariusSymbol size={24} />1000
                     </div>
                     <button
                       onClick={() => handlePayment(40, 1000)}
@@ -207,7 +209,7 @@ export default function DepositPage() {
             <div className="mt-8 pt-6 border-t border-gray-200">
               <h3 className="text-lg font-semibold text-gray-900 mb-3">How it works</h3>
               <div className="space-y-2 text-sm text-gray-600">
-                <p>• Buy Nash (𐆖) with Credit/Debit, Paypal, or Apple Pay </p>
+                <p>• Buy Nash (<DenariusSymbolLarge size={14} />) with Credit/Debit, Paypal, or Apple Pay </p>
                 <p>• Funds will be deposited to your account and added to your balance</p>
                 <p>• You can use these funds to trade on any market</p>
                 <p>• Deposits are typically processed within a few seconds</p>

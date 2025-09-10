@@ -1298,7 +1298,7 @@ useEffect(() => {
         const shareAmount = parseFloat(amount);
         
         // For sell mode, the refund amount is the payout
-        payoutDisplay = `𐆖 ${refundReceived.toFixed(2)}`;
+        payoutDisplay = refundReceived.toFixed(2);
         // Calculate average price: (refund received / shares sold) * 100 cents
         const avgPriceInCents = (refundReceived / shareAmount) * 100;
         avgPriceDisplay = `¢${avgPriceInCents.toFixed(0)}`;
@@ -1320,7 +1320,7 @@ useEffect(() => {
         // Calculate average price: (user's bet amount / shares received) * 100 cents
         const avgPriceInCents = (amountNum / sharesReceived) * 100;
         const totalReturn = sharesReceived; // $1 per share * number of shares
-        payoutDisplay = `𐆖 ${totalReturn.toFixed(2)}`;
+        payoutDisplay = totalReturn.toFixed(2);
         avgPriceDisplay = `¢${avgPriceInCents.toFixed(0)}`;
         
         // Debug logging for buy priceResult calculations
@@ -1347,7 +1347,7 @@ useEffect(() => {
           payout = Number(amount) * oddsNum;
         }
         if (isFinite(payout)) {
-          payoutDisplay = `𐆖 ${payout.toFixed(2)}`;
+          payoutDisplay = payout.toFixed(2);
         }
         avgPriceDisplay = `¢${(oddsNum * 100).toFixed(0)}`;
       }
@@ -1695,10 +1695,10 @@ useEffect(() => {
                     <div className="text-right mr-2">
                       {mode === 'buy' ? (
                         <div className="text-sm font-semibold text-green-600">
-                          Cash: {(!account?.address) ? <><DenariusSymbol size={16} style={{ marginBottom: '1px' }} />--</> : (() => {
-                            if (!userTokenBalance) return <><DenariusSymbol size={16} style={{ marginBottom: '1px' }} />0</>;
+                          Cash: {(!account?.address) ? <><DenariusSymbol size={10} />--</> : (() => {
+                            if (!userTokenBalance) return <><DenariusSymbol size={10} />0</>;
                             const amount = Number(userTokenBalance) / 1e18;
-                            return <><DenariusSymbol size={16} style={{ marginBottom: '1px' }} />{amount % 1 === 0 
+                            return <><DenariusSymbol size={10} />{amount % 1 === 0 
                               ? amount.toLocaleString(undefined, { maximumFractionDigits: 0 })
                               : amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
                             }</>;
@@ -1706,26 +1706,33 @@ useEffect(() => {
                         </div>
                       ) : (
                         <div className="text-sm font-semibold text-green-600 flex flex-col items-end">
-                          <span className="text-green-600">Yes Shares: {isBalanceLoading ? '...' : outcome1Balance}</span>
-                          <span className="text-red-600">No Shares: {isBalanceLoading ? '...' : outcome2Balance}</span>
+                          <span className="text-green-600">Yes Shares: {isBalanceLoading ? '...' : (outcome1Balance !== '--' && outcome1Balance !== 'Error' ? parseFloat(outcome1Balance).toFixed(2) : outcome1Balance)}</span>
+                          <span className="text-red-600">No Shares: {isBalanceLoading ? '...' : (outcome2Balance !== '--' && outcome2Balance !== 'Error' ? parseFloat(outcome2Balance).toFixed(2) : outcome2Balance)}</span>
                         </div>
                       )}
                     </div>
                   </div>
                   {/* Bet Amount sub-title */}
-                  <div className="text-lg font-bold mb-2">{mode === 'buy' ? <>Bet Amount (<DenariusSymbolLarge size={20} />)</> : 'Sell Shares'}</div>
+                  <div className="text-lg font-bold mb-2">{mode === 'buy' ? <>Bet Amount (<DenariusSymbol size={12} />)</> : 'Sell Shares'}</div>
                   {/* Amount input */}
-                  <input
-                    type="text"
-                    placeholder={`Enter ${mode === 'buy' ? 'Buy' : 'Sell'} Amount`}
-                    value={amount ? (mode === 'buy' ? `𐆖 ${amount}` : amount) : ''}
-                    onChange={e => {
-                      const value = e.target.value.replace(/[^0-9.]/g, '');
-                      setAmount(value);
-                      setSellAllClicked(false);
-                    }}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-black text-base mb-4"
-                  />
+                  <div className="relative">
+                    <input
+                      type="text"
+                      placeholder={`Enter ${mode === 'buy' ? 'Buy' : 'Sell'} Amount`}
+                      value={amount || ''}
+                      onChange={e => {
+                        const value = e.target.value.replace(/[^0-9.]/g, '');
+                        setAmount(value);
+                        setSellAllClicked(false);
+                      }}
+                      className={`w-full ${mode === 'buy' && amount ? 'pl-6' : 'pl-3'} pr-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-black text-base mb-4`}
+                    />
+                    {mode === 'buy' && amount && (
+                      <div className="absolute left-1" style={{ top: '50%', transform: 'translateY(-50%)', marginTop: '-8px' }}>
+                        <DenariusSymbol size={14} />
+                      </div>
+                    )}
+                  </div>
                   {/* Yes/No Cent Price buttons */}
                   <div className="flex flex-row w-full mb-4 gap-2">
                     <button
@@ -1826,7 +1833,7 @@ useEffect(() => {
                   {amount && !isNaN(Number(amount)) && selectedOutcome && (
                     <>
                       {/* Max. Win/Receive sub-title */}
-                      <div className="text-[1.15rem] font-medium text-black">{mode === 'buy' ? 'Max. Win:' : 'Receive:'} <span className="text-green-600 font-bold"><span className="font-normal">𐆖</span> {payoutDisplay.replace('𐆖 ', '')}</span></div>
+                      <div className="text-[1.15rem] font-medium text-black">{mode === 'buy' ? 'Max. Win:' : 'Receive:'} <span className="text-green-600 font-bold"><span className="font-normal"><DenariusSymbol size={16} /></span> {payoutDisplay}</span></div>
                       {/* Avg. Price display */}
                       <div className="text-left text-sm text-gray-600 mb-4">
                         Avg. Price
@@ -2257,19 +2264,26 @@ useEffect(() => {
                 </div>
               </div>
               {/* Bet Amount sub-title */}
-              <div className="text-lg font-bold mb-2">{mode === 'buy' ? <>Bet Amount (<DenariusSymbolLarge size={20} />)</> : 'Sell Shares'}</div>
+              <div className="text-lg font-bold mb-2">{mode === 'buy' ? <>Bet Amount (<DenariusSymbol size={11} />)</> : 'Sell Shares'}</div>
               {/* Amount input */}
-              <input
-                type="text"
-                placeholder={`Enter ${mode === 'buy' ? 'Buy' : 'Sell'} Amount`}
-                value={amount ? (mode === 'buy' ? `𐆖 ${amount}` : amount) : ''}
-                onChange={e => {
-                  const value = e.target.value.replace(/[^0-9.]/g, '');
-                  setAmount(value);
-                  setSellAllClicked(false);
-                }}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-black text-base mb-4"
-              />
+              <div className="relative">
+                <input
+                  type="text"
+                  placeholder={`Enter ${mode === 'buy' ? 'Buy' : 'Sell'} Amount`}
+                  value={amount || ''}
+                  onChange={e => {
+                    const value = e.target.value.replace(/[^0-9.]/g, '');
+                    setAmount(value);
+                    setSellAllClicked(false);
+                  }}
+                  className={`w-full ${mode === 'buy' && amount ? 'pl-5' : 'pl-3'} pr-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-black text-base mb-4`}
+                />
+                {mode === 'buy' && amount && (
+                  <div className="absolute left-2" style={{ top: '50%', transform: 'translateY(-50%)', marginTop: '-8px' }}>
+                    <DenariusSymbol size={11} />
+                  </div>
+                )}
+              </div>
               {/* Yes/No Cent Price buttons */}
               <div className="flex flex-row w-full mb-4 gap-2">
                 <button
@@ -2370,7 +2384,7 @@ useEffect(() => {
               {amount && !isNaN(Number(amount)) && selectedOutcome && (
                 <>
                   {/* Max. Win/Receive sub-title */}
-                  <div className="text-[1.15rem] font-medium text-black">{mode === 'buy' ? 'Max. Win:' : 'Receive:'} <span className="text-green-600 font-bold"><span className="font-normal">𐆖</span> {payoutDisplay.replace('𐆖 ', '')}</span></div>
+                  <div className="text-[1.15rem] font-medium text-black">{mode === 'buy' ? 'Max. Win:' : 'Receive:'} <span className="text-green-600 font-bold"><span className="font-normal"><DenariusSymbol size={8} /></span> {payoutDisplay}</span></div>
                   {/* Avg. Price display */}
                   <div className="text-left text-sm text-gray-600 mb-4">
                     Avg. Price

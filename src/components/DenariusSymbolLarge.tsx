@@ -22,9 +22,7 @@ const DenariusSymbolLarge: React.FC<DenariusSymbolLargeProps> = ({
       className={`denarius-symbol-large ${className}`}
       style={{ 
         display: 'inline-block',
-        verticalAlign: 'middle',
-        marginBottom: '5px',
-        marginRight: '2px',
+        verticalAlign: 'baseline',
         ...style
       }}
     >

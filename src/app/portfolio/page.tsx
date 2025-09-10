@@ -9,6 +9,7 @@ import { readContract } from "thirdweb";
 import { usePortfolio } from "../../contexts/PortfolioContext";
 import React from "react";
 import DenariusSymbolInline from "../../components/DenariusSymbolInline";
+import DenariusSymbol from "../../components/DenariusSymbol";
 import { prepareContractCall } from "thirdweb";
 import { parseAmountToWei } from "../../utils/parseAmountToWei";
 
@@ -398,25 +399,29 @@ export default function PortfolioPage() {
               <div className="flex items-center mb-2">
                 <span className="uppercase tracking-widest text-gray-500 font-semibold text-xs md:text-sm">Portfolio</span>
               </div>
-              <div className="text-2xl md:text-4xl font-bold text-gray-900 mb-2"><DenariusSymbolInline size={36} />&thinsp;{totalPortfolio.toFixed(2)}</div>
-              <div className="text-gray-500 font-semibold text-xs md:text-sm uppercase tracking-widest mb-1">Profit/Loss</div>
-              <div className={
-                allTimePL > 0 ? "text-green-600 font-semibold text-sm md:text-lg" :
-                allTimePL < 0 ? "text-red-600 font-semibold text-sm md:text-lg" :
-                "text-gray-500 font-semibold text-sm md:text-lg"
-              }>
-                {allTimePL >= 0 ? "+" : "-"}<span className="text-[17.5px] font-normal">𐆖</span>&thinsp;{Math.abs(allTimePL).toFixed(2)}
-                <span className="ml-1">
-                  ({Math.abs(allTimePLPercent).toFixed(2)}%)
-                </span>
-                <span className="text-gray-400 font-normal text-xs md:text-base ml-1">All-Time</span>
+              <div className="text-2xl md:text-4xl font-bold text-gray-900 mb-2">
+                <span className="hidden md:inline"><DenariusSymbol size={25} /></span>
+                <span className="md:hidden"><DenariusSymbol size={17} /></span>
+                &thinsp;{totalPortfolio.toFixed(2)}
               </div>
             </div>
             <div className="flex flex-col items-start ml-20">
                               <span className="text-gray-500 font-semibold text-xs md:text-sm uppercase tracking-widest mb-1">Cash</span>
-                              <span className="text-gray-900 font-bold text-xs md:text-[14px] mb-4"><span className="text-[13.5px] font-normal">𐆖</span>&thinsp;{cash.toFixed(2)}</span>
+                              <span className="text-gray-900 font-bold text-xs md:text-[14px] mb-4">
+                                <span className="text-[13.5px] font-normal">
+                                  <span className="hidden md:inline"><DenariusSymbol size={10} /></span>
+                                  <span className="md:hidden"><DenariusSymbol size={9} /></span>
+                                </span>
+                                &thinsp;{cash.toFixed(2)}
+                              </span>
               <span className="text-gray-500 font-semibold text-xs md:text-sm uppercase tracking-widest mb-1 block" style={{ paddingTop: 12 }}>Bet Value</span>
-                              <span className="text-gray-900 font-bold text-xs md:text-[14px] mb-4"><span className="text-[13.5px] font-normal">𐆖</span>&thinsp;{totalPositionsValue.toFixed(2)}</span>
+                              <span className="text-gray-900 font-bold text-xs md:text-[14px] mb-4">
+                                <span className="text-[13.5px] font-normal">
+                                  <span className="hidden md:inline"><DenariusSymbol size={10} /></span>
+                                  <span className="md:hidden"><DenariusSymbol size={9} /></span>
+                                </span>
+                                &thinsp;{totalPositionsValue.toFixed(2)}
+                              </span>
             </div>
             </div>
 
@@ -463,21 +468,19 @@ export default function PortfolioPage() {
                       <table className="min-w-full divide-y divide-gray-200">
                         <thead className="bg-gray-50">
                           <tr>
-                            <th className="px-3 md:px-6 py-2 md:py-3 text-left text-[10px] md:text-xs font-semibold text-gray-600 tracking-wider">MARKET</th>
-                            <th className="px-3 md:px-6 py-2 md:py-3 text-[10px] md:text-xs font-semibold text-gray-600 text-left" colSpan={2}>
-                              AVG <span className="mx-1">→</span> NOW <span title="Average price paid vs. current price" className="ml-1">&#9432;</span>
-                            </th>
-                            <th className="px-3 md:px-6 py-2 md:py-3 text-[10px] md:text-xs font-semibold text-gray-600 text-center">BET</th>
-                            <th className="px-3 md:px-6 py-2 md:py-3 text-[10px] md:text-xs font-semibold text-gray-600 text-center">TO WIN</th>
-                            <th className="px-3 md:px-6 py-2 md:py-3 text-[10px] md:text-xs font-semibold text-gray-600 text-center">VALUE</th>
-                            <th className="px-3 md:px-6 py-2 md:py-3 text-[10px] md:text-xs font-semibold text-gray-600 text-center">P/L</th>
+                            <th className="px-2 md:px-6 py-2 md:py-3 text-left text-[10px] md:text-xs font-semibold text-gray-600 tracking-wider">MARKET</th>
+                            <th className="px-2 md:px-6 py-2 md:py-3 text-[10px] md:text-xs font-semibold text-gray-600 text-center min-w-[100px]">AVG PRICE</th>
+                            <th className="px-2 md:px-6 py-2 md:py-3 text-[10px] md:text-xs font-semibold text-gray-600 text-center min-w-[100px]">BET</th>
+                            <th className="px-2 md:px-6 py-2 md:py-3 text-[10px] md:text-xs font-semibold text-gray-600 text-center min-w-[100px]">TO WIN</th>
+                            <th className="px-2 md:px-6 py-2 md:py-3 text-[10px] md:text-xs font-semibold text-gray-600 text-center min-w-[100px]">VALUE</th>
+                            <th className="px-2 md:px-6 py-2 md:py-3 text-[10px] md:text-xs font-semibold text-gray-600 text-center min-w-[100px]">P/L</th>
                           </tr>
                         </thead>
                         <tbody className="bg-white divide-y divide-gray-200">
                           {trades.map((trade) => (
                             <tr key={trade.id} className="hover:bg-gray-50 transition">
                               {/* Market cell */}
-                              <td className="px-3 md:px-6 py-3 md:py-4 whitespace-nowrap">
+                              <td className="px-2 md:px-6 py-3 md:py-4 whitespace-nowrap">
                                 <div>
                                   <div className={`font-semibold text-xs md:text-sm ${getOutcomeColor(trade.outcome)}`}>
                                     {trade.outcome} {formatPrice(trade.avgPrice)}¢ <span className="text-gray-500 font-normal ml-1 text-[10px] md:text-xs">{trade.shares.toFixed(2)} shares</span>
@@ -485,24 +488,33 @@ export default function PortfolioPage() {
                                   <div className="text-gray-900 font-medium text-xs md:text-sm leading-tight">{trade.marketTitle}</div>
                                 </div>
                               </td>
-                              {/* Avg → Now */}
-                              <td className="px-3 md:px-6 pr-3 py-3 md:py-4 text-left text-gray-900 text-xs md:text-base" colSpan={2}>
-                                {formatPrice(trade.avgPrice)}¢ <span className="mx-1">→</span> {getCurrentPrice(trade)}¢
+                              {/* Avg Price */}
+                              <td className="px-2 md:px-6 py-3 md:py-4 text-center text-gray-900 text-xs md:text-base min-w-[100px]">
+                                {formatPrice(trade.avgPrice)}¢
                               </td>
                               {/* Bet */}
-                              <td className="px-3 md:px-6 py-3 md:py-4 text-center text-gray-900 text-xs md:text-base">
-                                <span className="text-[15.5px] font-normal">𐆖</span>&thinsp;{trade.betAmount.toFixed(2)}
+                              <td className="px-2 md:px-6 py-3 md:py-4 text-center text-gray-900 text-xs md:text-base min-w-[100px]">
+                                <span className="text-[15.5px] font-normal">
+                                  <span className="hidden md:inline"><DenariusSymbol size={11} /></span>
+                                  <span className="md:hidden"><DenariusSymbol size={9} /></span>
+                                </span>&thinsp;{trade.betAmount.toFixed(2)}
                               </td>
                               {/* To Win */}
-                              <td className="px-3 md:px-6 py-3 md:py-4 text-center text-gray-900 text-xs md:text-base">
-                                <span className="text-[15.5px] font-normal">𐆖</span>&thinsp;{trade.toWin.toFixed(2)}
+                              <td className="px-2 md:px-6 py-3 md:py-4 text-center text-gray-900 text-xs md:text-base min-w-[100px]">
+                                <span className="text-[15.5px] font-normal">
+                                  <span className="hidden md:inline"><DenariusSymbol size={11} /></span>
+                                  <span className="md:hidden"><DenariusSymbol size={9} /></span>
+                                </span>&thinsp;{trade.toWin.toFixed(2)}
                               </td>
                               {/* Value */}
-                              <td className="px-3 md:px-6 py-3 md:py-4 text-center text-xs md:text-base font-bold" style={{color: (trade.shares * getCurrentPriceNumber(trade)) > trade.betAmount ? '#16a34a' : '#dc2626'}}>
-                                <span className="text-[15.5px] font-normal">𐆖</span>&thinsp;{ (trade.shares * getCurrentPriceNumber(trade)).toFixed(2) }
+                              <td className="px-2 md:px-6 py-3 md:py-4 text-center text-xs md:text-base font-bold min-w-[100px]" style={{color: (trade.shares * getCurrentPriceNumber(trade)) > trade.betAmount ? '#16a34a' : '#dc2626'}}>
+                                <span className="text-[15.5px] font-normal">
+                                  <span className="hidden md:inline"><DenariusSymbol size={11} /></span>
+                                  <span className="md:hidden"><DenariusSymbol size={9} /></span>
+                                </span>&thinsp;{ (trade.shares * getCurrentPriceNumber(trade)).toFixed(2) }
                               </td>
                               {/* P/L */}
-                              <td className="px-3 md:px-6 py-3 md:py-4 text-center text-xs md:text-base font-bold" style={{
+                              <td className="px-2 md:px-6 py-3 md:py-4 text-center text-xs md:text-base font-bold min-w-[100px]" style={{
                                 color: (trade.shares * getCurrentPriceNumber(trade) - trade.betAmount) > 0 ? '#16a34a' :
                                       (trade.shares * getCurrentPriceNumber(trade) - trade.betAmount) < 0 ? '#dc2626' : '#6b7280'
                               }}>
@@ -511,7 +523,10 @@ export default function PortfolioPage() {
                                   return (
                                     <>
                                       {pl > 0 ? '+' : pl < 0 ? '-' : ''}
-                                      <span className="text-[15.5px] font-normal">𐆖</span>&thinsp;{Math.abs(pl).toFixed(2)}
+                                        <span className="text-[15.5px] font-normal">
+                                          <span className="hidden md:inline"><DenariusSymbol size={11} /></span>
+                                          <span className="md:hidden"><DenariusSymbol size={9} /></span>
+                                        </span>&thinsp;{Math.abs(pl).toFixed(2)}
                                     </>
                                   );
                                 })()}
@@ -541,20 +556,20 @@ export default function PortfolioPage() {
                           <table className="min-w-full divide-y divide-gray-200">
                             <thead className="bg-gray-50">
                               <tr>
-                                <th className="px-3 md:px-6 py-2 md:py-3 text-left text-[10px] md:text-xs font-semibold text-gray-600 tracking-wider">MARKET</th>
-                                <th className="px-3 md:px-6 py-2 md:py-3 text-[10px] md:text-xs font-semibold text-gray-600 text-left" colSpan={2}>
+                                <th className="px-2 md:px-6 py-2 md:py-3 text-left text-[10px] md:text-xs font-semibold text-gray-600 tracking-wider">MARKET</th>
+                                <th className="px-2 md:px-6 py-2 md:py-3 text-[10px] md:text-xs font-semibold text-gray-600 text-left" colSpan={2}>
                                   NOW <span title="Current price" className="ml-1">&#9432;</span>
                                 </th>
-                                <th className="px-3 md:px-6 py-2 md:py-3 text-[10px] md:text-xs font-semibold text-gray-600 text-center">SHARES</th>
-                                <th className="px-3 md:px-6 py-2 md:py-3 text-[10px] md:text-xs font-semibold text-gray-600 text-center">VALUE</th>
-                                <th className="px-3 md:px-6 py-2 md:py-3 text-[10px] md:text-xs font-semibold text-gray-600 text-center">POTENTIAL</th>
+                                <th className="px-2 md:px-6 py-2 md:py-3 text-[10px] md:text-xs font-semibold text-gray-600 text-center min-w-[100px]">SHARES</th>
+                                <th className="px-2 md:px-6 py-2 md:py-3 text-[10px] md:text-xs font-semibold text-gray-600 text-center min-w-[100px]">VALUE</th>
+                                <th className="px-2 md:px-6 py-2 md:py-3 text-[10px] md:text-xs font-semibold text-gray-600 text-center min-w-[100px]">POTENTIAL</th>
                               </tr>
                             </thead>
                             <tbody className="bg-white divide-y divide-gray-200">
                               {currentPositions.map((position, index) => (
                                 <tr key={index} className="hover:bg-gray-50 transition">
                                   {/* Market cell */}
-                                  <td className="px-3 md:px-6 py-3 md:py-4 whitespace-nowrap">
+                                  <td className="px-2 md:px-6 py-3 md:py-4 whitespace-nowrap">
                                     <div>
                                       <div className={`font-semibold text-xs md:text-sm ${getOutcomeColor(position.outcome)}`}>
                                         {position.outcome} {formatPrice(position.currentPrice)}¢ <span className="text-gray-500 font-normal ml-1 text-[10px] md:text-xs">{position.shares.toFixed(2)} shares</span>
@@ -563,20 +578,26 @@ export default function PortfolioPage() {
                                     </div>
                                   </td>
                                   {/* Current Price */}
-                                  <td className="px-3 md:px-6 pr-3 py-3 md:py-4 text-left text-gray-900 text-xs md:text-base" colSpan={2}>
+                                  <td className="px-2 md:px-6 pr-2 md:pr-3 py-3 md:py-4 text-left text-gray-900 text-xs md:text-base" colSpan={2}>
                                     {formatPrice(position.currentPrice)}¢
                                   </td>
                                   {/* Shares */}
-                                  <td className="px-3 md:px-6 py-3 md:py-4 text-center text-gray-900 text-xs md:text-base">
+                                  <td className="px-2 md:px-6 py-3 md:py-4 text-center text-gray-900 text-xs md:text-base min-w-[100px]">
                                     {position.shares.toFixed(2)}
                                   </td>
                                   {/* Value */}
-                                  <td className="px-3 md:px-6 py-3 md:py-4 text-center text-xs md:text-base font-bold" style={{color: position.positionValue > 0 ? '#16a34a' : '#dc2626'}}>
-                                    <span className="text-[15.5px] font-normal">𐆖</span>&thinsp;{position.positionValue.toFixed(2)}
+                                  <td className="px-2 md:px-6 py-3 md:py-4 text-center text-xs md:text-base font-bold min-w-[100px]" style={{color: position.positionValue > 0 ? '#16a34a' : '#dc2626'}}>
+                                    <span className="text-[15.5px] font-normal">
+                                      <span className="hidden md:inline"><DenariusSymbol size={11} /></span>
+                                      <span className="md:hidden"><DenariusSymbol size={9} /></span>
+                                    </span>&thinsp;{position.positionValue.toFixed(2)}
                                   </td>
                                   {/* Potential (if outcome resolves to Yes, they win $1 per share) */}
-                                  <td className="px-3 md:py-4 text-center text-xs md:text-base font-bold text-green-600">
-                                    <span className="text-[15.5px] font-normal">𐆖</span>&thinsp;{position.shares.toFixed(2)}
+                                  <td className="px-2 md:px-6 py-3 md:py-4 text-center text-xs md:text-base font-bold text-green-600 min-w-[100px]">
+                                    <span className="text-[15.5px] font-normal">
+                                      <span className="hidden md:inline"><DenariusSymbol size={11} /></span>
+                                      <span className="md:hidden"><DenariusSymbol size={9} /></span>
+                                    </span>&thinsp;{position.shares.toFixed(2)}
                                   </td>
                                 </tr>
                               ))}

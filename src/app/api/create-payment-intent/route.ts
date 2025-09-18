@@ -8,10 +8,6 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
 export async function POST(request: NextRequest) {
   try {
     const { amount, nashAmount, customerWallet } = await request.json();
-    
-    console.log('🔍 API Route - Received data:', { amount, nashAmount, customerWallet });
-    console.log('🔑 Stripe Secret Key (first 10 chars):', process.env.STRIPE_SECRET_KEY?.substring(0, 10));
-    console.log('🔑 Stripe Publishable Key (first 10 chars):', process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY?.substring(0, 10));
 
     if (!amount || amount <= 0) {
       return NextResponse.json(

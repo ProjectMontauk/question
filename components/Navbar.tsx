@@ -74,17 +74,31 @@ const Navbar = () => {
     }
   }, [account?.address, balance, isPending]);
 
-  const wallets = [
-    inAppWallet({
-      auth: {
-        options: ["google", "apple", "email", "phone"],
-      },
-      smartAccount: {
-        chain: base,
-        sponsorGas: true,
-      },
-    }),
-  ];
+  const isDevelopment = process.env.NODE_ENV !== 'production';
+
+  const wallets = isDevelopment
+    ? [
+        inAppWallet({
+          auth: {
+            options: ["google", "apple", "email", "phone", "passkey"] as const,
+          },
+          smartAccount: {
+            chain: base,
+            sponsorGas: true,
+          },
+        }),
+      ]
+    : [
+        inAppWallet({
+          auth: {
+            options: ["google", "apple", "email", "phone"] as const,
+          },
+          smartAccount: {
+            chain: base,
+            sponsorGas: true,
+          },
+        }),
+      ];
 
   // Polling mechanism for cash balance updates
   useEffect(() => {

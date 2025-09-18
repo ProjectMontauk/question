@@ -1,7 +1,7 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import prisma from '../../lib/prisma';
 
-async function handler(req: NextApiRequest, res: NextApiResponse) {
+export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   // Now this API requires a "wristband" (JWT token) to access
 
   if (req.method === 'GET') {

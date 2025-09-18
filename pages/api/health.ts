@@ -1,6 +1,5 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import prisma from '../../lib/prisma';
-import { withAuth } from '../../src/lib/api-auth';
 
 async function handler(req: NextApiRequest, res: NextApiResponse) {
   // Now this API requires a "wristband" (JWT token) to access
@@ -31,7 +30,3 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
   res.setHeader('Allow', ['GET']);
   return res.status(405).end(`Method ${req.method} Not Allowed`);
 }
-
-// Wrap with authentication - now requires "wristband"
-export default withAuth(handler);
-

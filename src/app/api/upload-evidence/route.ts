@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { put } from '@vercel/blob';
-import { validateApiKey } from '../../../lib/auth';
 
 // Handle preflight requests
 export async function OPTIONS() {
@@ -21,14 +20,6 @@ export async function POST(request: NextRequest) {
     'Access-Control-Allow-Methods': 'POST, OPTIONS',
     'Access-Control-Allow-Headers': 'Content-Type, X-API-Key',
   };
-
-  // Validate API key
-  if (!validateApiKey(request)) {
-    return NextResponse.json(
-      { error: 'Unauthorized - Invalid API key' }, 
-      { status: 401, headers }
-    );
-  }
 
   try {
     const formData = await request.formData();

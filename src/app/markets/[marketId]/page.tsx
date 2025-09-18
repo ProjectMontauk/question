@@ -1724,11 +1724,11 @@ useEffect(() => {
                         setAmount(value);
                         setSellAllClicked(false);
                       }}
-                      className={`w-full ${mode === 'buy' && amount ? 'pl-6' : 'pl-3'} pr-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-black text-base mb-4`}
+                      className={`w-full ${mode === 'buy' && amount ? 'pl-4' : 'pl-3'} pr-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-black text-base mb-4`}
                     />
                     {mode === 'buy' && amount && (
                       <div className="absolute left-1" style={{ top: '50%', transform: 'translateY(-50%)', marginTop: '-8px' }}>
-                        <DenariusSymbol size={14} />
+                        <DenariusSymbol size={11} />
                       </div>
                     )}
                   </div>
@@ -1832,7 +1832,7 @@ useEffect(() => {
                   {amount && !isNaN(Number(amount)) && selectedOutcome && (
                     <>
                       {/* Max. Win/Receive sub-title */}
-                      <div className="text-[1.15rem] font-medium text-black">{mode === 'buy' ? 'Max. Win:' : 'Receive:'} <span className="text-green-600 font-bold"><span className="font-normal"><DenariusSymbol size={16} /></span> {payoutDisplay}</span></div>
+                      <div className="text-[1.15rem] font-medium text-black">{mode === 'buy' ? 'Max. Win:' : 'Receive:'} <span className="text-green-600 font-bold"><span className="font-normal"><DenariusSymbol size={13} /></span> {payoutDisplay}</span></div>
                       {/* Avg. Price display */}
                       <div className="text-left text-sm text-gray-600 mb-4">
                         Avg. Price
@@ -2383,7 +2383,7 @@ useEffect(() => {
               {amount && !isNaN(Number(amount)) && selectedOutcome && (
                 <>
                   {/* Max. Win/Receive sub-title */}
-                  <div className="text-[1.15rem] font-medium text-black">{mode === 'buy' ? 'Max. Win:' : 'Receive:'} <span className="text-green-600 font-bold"><span className="font-normal"><DenariusSymbol size={8} /></span> {payoutDisplay}</span></div>
+                  <div className="text-[1.15rem] font-medium text-black">{mode === 'buy' ? 'Max. Win:' : 'Receive:'} <span className="text-green-600 font-bold"><span className="font-normal"><DenariusSymbol size={13} /></span> {payoutDisplay}</span></div>
                   {/* Avg. Price display */}
                   <div className="text-left text-sm text-gray-600 mb-4">
                     Avg. Price

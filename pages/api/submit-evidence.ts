@@ -4,7 +4,24 @@ import { PrismaClient } from '@prisma/client';
 const prisma = new PrismaClient();
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-    
+  // CORS: allow production domain, and localhost in development
+  const origin = req.headers.origin as string | undefined;
+  const isDevelopment = process.env.NODE_ENV === 'development';
+  const allowedOrigins = isDevelopment
+    ? ['http://localhost:3000', 'https://localhost:3000']
+    : ['https://www.thecitizen.io'];
+
+  if (origin && allowedOrigins.includes(origin)) {
+    res.setHeader('Access-Control-Allow-Origin', origin);
+  }
+  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  // If you later use cookies, also set: Access-Control-Allow-Credentials: true
+
+  // Handle preflight
+  if (req.method === 'OPTIONS') {
+    return res.status(200).end();
+  }
 
   if (req.method !== 'POST') {
     res.setHeader('Allow', ['POST']);

@@ -114,7 +114,7 @@ export default function EvidenceDiscussionPage({ params }: { params: Promise<{ i
           {/* Evidence Card */}
           <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-8">
             {/* Evidence Header */}
-            <div className="flex items-start justify-between mb-4">
+            <div className="flex flex-col md:flex-row md:items-start md:justify-between mb-4">
               <div className="flex-1">
                 <div className="flex items-center gap-3 mb-2">
                   <button
@@ -139,12 +139,12 @@ export default function EvidenceDiscussionPage({ params }: { params: Promise<{ i
                   </span>
                 </div>
                 
-                <h1 className="text-2xl font-bold text-gray-900 mb-3">
+                <h1 className="text-xl md:text-2xl font-bold text-gray-900 mb-3">
                   {evidence.title}
                 </h1>
                 
                 {evidence.description && (
-                  <p className="text-gray-700 mb-4 leading-relaxed">
+                  <p className="text-sm md:text-base text-gray-700 mb-4 leading-relaxed">
                     {evidence.description}
                   </p>
                 )}
@@ -164,11 +164,11 @@ export default function EvidenceDiscussionPage({ params }: { params: Promise<{ i
                 )}
               </div>
               
-              {/* Voting Section */}
-              <div className="flex flex-col items-center ml-6">
-                              <div className="text-gray-900 text-lg font-bold mb-2">
-                {evidence.netVotes}
-              </div>
+              {/* Voting Section - Hidden on mobile */}
+              <div className="hidden md:flex flex-col items-center mt-4 md:mt-0 md:ml-6">
+                <div className="text-gray-900 text-lg font-bold mb-2">
+                  {evidence.netVotes}
+                </div>
                 <div className="text-sm text-gray-600 text-center">
                   Net Votes
                 </div>

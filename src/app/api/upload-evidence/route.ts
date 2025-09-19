@@ -36,7 +36,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Only PDF files are allowed' }, { status: 400, headers });
     }
 
-    // Validate file size (max 10MB)
+    // Validate file size (max 10MB for direct blob upload)
     const maxSize = 10 * 1024 * 1024; // 10MB
     if (file.size > maxSize) {
       return NextResponse.json({ error: 'File size must be less than 10MB' }, { status: 400, headers });
@@ -50,7 +50,7 @@ export async function POST(request: NextRequest) {
     const bytes = await file.arrayBuffer();
     const buffer = Buffer.from(bytes);
     
-    // Upload to Vercel Blob storage
+    // Upload to Vercel Blob storage with larger timeout
     const blob = await put(filename, buffer, {
       access: 'public',
       contentType: 'application/pdf',

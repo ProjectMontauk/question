@@ -43,7 +43,7 @@ export const markets: Market[] = [
     description: "Are childhood vaccines linked to higher rates of autism?",
     image: "/RFK.png", // Placeholder image until we add the actual photo
     contractAddress: "0x9db8664c16dcffb5b1bb8cde365fd174d46b3c25", // Vaccines Autism Market Contract on Base
-    outcomes: ["Yes, childhood vaccines linked to autism", "No, childhood vaccines are not linked to autism"],
+    outcomes: ["Yes, childhood vaccines linked to autism", "No, childhood vaccines not linked to autism"],
     rules: "The market will resolve 'Yes' if children following the CDC-recommended childhood vaccine schedule (as of September 18, 2025, linked below) have a higher likelihood of developing Autism Spectrum Disorder over their lifetime compared to unvaccinated children. Otherwise, the market will resolve 'No.' This means children vaccinated according to the CDC schedule are not more likely to develop Autism, the market will resolve 'No.'"
   },
   {
@@ -57,11 +57,11 @@ export const markets: Market[] = [
   },
   {
     id: 'mrna-turbocancer',
-    title: "MRNA Vax linked to Cancer?",
+    title: "MRNA Vax Linked to Cancer?",
     description: "Do COVID-19 MRNA vaccinations cause turbo cancers?",
     image: "/MRNATurboCancer.png", // Placeholder image - you'll need to add this image
     contractAddress: "0xdc57601061c30DCdFbE849e2440CC36A929C7205", // MRNA TurboCancer Market Contract on Base
-    outcomes: ["Yes, MRNA vax linked to cancer", "No, MRNA vax linked to cancer"],
+    outcomes: ["Yes, MRNA vax linked to cancer", "No, MRNA vax not linked to cancer"],
     rules: "The market will resolve 'Yes' if individuals who received COVID-19 mRNA vaccinations show an increase in cancer rates compared to unvaccinated individuals. Otherwise, the market will resolve 'No.' Indicating that COVID-19 mRNA vaccinations do not cause a rise in cancer rates. The resolution will occur once verifiable evidence or consensus is established after the discovery period ends on March 8, 2026."
   }
 ];

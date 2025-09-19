@@ -86,7 +86,7 @@ const Homepage = () => {
         Bet on what you believe, challenge convention, and earn for being right.
       </div>
       {/* Active Markets Section */}
-      <div className="w-full flex flex-col items-center mt-4 md:mt-10">
+      <div className="w-full flex flex-col items-center mt-2 md:mt-5">
         <div className="flex flex-col gap-6 w-full max-w-5xl">
           {/* First row - JFK and Moon Landing */}
           <div className="flex flex-col sm:flex-row gap-6 w-full">

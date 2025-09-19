@@ -102,28 +102,14 @@ const MarketsContent = () => {
     <div className="min-h-screen bg-[#f8f9fa] flex flex-col items-center w-full pt-8">
       {/* Title for each category */}
       <div className="w-full max-w-5xl mx-auto px-5">
-        {category === 'all' && (
-          <>
-            <h1 className="text-[24px] font-bold text-[#171A22] mb-1">All Markets</h1>
-            <div className="text-base text-gray-700 mb-4">
-              Explore markets and discover the truth by publishing new findings and up-voting the best documents in the evidence section!
-          </div>
-          </>
-        )}
         {category === 'history' && (
           <>
             <h1 className="text-[24px] font-bold text-[#171A22] mb-1">History Markets</h1>
-            <div className="text-base text-gray-700 mb-4">
-             Explore markets and discover the truth by publishing new findings and up-voting the best documents in the evidence section!
-            </div>
           </>
         )}
         {category === 'science' && (
           <>
             <h1 className="text-[24px] font-bold text-[#171A22] mb-1">Science Markets</h1>
-            <div className="text-base text-gray-700 mb-4">
-             Explore markets and discover the truth by publishing new findings and up-voting the best documents in the evidence section!
-            </div>
           </>
         )}
           </div>

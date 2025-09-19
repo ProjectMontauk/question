@@ -8,7 +8,7 @@ export async function OPTIONS() {
     headers: {
       'Access-Control-Allow-Origin': 'https://www.thecitizen.io',
       'Access-Control-Allow-Methods': 'POST, OPTIONS',
-      'Access-Control-Allow-Headers': 'Content-Type',
+      'Access-Control-Allow-Headers': 'Content-Type, X-API-Key',
     },
   });
 }

@@ -9,7 +9,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const isDevelopment = process.env.NODE_ENV === 'development';
   const allowedOrigins = isDevelopment
     ? ['http://localhost:3000', 'https://localhost:3000']
-    : ['https://www.thecitizen.io'];
+    : ['*'];
 
   if (origin && allowedOrigins.includes(origin)) {
     res.setHeader('Access-Control-Allow-Origin', origin);

@@ -1,12 +1,9 @@
-"use client";
+'use client';
 
 import { useState, useEffect, useCallback } from "react";
 import { Tab } from "@headlessui/react";
 import { useRouter } from "next/navigation";
-import { useActiveAccount, useReadContract } from "thirdweb/react";
-import { getContract } from "thirdweb";
-import { client } from "../../../src/client";
-import { base } from "thirdweb/chains";
+import { useActiveAccount} from "thirdweb/react";
 import Navbar from "../../../components/Navbar";
 
 type AnswerMap = Record<string, string>;
@@ -20,20 +17,20 @@ export default function SurveyPage() {
   // Evidence section state and functions (copied from JFK market page)
   const router = useRouter();
   const account = useActiveAccount();
-  const [evidence, setEvidence] = useState<any[]>([]);
+  const [evidence, setEvidence] = useState<Array<{id: number; type: string; title: string; url?: string; netVotes: number}>>([]);
   const [loading, setLoading] = useState(true);
   const [userVotes, setUserVotes] = useState<Set<number>>(new Set());
   const [votingEvidenceId, setVotingEvidenceId] = useState<number | null>(null);
   const [showAllYes, setShowAllYes] = useState(false);
   const [showAllNo, setShowAllNo] = useState(false);
-  const [yesVotingPower, setYesVotingPower] = useState(0);
-  const [noVotingPower, setNoVotingPower] = useState(0);
+  const [yesVotingPower] = useState(0);
+  const [noVotingPower] = useState(0);
 
   // JFK market data
   const market = {
     id: 'jfk',
     title: "CIA Involved in JFK Assassination?",
-    outcomes: ["Yes, CIA involved in JFK's death", "No, CIA innocent in JFK's death"]
+    outcomes: ["Yes, CIA involved in JFK&apos;s death", "No, CIA innocent in JFK&apos;s death"]
   };
 
   // Helper functions
@@ -46,11 +43,12 @@ export default function SurveyPage() {
     }
   };
 
-  const getUserVotingContribution = (evidenceId: number, type: string) => {
+  const getUserVotingContribution = () => {
     // Simplified - return 1 for demo
     return 1;
   };
 
+  
   const handleVote = async (evidenceId: number, type: string) => {
     if (!account?.address) return;
     
@@ -91,7 +89,7 @@ export default function SurveyPage() {
     try {
       const response = await fetch('/api/evidence?marketId=jfk');
       if (response.ok) {
-        const data = await response.json();
+        const data = await response.json() as Array<{id: number; type: string; title: string; url?: string; netVotes: number}>;
         setEvidence(data);
       }
     } catch (error) {
@@ -127,8 +125,8 @@ export default function SurveyPage() {
       const data = await res.json();
       if (!res.ok) throw new Error(data?.error || `HTTP ${res.status}`);
       setSubmitted(true);
-    } catch (e: any) {
-      setError(e?.message || "Failed to submit survey");
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : "Failed to submit survey");
     } finally {
       setSubmitting(false);
     }
@@ -207,11 +205,11 @@ export default function SurveyPage() {
             </div>
             <div className="mb-0">
               <div className="grid grid-cols-4 gap-2 items-center">
-                <div className="text-sm font-semibold text-black col-span-3">Yes, CIA involved in JFK's death:</div>
+                <div className="text-sm font-semibold text-black col-span-3">Yes, CIA involved in JFK&apos;s death:</div>
                 <div className="text-lg font-bold text-green-600 text-right bg-green-100 rounded pr-7 px-1">
                   60%
                 </div>
-                <div className="text-sm font-semibold text-black col-span-3">No, CIA innocent in JFK's death:</div>
+                <div className="text-sm font-semibold text-black col-span-3">No, CIA innocent in JFK&apos;s death:</div>
                 <div className="text-lg font-bold text-red-600 text-right bg-red-100 rounded pr-7 px-1">
                   40%
                 </div>
@@ -253,7 +251,7 @@ export default function SurveyPage() {
               <textarea
                 value={answers.otherTopics || ""}
                 onChange={(e) => updateAnswer("otherTopics", e.target.value)}
-                placeholder="Please describe any other topics you'd like to see markets for..."
+                placeholder="Please describe any other topics you&apos;d like to see markets for..."
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 rows={3}
               />
@@ -312,7 +310,7 @@ export default function SurveyPage() {
             <div className="space-y-2">
               {[
                 "Freeze current market odds and redeem at the market price. If the market says 85% yes, yes share holders redeem at 85%?",
-                "Return everybody's money still in the market regardless of current prices",
+                "Return everybody&apos;s money still in the market regardless of current prices",
                 "Allow the market to continue running until there was another trial called to settle the market!"
               ].map((option) => (
                 <label key={option} className="flex items-center space-x-3 cursor-pointer">
@@ -403,7 +401,7 @@ export default function SurveyPage() {
                                 {evidence.netVotes}
                               </div>
                                   <div className="text-green-600 text-xs font-semibold min-h-[1.25rem]" style={{minHeight: '1.25rem'}}>
-                                    {userVotes.has(evidence.id) ? `+${getUserVotingContribution(evidence.id, 'yes')}` : <span className="opacity-0">+0</span>}
+                                    {userVotes.has(evidence.id) ? `+${getUserVotingContribution()}` : <span className="opacity-0">+0</span>}
                                   </div>
                                 </div>
                             </div>
@@ -486,7 +484,7 @@ export default function SurveyPage() {
                                 {evidence.netVotes}
                               </div>
                                   <div className="text-green-600 text-xs font-semibold min-h-[1.25rem]" style={{minHeight: '1.25rem'}}>
-                                    {userVotes.has(evidence.id) ? `+${getUserVotingContribution(evidence.id, 'no')}` : <span className="opacity-0">+0</span>}
+                                    {userVotes.has(evidence.id) ? `+${getUserVotingContribution()}` : <span className="opacity-0">+0</span>}
                                   </div>
                                 </div>
                             </div>

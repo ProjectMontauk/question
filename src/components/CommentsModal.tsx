@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import Comment from './Comment';
 
 // Backend API base URL - use Next.js API routes for both dev and production
-const API_BASE_URL = process.env.NODE_ENV === 'production' ? 'https://mvpshell.vercel.app' : '';
+const API_BASE_URL = process.env.NODE_ENV === 'production' ? 'https://question-ochre.vercel.app' : '';
 
 interface Evidence {
   id: number;

@@ -1,5 +1,5 @@
 // API utility functions with authentication
-const API_BASE_URL = process.env.NODE_ENV === 'production' ? 'https://mvpshell.vercel.app' : '';
+const API_BASE_URL = process.env.NODE_ENV === 'production' ? 'https://question-ochre.vercel.app' : '';
 
 // Get API key from environment (this should be set in your build process)
 const getApiKey = (): string => {

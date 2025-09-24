@@ -31,7 +31,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     // Get the API base URL
     const API_BASE_URL = process.env.NODE_ENV === 'production' 
-      ? 'https://mvpshell.vercel.app' 
+      ? 'https://question-ochre.vercel.app' 
       : '';
 
     // Call the protected odds-history endpoint with server-side secret key

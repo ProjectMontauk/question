@@ -16,7 +16,7 @@ import { notFound } from "next/navigation";
 import DenariusSymbol from "../../../components/DenariusSymbol";
 
 // Backend API base URL - use Next.js API routes for both dev and production
-const API_BASE_URL = process.env.NODE_ENV === 'production' ? 'https://https://question-ochre.vercel.app' : '';
+const API_BASE_URL = process.env.NODE_ENV === 'production' ? 'https://question-ochre.vercel.app' : '';
 
 // Helper to extract domain from URL
 function getDomain(url: string) {

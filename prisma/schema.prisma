@@ -1,9 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -14,228 +8,218 @@ datasource db {
 }
 
 model Evidence {
-  id          Int      @id @default(autoincrement())
-  marketId    String   // Market identifier (e.g., 'jfk', 'moon')
-  type        String   // 'yes' or 'no'
-  title       String
-  url         String?
-  description String
-  netVotes     Int      @default(0)
-  createdAt   DateTime @default(now())
+  id            Int       @id @default(autoincrement())
+  marketId      String
+  type          String
+  title         String
+  url           String?
+  description   String
+  netVotes      Int       @default(0)
+  createdAt     DateTime  @default(now())
   walletAddress String
-  
-  // Relation to individual votes
-  votes       Vote[]
-  comments    Comment[]
-  
-  // Index for better query performance
+  comments      Comment[]
+  votes         Vote[]
+
   @@index([marketId])
   @@index([marketId, type])
 }
 
 model OddsHistory {
-  id            Int      @id @default(autoincrement())
-  marketId      String   // Market identifier
+  id             Int      @id @default(autoincrement())
+  marketId       String
   yesProbability Float
   noProbability  Float
   timestamp      DateTime @default(now())
-  
-  // Index for better query performance
+
   @@index([marketId])
   @@index([marketId, timestamp])
 }
 
-// New model to track individual votes
 model Vote {
   id            Int      @id @default(autoincrement())
   evidenceId    Int
-  marketId      String   // Market identifier
+  marketId      String
   walletAddress String
-  voteWeight    Int      @default(1) // The weighted value of this vote
+  voteWeight    Int      @default(1)
   createdAt     DateTime @default(now())
-  
-  // Relation to evidence
   evidence      Evidence @relation(fields: [evidenceId], references: [id], onDelete: Cascade)
-  
-  // Composite unique constraint to prevent duplicate votes
+
   @@unique([evidenceId, walletAddress])
-  
-  // Indexes for better query performance
   @@index([marketId])
   @@index([walletAddress])
 }
 
-// New model to track user market positions for voting weight calculation
 model UserMarketPosition {
   id            Int      @id @default(autoincrement())
-  marketId      String   // Market identifier
+  marketId      String
   walletAddress String
-  yesShares     Int      @default(0) // Number of Yes shares held
-  noShares      Int      @default(0)  // Number of No shares held
+  yesShares     Int      @default(0)
+  noShares      Int      @default(0)
   lastUpdated   DateTime @default(now())
-  
-  // Unique constraint per wallet per market
+
   @@unique([marketId, walletAddress])
-  
-  // Indexes for better query performance
   @@index([marketId])
   @@index([walletAddress])
 }
 
-// New model for Reddit-style comments on evidence
 model Comment {
-  id            Int       @id @default(autoincrement())
+  id            Int           @id @default(autoincrement())
   evidenceId    Int
-  marketId      String    // Market identifier
-  parentId      Int?      // For nested replies (null for top-level comments)
+  marketId      String
+  parentId      Int?
   walletAddress String
   content       String
-  upvotes       Int       @default(0)
-  downvotes     Int       @default(0)
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
-  
-  // Relations
-  evidence      Evidence  @relation(fields: [evidenceId], references: [id], onDelete: Cascade)
-  parent        Comment?  @relation("CommentReplies", fields: [parentId], references: [id], onDelete: Cascade)
-  replies       Comment[] @relation("CommentReplies")
+  upvotes       Int           @default(0)
+  downvotes     Int           @default(0)
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+  evidence      Evidence      @relation(fields: [evidenceId], references: [id], onDelete: Cascade)
+  parent        Comment?      @relation("CommentReplies", fields: [parentId], references: [id], onDelete: Cascade)
+  replies       Comment[]     @relation("CommentReplies")
   votes         CommentVote[]
-  
-  // Indexes for better query performance
+
   @@index([evidenceId])
   @@index([marketId])
   @@index([parentId])
   @@index([walletAddress])
 }
 
-// New model to track comment votes (upvotes/downvotes)
 model CommentVote {
-  id            Int       @id @default(autoincrement())
+  id            Int      @id @default(autoincrement())
   commentId     Int
-  marketId      String    // Market identifier
+  marketId      String
   walletAddress String
-  voteType      String    // 'upvote' or 'downvote'
-  createdAt     DateTime  @default(now())
-  
-  // Relations
-  comment       Comment   @relation(fields: [commentId], references: [id], onDelete: Cascade)
-  
-  // Composite unique constraint to prevent duplicate votes per user per comment
+  voteType      String
+  createdAt     DateTime @default(now())
+  comment       Comment  @relation(fields: [commentId], references: [id], onDelete: Cascade)
+
   @@unique([commentId, walletAddress])
-  
-  // Indexes for better query performance
   @@index([commentId])
   @@index([marketId])
   @@index([walletAddress])
 }
 
 model Trade {
-  id           Int      @id @default(autoincrement())
-  walletAddress String  // User's wallet address
-  marketTitle   String  // Market title for display
-  marketId      String  // Market identifier
-  outcome       String  // 'yes' or 'no'
-  shares        Float   // Number of shares bought
-  avgPrice      Float   // Average price paid per share (in cents)
-  betAmount     Float   // Total USD amount spent
-  toWin         Float   // Potential payout if outcome wins
-  status        String  @default("OPEN") // 'OPEN', 'WON', 'LOST', etc.
+  id            Int      @id @default(autoincrement())
+  walletAddress String
+  marketTitle   String
+  marketId      String
+  outcome       String
+  shares        Float
+  avgPrice      Float
+  betAmount     Float
+  toWin         Float
+  status        String   @default("OPEN")
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
-  
-  // Index for better query performance
+
   @@index([marketId])
 }
 
 model UserPnLHistory {
   id            Int      @id @default(autoincrement())
   walletAddress String
-  pnl           Float    // Net profit/loss at this point in time
+  pnl           Float
   timestamp     DateTime @default(now())
-  
+
   @@index([walletAddress])
   @@index([timestamp])
 }
 
-// Model for market ideas submitted by users
 model MarketIdea {
-  id            Int      @id @default(autoincrement())
+  id            Int              @id @default(autoincrement())
   title         String
   description   String
   rules         String
-  netVotes      Int      @default(0)
+  netVotes      Int              @default(0)
   walletAddress String
-  status        String   @default("pending") // 'pending', 'approved', 'rejected'
-  createdAt     DateTime @default(now())
-  
-  // Relation to individual votes
+  status        String           @default("pending")
+  createdAt     DateTime         @default(now())
   votes         MarketIdeaVote[]
-  
-  // Indexes for better query performance
+
   @@index([walletAddress])
   @@index([status])
 }
 
-// Model to track votes on market ideas
 model MarketIdeaVote {
-  id            Int      @id @default(autoincrement())
+  id            Int        @id @default(autoincrement())
   ideaId        Int
   walletAddress String
-  voteWeight    Int      @default(1) // The weighted value of this vote
-  createdAt     DateTime @default(now())
-  
-  // Relation to market idea
+  voteWeight    Int        @default(1)
+  createdAt     DateTime   @default(now())
   marketIdea    MarketIdea @relation(fields: [ideaId], references: [id], onDelete: Cascade)
-  
-  // Composite unique constraint to prevent duplicate votes
+
   @@unique([ideaId, walletAddress])
-  
-  // Indexes for better query performance
   @@index([ideaId])
   @@index([walletAddress])
 }
 
-// Model to track user deposits for P/L calculations
 model UserDeposits {
-  id            Int      @id @default(autoincrement())
-  walletAddress String
-  amount        Float    // Amount deposited in USD
-  transactionHash String? // Optional: blockchain transaction hash
-  createdAt     DateTime @default(now())
-  
-  // Indexes for better query performance
+  id              Int      @id @default(autoincrement())
+  walletAddress   String
+  amount          Float
+  transactionHash String?
+  createdAt       DateTime @default(now())
+
   @@index([walletAddress])
   @@index([createdAt])
 }
 
-// Model to track processed Stripe checkout sessions for minting
 model ProcessedSession {
-  id            Int      @id @default(autoincrement())
-  sessionId     String   @unique // Stripe checkout session ID
-  nashAmount    String   // Amount of Nash tokens to mint
-  customerWallet String  // Customer's wallet address
-  purchaseAmount String   // Purchase amount in USD
-  status        String   @default("pending") // 'pending', 'completed', 'failed'
-  mintedAt      DateTime? // When tokens were actually minted
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
-  
-  // Indexes for better query performance
+  id             Int       @id @default(autoincrement())
+  sessionId      String    @unique
+  nashAmount     String
+  customerWallet String
+  purchaseAmount String
+  status         String    @default("pending")
+  mintedAt       DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
   @@index([sessionId])
   @@index([customerWallet])
   @@index([status])
   @@index([createdAt])
 }
 
-// Model to track auto-deposits to prevent double deposits
 model AutoDeposit {
-  id            Int      @id @default(autoincrement())
-  walletAddress String   @unique // User's wallet address
-  amount        String   // Amount of Nash tokens deposited
-  transactionHash String? // Optional: blockchain transaction hash
-  createdAt     DateTime @default(now())
-  
-  // Indexes for better query performance
+  id              Int      @id @default(autoincrement())
+  walletAddress   String   @unique
+  amount          String
+  transactionHash String?
+  createdAt       DateTime @default(now())
+
   @@index([walletAddress])
   @@index([createdAt])
+}
+
+// Stores survey responses; each question as a column with concatenated string answers
+model SurveyResponse {
+  id            Int       @id @default(autoincrement())
+  name          String?
+  sessionId     String?
+  walletAddress String?
+  
+  // Each question as a single column storing concatenated answers
+  userType                    String? // Question 1: User type selections
+  topicsOfInterest            String? // Question 2: Topic selections
+  otherTopics                 String? // Question 2: Additional topics text
+  expertCommission            String? // Question 3: Yes/No
+  marketResolutionMethod      String? // Question 4: Resolution method selections
+  inconclusiveEvidenceHandling String? // Question 5: Inconclusive evidence selections
+  viewEvidenceBeforeBetting   String? // Question 6: Yes/No
+  contributeToInformation     String? // Question 7: Yes/No
+  trustEvidenceRating         String? // Question 8: 1-10 rating
+  televisedTrialInterest      String? // Question 9: Yes/No
+  expertReportPreference      String? // Question 10: Yes/No
+  expertClassPreference       String? // Question 11: Expert class selections
+  additionalComments          String? // Open-ended comments
+  
+  // Metadata
+  userAgent                   String?
+  ipAddress                   String?
+  createdAt                   DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([walletAddress])
 }

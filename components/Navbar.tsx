@@ -289,6 +289,13 @@ const Navbar = () => {
             >
               Deposit
             </button>
+            <button
+              className="py-1 px-1 md:px-2 bg-white text-[#171A22] rounded-md text-[10px] md:text-sm font-semibold hover:bg-gray-100 transition border-none shadow-none text-left whitespace-nowrap"
+              style={{ minWidth: 0 }}
+              onClick={() => router.push("/survey")}
+            >
+              Survey
+            </button>
           </div>
         </div>
         <div className="flex items-center gap-0">

@@ -6,7 +6,7 @@ export async function OPTIONS() {
   return new NextResponse(null, {
     status: 200,
     headers: {
-      'Access-Control-Allow-Origin': 'https://www.thecitizen.io',
+      'Access-Control-Allow-Origin': '*',
       'Access-Control-Allow-Methods': 'POST, OPTIONS',
       'Access-Control-Allow-Headers': 'Content-Type, X-API-Key',
     },
@@ -16,7 +16,7 @@ export async function OPTIONS() {
 export async function POST(request: NextRequest) {
   // Set CORS headers
   const headers = {
-    'Access-Control-Allow-Origin': 'https://www.thecitizen.io',
+    'Access-Control-Allow-Origin': '*',
     'Access-Control-Allow-Methods': 'POST, OPTIONS',
     'Access-Control-Allow-Headers': 'Content-Type, X-API-Key',
   };

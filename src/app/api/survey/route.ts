@@ -107,7 +107,11 @@ export async function POST(request: Request) {
         ipAddress: ipAddress || null,
       },
     });
-    return NextResponse.json({ id: created.id, createdAt: created.createdAt });
+    const response = NextResponse.json({ id: created.id, createdAt: created.createdAt });
+    response.headers.set('Access-Control-Allow-Origin', '*');
+    response.headers.set('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+    response.headers.set('Access-Control-Allow-Headers', 'Content-Type');
+    return response;
   } catch (err) {
     console.error('Survey POST error', err);
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
@@ -115,7 +119,19 @@ export async function POST(request: Request) {
 }
 
 export async function GET() {
-  return NextResponse.json({ ok: true });
+  const response = NextResponse.json({ ok: true });
+  response.headers.set('Access-Control-Allow-Origin', '*');
+  response.headers.set('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+  response.headers.set('Access-Control-Allow-Headers', 'Content-Type');
+  return response;
+}
+
+export async function OPTIONS() {
+  const response = new NextResponse(null, { status: 200 });
+  response.headers.set('Access-Control-Allow-Origin', '*');
+  response.headers.set('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+  response.headers.set('Access-Control-Allow-Headers', 'Content-Type');
+  return response;
 }
 
 

@@ -5,7 +5,7 @@ const prisma = new PrismaClient();
 
 // CORS headers
 const corsHeaders = {
-  'Access-Control-Allow-Origin': 'https://www.thecitizen.io',
+  'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
   'Access-Control-Allow-Headers': 'Content-Type',
 };

@@ -7,6 +7,7 @@ import { useActiveAccount} from "thirdweb/react";
 import Navbar from "../../../components/Navbar";
 
 type AnswerMap = Record<string, string>;
+const STORAGE_KEY = 'survey_answers_v1';
 
 export default function SurveyPage() {
   const [answers, setAnswers] = useState<AnswerMap>({});
@@ -113,6 +114,32 @@ export default function SurveyPage() {
     setAnswers(prev => ({ ...prev, [key]: value }));
   };
 
+  // Load saved answers on first mount
+  useEffect(() => {
+    try {
+      const saved = typeof window !== 'undefined' ? localStorage.getItem(STORAGE_KEY) : null;
+      if (saved) {
+        const parsed = JSON.parse(saved) as AnswerMap;
+        if (parsed && typeof parsed === 'object') {
+          setAnswers(prev => (Object.keys(prev).length === 0 ? parsed : prev));
+        }
+      }
+    } catch {
+      // ignore storage errors
+    }
+  }, []);
+
+  // Persist answers on every change
+  useEffect(() => {
+    try {
+      if (typeof window !== 'undefined') {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(answers));
+      }
+    } catch {
+      // ignore storage errors
+    }
+  }, [answers]);
+
   const submitSurvey = async () => {
     setSubmitting(true);
     setError(null);
@@ -124,6 +151,14 @@ export default function SurveyPage() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data?.error || `HTTP ${res.status}`);
+      // Clear saved answers only after successful submit
+      try {
+        if (typeof window !== 'undefined') {
+          localStorage.removeItem(STORAGE_KEY);
+        }
+      } catch {
+        // ignore storage errors
+      }
       setSubmitted(true);
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : "Failed to submit survey");
